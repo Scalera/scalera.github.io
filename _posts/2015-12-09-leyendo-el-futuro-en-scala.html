@@ -1,0 +1,79 @@
+---
+layout: post
+title: Leyendo el futuro en Scala
+date: 2015-12-09 17:00:16.000000000 +01:00
+type: post
+published: true
+status: publish
+categories:
+- Castellano
+tags: []
+meta:
+  _edit_last: '81583895'
+  geo_public: '0'
+  _rest_api_published: '1'
+  _rest_api_client_id: "-1"
+  _publicize_job_id: '17630298478'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/674607392248586240";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: dvallejonava
+  email: d.vallejo.nava@gmail.com
+  display_name: dvallejonava
+  first_name: ''
+  last_name: ''
+---
+<p style="text-align:justify;">Hoy explotaremos nuestras habilidades místicas para intentar adivinar el futuro. Para ello, utilizaremos el tipo <strong><em>Future</em></strong> que nos proporciona Scala.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/12/a7cae161ea16b893de40b46acadedad9b57373e6ebacfe9cd4bb57a32686517a.jpg" rel="attachment wp-att-971"><img class="size-medium wp-image-971 aligncenter" src="{{ site.baseurl }}/assets/a7cae161ea16b893de40b46acadedad9b57373e6ebacfe9cd4bb57a32686517a.jpg?w=300" alt="a7cae161ea16b893de40b46acadedad9b57373e6ebacfe9cd4bb57a32686517a" width="300" height="225" /></a></p>
+<p><strong>Espera, espera, ¿qué es el tipo Future?</strong></p>
+<p style="text-align:justify;">El tipo <em>Future</em> en Scala se utiliza para computar operaciones costosas en segundo plano sin que se bloquee el hilo de ejecución principal. En dicho <em>Future</em>, se generará el resultado de una o más operaciones. Para ello, se lanzará un thread paralelo.<br />
+Por ejemplo, si nos levantamos un día con la necesidad de saber cuales son los mil primeros números primos, deberíamos hacerlo así:</p>
+<p>[code language="scala"]</p>
+<p>def getFirstMillionOfPrimes: List[Int] = ???</p>
+<p>val f: Future[List[Int]] = Future{ getFirstMillionOfPrimes }<br />
+[/code]</p>
+<p style="text-align:justify;">Una vez que el resultado del Futuro se ha calculado, se puede obtener dicho resultado principalmente de dos formas distintas:</p>
+<ul>
+<li style="text-align:justify;">De forma <strong>bloqueante</strong>: bloqueando la ejecución hasta que el futuro se haya completado.</li>
+<li style="text-align:justify;">De forma <strong>no bloqueante</strong>: dejando pendiente la ejecución de una función que se ejecutará cuando el futuro se haya completado. Vamos, un callback de toda la vida.</li>
+</ul>
+<p>Vamos a ver como se realizaría.</p>
+<p><strong>Modo vidente de pacotilla</strong></p>
+<p style="text-align:justify;">Una de las opciones es realizar una llamada bloqueante sobre el futuro. Esta llamada bloqueante esperará hasta que el futuro se haya completado, y una vez completado devolverá su resultado.</p>
+<p>Para ello se utiliza la llamada <strong><em>Await.result</em></strong>:</p>
+<p>[code language="scala"]</p>
+<p>val f: Future[Int] = Future{<br />
+  Thread.sleep(10000)<br />
+  2<br />
+}</p>
+<p>println(Await.result(f,12.seconds))  //2<br />
+[/code]<br />
+Como se puede ver, es necesario definir un timeout para no esperar indefinidamente. En caso de que el <em>Future</em> tarde más en computar el resultado que el timeout definido, saltará una excepción de timeout.</p>
+<p style="text-align:justify;">Esta forma de obtener el resultado no es recomendable ya que al bloquear la ejecución del programa, estamos realizando justo lo que se pretende evitar utilizando el tipo <em>Future</em>. Sin embargo, en algunas ocaciones se utiliza, por ejemplo, a la hora de realizar testing.</p>
+<p><strong>Modo vidente auténtico (con título acreditativo) </strong></p>
+<p style="text-align:justify;">¿Y entonces cómo debemos trabajar con los <em>Future</em>? Pues muy sencillo, mediante callbacks.</p>
+<p style="text-align:justify;">Los callbacks nos permitirán realizar una o varias acciones una vez que se resuelva el futuro. Pero, y aquí está la magia, lo hará de forma no bloqueante. El callback se definirá y será llamado de forma transparente cuando el futuro se complete. Mientras tanto, el programa seguirá su ejecución.</p>
+<p style="text-align:justify;">Para  tratar el resultado se utilizarán los tipos <em>Success</em> y <em>Failure</em>. Esto es debido a que se utilizará un <strong><em>Try</em></strong> para intentar obtener el valor del futuro. Ya comentamos este tipo en otro <a href="https://scalerablog.wordpress.com/2015/06/24/capturando-excepciones-en-scala-el-tipo-try/">post</a>, pero vamos a ver como aplicaría a los futuros:</p>
+<ul>
+<li style="text-align:justify;">Si el futuro ha conseguido calcular con éxito su cometido, se devuelve el resultado encapsulado en un tipo <em>Success</em>.</li>
+<li style="text-align:justify;">En caso contrario, si algo ha ido mal, se devolverá la excepción producida envuelta en un tipo <em>Failure</em>.</li>
+</ul>
+<p><img class=" size-medium wp-image-972 aligncenter" src="{{ site.baseurl }}/assets/crystal-ball-failure_300px.jpg?w=240" alt="crystal-ball-failure_300px" width="240" height="195" /></p>
+<p>¿Y cómo se define un callback? Pues muy sencillo:</p>
+<p>[code language="scala"]</p>
+<p>f.onComplete( (t: Try[Int]) =&gt; println(t) )<br />
+//Success(2)</p>
+<p>[/code]</p>
+<p style="text-align:justify;">En este caso, esperamos a que se complete el futuro que había definido previamente, e imprimimos su resultado. Como hemos visto, dicho resultado estará encapsulado en un tipo Try.</p>
+<p style="text-align:justify;">Además, podemos definir callbacks que solo se ejecutarán si el futuro ha ido bien o si el futuro ha ido mal:</p>
+<p>[code language="scala"]</p>
+<p>f.onSuccess( n =&gt; println(n) )<br />
+//2</p>
+<p>f.onFailure( throwable =&gt; println(throwable.getMessage) )<br />
+//it will never print an error (because it equals Success(2))</p>
+<p>[/code]</p>
+<p style="text-align:justify;">Esto de los callbacks está muy bien. Sin embargo, una de las operaciones más usadas contra el tipo <em>Future</em> son las transformaciones. Mediante estas transformaciones, podremos cambiar el resultado del Futuro sin esperar explícitamente a que se obtenga el valor computado. Pero, debido a la gran cantidad de transformaciones que se pueden aplicar a un futuro, creo que ese tema merece su propio post dedicado. Así que, nada más por hoy. Hasta otra! :)</p>
+<p style="text-align:justify;">
+<p>&nbsp;</p>

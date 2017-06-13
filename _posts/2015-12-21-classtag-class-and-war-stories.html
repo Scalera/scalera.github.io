@@ -1,0 +1,169 @@
+---
+layout: post
+title: ClassTag, Class and war stories...
+date: 2015-12-21 12:30:25.000000000 +01:00
+type: post
+published: true
+status: publish
+categories:
+- English
+tags:
+- class
+- classtag
+- evidence
+- implicit
+- reflect
+- runtime
+- scala
+- type
+- typetag
+meta:
+  _edit_last: '59615419'
+  geo_public: '0'
+  _publicize_job_id: '17996169572'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/678886472540262405";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: jpaniego
+  email: javiersantospaniego@gmail.com
+  display_name: Javier S. Paniego
+  first_name: ''
+  last_name: ''
+---
+<p>Sometimes, when working with Scala, the need of working with type metadata just comes out. Even though macros might seem something too far, theorical and tricky (we'll speak about them later), sometimes getting some info about runtime classes is more than enough.</p>
+<h2>ClassTag</h2>
+<p>You could see a <code>ClassTag</code> as some 'wrapper' that Scala adds over <code>java.lang.Class</code> runtime classes.</p>
+<p>In order to work with ClassTag we need to import:</p>
+<p>[code language="scala"]<br />
+import scala.reflect.{ClassTag,classTag}<br />
+[/code]</p>
+<p>Whereas the first member imported is the class, the second one is just a method that allows to get implicitly the <code>ClassTag</code> of a certain type. I.e.:</p>
+<p>[code language="scala"]<br />
+scala&gt; classTag[Int]<br />
+res0: scala.reflect.ClassTag[Int] = Int<br />
+[/code]</p>
+<p>Actually, it's just syntax sugar for:</p>
+<p>[code language="scala"]<br />
+def classTag[T:ClassTag]: ClassTag[T] =<br />
+  implicitly[ClassTag[T]]</p>
+<p>scala&gt; classTag[Int]<br />
+res0: scala.reflect.ClassTag[Int] = Int<br />
+[/code]</p>
+<p>There are methods (currently deprecated by type checking via TypeTag) like <code>&lt;:&lt;</code> or <code>=:=</code> that allow checking at compile time the type bounds.<br />
+For example, this:</p>
+<p>[code language="scala"]<br />
+def myMethod[T,U](t: T,u: U)(implicit ev: &lt;:&lt;[T,U]):Unit =<br />
+  println(t,u)<br />
+[/code]</p>
+<p>allows constraining the relation between T and U types:</p>
+<p>[code language="scala"]<br />
+scala&gt; myMethod(new Animal,new Car)<br />
+&lt;console&gt;:11: error: Cannot prove that Animal &lt;:&lt; Car. myMethod(new Animal,new Car)</p>
+<p>scala&gt; myMethod(new Cat,new Animal)<br />
+($line15.$read$$iw$$iw$Cat@350aac89,$line14.$read$$iw$$iw$Animal@1c5920df)<br />
+[/code]</p>
+<h3>Where are my type parameters?</h3>
+<p>One of the main problems working with <code>ClassTag</code> is the information loss about the parameter types that you class might have. For example, if we ask for the <code>ClassTag</code> of <code>List[Int]</code> we'll get that:</p>
+<p>[code language="scala"]<br />
+scala&gt; println(scala.reflect.classTag[List[Int]])<br />
+scala.collection.immutable.List<br />
+[/code]</p>
+<p>As you can see, information about <code>Int</code> that parameterizes the list is lost. This process that removes parameter types info at runtime is well known as <em>type erasure</em>.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/12/62517760.jpg" rel="attachment wp-att-1179"><img class="aligncenter size-medium wp-image-1179" src="{{ site.baseurl }}/assets/62517760.jpg?w=300" alt="62517760" width="300" height="225" /></a></p>
+<p>Nevertheless, if we need info about the static type, we can use <code>TypeTag</code>s (which should be properly explained at future posts, when talking about macros).</p>
+<p>[code language="scala"]<br />
+scala&gt; import scala.reflect.runtime.universe._<br />
+import scala.reflect.runtime.universe._</p>
+<p>scala&gt; val tt = typeTag[List[Int]]<br />
+tt: reflect.runtime.universe.TypeTag[List[Int]] = TypeTag[scala.List[Int]]<br />
+[/code]</p>
+<h2>Frequent problems</h2>
+<h3>How to get the <code>Class</code> of a known type <code>T</code>?</h3>
+<p>[code language="scala"]<br />
+scala&gt; classOf[Int]<br />
+res0: Class[Int] = int<br />
+[/code]</p>
+<h3>I have a <code>Class</code>, but I need a <code>ClassTag</code></h3>
+<p>As easy as:</p>
+<p>[code language="scala"]<br />
+scala&gt; val clazz = classOf[Int]<br />
+clazz: Class[Int] = int</p>
+<p>scala&gt; val ctag = ClassTag(clazz)<br />
+ctag: scala.reflect.ClassTag[Nothing] = Int</p>
+<p>scala&gt; val ctag = scala.reflect.ClassTag[Int](clazz)<br />
+ctag: scala.reflect.ClassTag[Int] = Int<br />
+[/code]</p>
+<p>Notice that, unless we explicitly point the type, <code>ClassTag</code> builder will infer the most generic possible type (<code>Nothing</code>).</p>
+<h3>Is T a subtype of U?</h3>
+<p>We've seen before that, at compile time, we can use <code>&lt;:&lt;</code> and so for constraining type bounds but, what if it takes place at runtime? How can we check it?</p>
+<p>We can use <code>isAssignableFrom</code> method, from class <code>Class</code> that indicates whether a class is the same class (or superclass) compared to another one:</p>
+<p>[code language="scala"]<br />
+object A{<br />
+  def apply[T:ClassTag] = new {<br />
+    def isA[U:ClassTag]: Boolean =<br />
+      classTag[T].runtimeClass.isAssignableFrom(classTag[U].runtimeClass)<br />
+  }<br />
+}<br />
+[/code]</p>
+<p>We could try this code snippet with:</p>
+<p>[code language="scala"]<br />
+scala&gt; A[Int].isA[String]<br />
+res0: Boolean = false</p>
+<p>scala&gt; A[String].isA[String]<br />
+res1: Boolean = true<br />
+[/code]</p>
+<h3>Infer the type of an Any</h3>
+<p>This tip comes out of a question that a colleague made me. 'Is there any way to, having the folling function:</p>
+<p>[code language="scala"]<br />
+def isA[T](t: Any): Boolean = ???<br />
+[/code]</p>
+<p>check if <code>t</code> value is <code>T</code> typed?'<br />
+First obvious step for checking it would be something similar to:</p>
+<p>[code language="scala"]<br />
+scala&gt; def isA[T](t: Any): Boolean = t.isInstanceOf[T]<br />
+&lt;console&gt;:7: warning: abstract type T is unchecked since it is eliminated by erasure<br />
+       def isA[T](t: Any): Boolean = t.isInstanceOf[T]<br />
+                                                   ^<br />
+isA: [T](t: Any)Boolean<br />
+[/code]</p>
+<p>Compiler is warning us (Forewarned is forearmed) that we won't have information about T at runtime, that it's getting lost. What if we try with different types? It eats them all:</p>
+<p>[code language="scala"]<br />
+scala&gt; isA[Int](&quot;&quot;)<br />
+res2: Boolean = true</p>
+<p>scala&gt; isA[Int](3)<br />
+res3: Boolean = true<br />
+[/code]</p>
+<p>In this case, we said 'okay, what if we just try to check if classes are assignables, getting the info from the <code>ClassTag</code>'?<br />
+It happened that,</p>
+<p>[code language="scala"]<br />
+scala&gt; val x: Any = 3<br />
+x: Any = 3</p>
+<p>scala&gt; x.getClass<br />
+res2: Class[_] = class java.lang.Integer</p>
+<p>scala&gt; classOf[Int].isAssignableFrom(classOf[Int])<br />
+res3: Boolean = true</p>
+<p>scala&gt; classOf[Int].isAssignableFrom(classOf[java.lang.Integer])<br />
+res4: Boolean = false<br />
+[/code]</p>
+<p>The <code>x</code> class is <code>java.lang.Integer</code>, which is not assignable from <code>Int</code> class (the same happens with many other primitive types).</p>
+<h4>So we finally...</h4>
+<p>...realized that <code>ClassTag</code> has a wonderfull <code>unapply</code> method that allows to get a typed value if this belongs to the <code>ClassTag</code> parameterized class. Just what we needed:</p>
+<p>[code language="scala"]<br />
+def isA[T:ClassTag](t: Any): Boolean =<br />
+  classTag[T].unapply(t).isDefined<br />
+[/code]</p>
+<p>When we tried it at the REPL, we could gladly check that:</p>
+<p>[code language="scala"]<br />
+scala&gt; val x: Any = 3<br />
+x: Any = 3</p>
+<p>scala&gt; isA[String](x)<br />
+res5: Boolean = false</p>
+<p>scala&gt; isA[Int](x)<br />
+res6: Boolean = true<br />
+[/code]</p>
+<h2>Conclusions</h2>
+<p>It's not very common to deal with all these isses unless you're building a generic enough system. However, it doesn't harm you to have a little idea about what the dark side is about...</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/12/137134463824621.png" rel="attachment wp-att-1182"><img src="{{ site.baseurl }}/assets/137134463824621.png?w=300" alt="137134463824621" width="300" height="209" class="aligncenter size-medium wp-image-1182" /></a></p>
+<p>Peace out!</p>

@@ -1,0 +1,98 @@
+---
+layout: post
+title: 'Hello World en Akka (Parte II: La Venganza)'
+date: 2015-05-06 13:00:00.000000000 +02:00
+type: post
+published: true
+status: publish
+categories:
+- Castellano
+tags:
+- actors
+- akka
+- beginner
+meta:
+  _thumbnail_id: '279'
+  _rest_api_published: '1'
+  _rest_api_client_id: "-1"
+  publicize_twitter_user: ScaleraBlog
+  publicize_twitter_url: http://t.co/VYAUDt8UJ6
+  _wpas_done_10515941: '1'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:3064583607;b:1;}}
+author:
+  login: dvallejonava
+  email: d.vallejo.nava@gmail.com
+  display_name: dvallejonava
+  first_name: ''
+  last_name: ''
+---
+<p>La <a title="Hello World en Akka (Parte I)" href="https://scalerablog.wordpress.com/2015/04/29/hello-world-en-akka-parte-i/" target="_blank">semana pasada</a> aprendimos que era eso del modelo de actores. Además, vimos como crear nuestro propio actor en Akka. Recordemos como nos quedó:</p>
+<p>[code language="scala"]<br />
+class MyFirstActor extends Actor {</p>
+<p>  def receive = {<br />
+    case _ =&gt; println(&quot;Hello World!&quot;)<br />
+  }</p>
+<p>}<br />
+[/code]</p>
+<p>Y seguro que alguno pensasteis: "Pues qué bien. ¿Y que hago yo ahora con esto?".</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/05/wtfshit.jpg"><img class=" size-medium wp-image-279 aligncenter" src="{{ site.baseurl }}/assets/wtfshit.jpg?w=300" alt="wtfshit" width="300" height="230" /></a></p>
+<p>Bueno, hoy vamos a acabar este <em>Hello World</em>. Solo nos queda aprender dos conceptos importantes para terminar el ejemplo:</p>
+<ul>
+<li>Ahora que ya sabemos definir actores, ¿cómo podemos instanciarlos?</li>
+<li>Una vez que tenemos instancias de actores, ¿cómo podemos enviarle mensajes?</li>
+</ul>
+<p>Una vez que tengamos claro como hacer estas dos últimas cosas, podremos tener funcionando nuestro <em>Hello World</em>.</p>
+<p><strong>Creación de Actores</strong></p>
+<p>Lo primero que tenemos que saber es que todos los actores en <em>Akka</em> se crean en un determinado contexto. Dicho contexto puede ser un sistema de actores del tipo <strong><em>ActorSystem</em></strong>. Dicho sistema será el encargado de manejar y gestionar todo el modelo de actores que montemos en él. Para crearlo basta con incluir la siguiente línea:</p>
+<p>[code language="scala"]<br />
+val system = ActorSystem(&quot;my-first-system&quot;)<br />
+[/code]</p>
+<p>Utilizaremos un <em>String</em> en el argumento en el <em>ActorSystem</em> para poder identificarlo mediante un nombre concreto. Este sistema será el contexto donde vivirán todos los actores de nuestro programa. Debido a que es un objeto bastante pesado, recomiendan solo tener una instancia por programa.</p>
+<p>Otra opción posible es crear un actor dentro de otro actor. De esta manera estaríamos creando un actor dentro del contexto de otro. Esto es a lo que se le llama <strong><em>Supervision</em></strong>. Pero como nuestro objetivo es hacer un sencillo <em>Hello World</em>, no vamos a entrar en ello.</p>
+<p>Ahora que ya tenemos un sistema, podemos crear actores en él. Lo primero que se nos ocurriría sería utilizar el constructor de un <em>Actor</em>. Pues no. No todo es tan sencillo. Para crear un actor es necesario usar un <strong><em>Props</em></strong>. El <em>Props</em> es un objeto de configuración que nos permitirá crear un actor y definir los argumentos que queremos pasarle al mismo (en caso de que los tenga). Vamos a ver un ejemplo sencillo:</p>
+<p>[code language="scala"]<br />
+system.actorOf(Props[MyFirstActor], &quot;myFirstActor&quot;)<br />
+[/code]</p>
+<p>Como se puede observar, el sistema tiene un método para crear actores. Dicho método (llamado <strong><em>actorOf</em></strong>) recibe como argumento un <em>Props</em> y, de forma opcional, un nombre para identificar al actor.</p>
+<p>Es importante saber, que el método actorOf no nos devolverá una instancia de Actor. Realmente nos devolverá una referencia al actor. Nos devolverá un <strong><em>ActorRef</em></strong>. Pero no hay que preocuparse. Mediante este <em>ActorRef</em> podremos enviar mensajes al actor sin ningún problema.</p>
+<p><strong>Envío de mensajes</strong></p>
+<p>Definir actores está muy bien. Crearlos mejor aún. Pero no hay que olvidar que la naturaleza de un actor es sustancialmente reactiva. Si no sabemos enviarles mensajes para causar una reacción, un actor no sirve de mucho.<br />
+En <em>Akka</em> hay dos formas de enviar mensajes a los actores. La forma más básica es usar el método <strong><em>tell</em></strong>.</p>
+<p>[code language="scala"]<br />
+actorRef.tell(msg: Any, sender: ActorRef): Unit<br />
+[/code]</p>
+<p>Este método nos permite enviar un mensaje a un actor (<em>actorRef</em>) y.....ya está. No vamos a esperar a recibir una respuesta. Esa es la razón por la que el método devuelve <em>Unit</em>. Además, es importante saber que en el campo <em>sender</em> insertaremos la referencia al actor que queremos que aparezca como remitente. Para nuestro Hello World no es importante, pero más adelante veremos que mediante esta variable podemos hacer que un actor A que envía un mensaje a un actor B consiga que el actor B responda a otro actor C mediante esta variable llamada <em>sender</em>.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/05/tellexamplesender.png"><img class="  wp-image-289 aligncenter" src="{{ site.baseurl }}/assets/tellexamplesender.png?w=300" alt="tellExampleSender" width="421" height="237" /></a></p>
+<p>La signatura de <em>tell</em> parece un poco aparatosa. Por ello existe una forma abreviada, mediante sintactic sugar, de utilizar dicho método:</p>
+<p>[code language="scala"]<br />
+actorRef ! &quot;Yeah, madafaka!&quot;<br />
+[/code]</p>
+<p>Mediante esta linea estamos mandando un saludo muy del Bronx a un actor cuya referencia está en la variable actorRef. En este caso, siempre que utilicemos el método tell mediante '!', el remitente coincidirá con la instancia de actor que haya enviado el mensaje.</p>
+<p>Pero quizás puede que queramos tener un feedback del actor. Puede que queramos esperar una respuesta del mismo. Don't Panic! Para ello usamos el método <strong><em>ask</em></strong>:</p>
+<p>[code language="scala"]<br />
+import akka.pattern.ask</p>
+<p>def ask(actorRef: ActorRef, message: Any)(implicit timeout: Timeout): Future[Any])<br />
+[/code]</p>
+<p>Además del mensaje que queremos enviar y del actor al que enviamos el mensaje, será necesario establecer un <em>timeout</em> para no estar esperando una respuesta de forma indefinida. En este caso no es necesario establecer un <em>sender</em> (remitente) ya que que siempre será el actor que ha enviado el mensaje.</p>
+<p>Como la respuesta la esperamos de manera asíncrona, vendrá devuelta en un futuro. ¿Un futuro? ¿Qué #$?&amp; es eso? Por ahora, sin entrar en detalles, diremos que un futuro es un contenedor en el que se generará un dato, cuando dicho dato esté listo. Más adelante, en futuros post, veremos el tipo <strong><em>Future</em></strong> con más detalle.</p>
+<p>Como en el caso de tell, también tenemos una forma más simple de utilizar el método <em>ask </em>utilizando el símbolo '?':</p>
+<p>[code language="scala"]<br />
+val response: Future[Any] = actorRef ? &quot;What time is it?&quot;<br />
+[/code]</p>
+<p><strong>Finalmente, el Hello World</strong></p>
+<p>Ahora que ya sabemos crear actores y enviar mensajes, utilizando el actor que definimos anteriormente podremos terminar de implementar el "<em>Hello World</em>" en Akka:</p>
+<p>[code language="scala"]<br />
+class MyFirstActor extends Actor {</p>
+<p>  def receive = {<br />
+    case _ =&gt; println(&quot;Hello World!&quot;)<br />
+  }</p>
+<p>}</p>
+<p>object HelloWorldBoot extends App {</p>
+<p>  val system = ActorSystem(&quot;my-first-system&quot;)<br />
+  val myActor: ActorRef =<br />
+    system.actorOf(Props[MyFirstActor],&quot;my-first-actor&quot;)</p>
+<p>  myActor ! &quot;Start!&quot;</p>
+<p>}<br />
+[/code]</p>
+<p>Basta con crear un ActorSystem, un actor en el sistema y enviar un mensaje para que el actor, al recibirlo, haga un println de "Hello World".</p>
+<p>Si todo ha ido bien, después de lanzar el programa veremos un Hello World muy hermoso por pantalla.</p>

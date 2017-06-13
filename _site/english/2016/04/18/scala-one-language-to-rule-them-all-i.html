@@ -1,0 +1,130 @@
+<p><em>In the beginning, there were not programming languages, just machine code. <a href="https://en.wikipedia.org/wiki/Automatic_programming">Automatic programming</a> came to save all us by casting power rings to rule the machines: Programming languages. They diversified, inspired new ones, constituted a rich ecosystem. Among them appeared a highly useful kind of computer languages: DSLs.</em></p>
+<h1>DSLs</h1>
+<p><strong>D</strong>omain <strong>S</strong>pecific (computer) <strong>L</strong>anguages have been around for quite a long time. The academic description of this kind of languages states that they are centred and used for an specific application domain. <strong>DSLs</strong> are <strong>small </strong>and <strong>concise</strong> which implies that they guide their users in the process of describing actions, entities or relations within their domain of application. What's more important, they are made to fit their purpose.</p>
+<blockquote><p><em>If I am doing statistics research, why should worry about memory management?!!</em></p></blockquote>
+<p>It isn't surprising that a whole kingdom of these mini-languages has evolved and took over machine learning tools, scientific programming, hardware design and management, modeling...</p>
+<h1>Wasn't this a blog on Scala? Leave the history for academics!</h1>
+<p>Yeah this might sound as the stories from the past. However, in the context of the current times, when we all seem obsessed by data acquisition, storage and analysis and taking into account that this data is usually complex to manage because of its variability. We are forced to deal with dozens of different ways of managing data and many of them pass through the use of DSLs: SQL, HiveQL, CQL, bash, grep, awk, R, C'mon! How can I even finish the list! Let's forget of what is to come.</p>
+<p>What if a tool would give as the power to create simple, guided and short languages to perform specific domain tasks within.  What if Scala was a kind of DSL where the D stands for the Domain of Creating new DSLs?!</p>
+<p>When its creators named Scala they were not just thinking on its capabilities in code reuse and  potential use in horizontal concurrent environments; they also kept in mind the extensibility of the language. Some of the features in that direction are:</p>
+<ul>
+<li><strong>Infix notation: </strong><code>objectA.method(objectB)</code> can be written as <code><code>objectA method objectB</code></code></li>
+<li><strong>Lack of operators:</strong> There are no operators as separated entities, just methods. Precedence order and associativity rules are provided by the last character of each method name.This way, any method name NOT ending with `:` gets associated from left to right:<br />
+<em>obj1 + obj2 </em>is the same as writing<em> <em>obj1.+(obj2) </em></em>whereas<em> <em>obj1 +: obj2</em></em> is as writing<em><em> <em>obj2.+:(obj1).<br />
+</em></em></em>Similarly, operator precedence is provided by a priority list of method name ending characters. e.g: `*` gets a higher priority than `+`, <em>obj1 + obj2 * obj3  </em>is always interpreted as <em>obj1 + (<em>obj2 * obj3</em>).</em>The mentioned precedence priority list is as follows:</p>
+<ul>
+<li>Any letter, no matter case.</li>
+<li>|</li>
+<li>^</li>
+<li>&amp;</li>
+<li>Symbols = and !</li>
+<li>Symbols &lt; and &gt;</li>
+<li>:</li>
+<li>Arithmetic operations + and -</li>
+<li>Arithmetic operations  *, / and %</li>
+<li>Any other special character.</li>
+</ul>
+</li>
+<li><strong>Advanced object oriented features:</strong> <em>object, trait, ...</em></li>
+</ul>
+<p>These features can be combined to model and build <a href="http://martinfowler.com/bliki/InternalDslStyle.html">internal DSLs</a> within the Scala programming language.</p>
+<h1>Scala DSLs 101</h1>
+<p>Infix notation is the main feature to create our own embedded languages.</p>
+<p>Consider the following trait:</p>
+<p>[code language="scala"]<br />
+trait MovingRobot {<br />
+  def moveForward(): MovingRobot = {<br />
+    println(&quot;Robot moved one position forward&quot;)<br />
+    this<br />
+  }<br />
+  def moveBackward(): MovingRobot = {<br />
+    println(&quot;Robot moved one position backward&quot;)<br />
+    this<br />
+  }<br />
+}<br />
+[/code]</p>
+<p>Which can be mixed in an object declaration as:</p>
+<p>[code language="scala"]<br />
+object robot extends MovingRobot<br />
+[/code]</p>
+<p>Its methods can be called using traditional dot notation:</p>
+<p>[code language="scala"]<br />
+robot.moveForward.moveBackward<br />
+[/code]</p>
+<p>But infix notation give us a more natural way to talk with this simple bot:</p>
+<p>[code language="scala"]<br />
+robot moveForward() moveBackward<br />
+robot moveForward<br />
+robot moveBackward<br />
+[/code]</p>
+<p>This is the simplest  of all possible DSLs.</p>
+<h2>State transitions</h2>
+<p>Yes, simple but rather imperative and useless.  Commands are not changing the system state besides the lateral effect behind <em>println:</em></p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/03/simpliest_automaton.png" rel="attachment wp-att-2227"><img class="aligncenter size-full wp-image-2227" src="/assets/simpliest_automaton.png" alt="simpliest_automaton" width="336" height="260" /></a></p>
+<p>At this point, there are two options to model the effects of the DSL instructions:</p>
+<ul>
+<li><strong>The mutable approach:</strong> Somehow easiest to Scala new comers from imperative languages but it is way more bug prone. This one is rather similar to the approach followed by so many builders in Java. Check Java's <em><a href="https://docs.oracle.com/javase/7/docs/api/java/lang/StringBuilder.html">StringBuilder</a>:<br />
+</em><br />
+The builder state is the string that is being composed. Methods, such as <em><strong><a href="https://docs.oracle.com/javase/7/docs/api/java/lang/StringBuilder.html#append(double)">append</a></strong>(double d), </em>return a reference to the instance of the builder whose state has been altered by the very same method.  Hence, the same reference is always returned since is the same <em>StringBuilder </em>instance which is mutating call after call, sounds familiar?!<a href="https://scalerablog.files.wordpress.com/2016/03/mutable_state.png" rel="attachment wp-att-2228"><img class="aligncenter size-full wp-image-2228" src="/assets/mutable_state.png" alt="mutable_state" width="278" height="160" /></a></li>
+<li><strong>The immutable one (or the path of wisdom):</strong> Do not change anything, return a new state with the attributes derived from the previous state your action. From now, this post will only cover this approach.</li>
+</ul>
+<p>The beauty of the second solution is that each action returns a new state object having a 1 to 1 relation with the system state. That is, the code entities are a perfect reflection of all the changes. Moreover the state is immutable by definition.</p>
+<blockquote><p><span class="rh_me"><a href="http://www.wordreference.com/definition/state">state</a></span> <em class="tooltip rh_pron">/steɪt/</em>  <span class="rh_pdef"><span class="rh_pos">n., adj., v.,</span> <b>stat•ed, stat•ing.</b> </span><br />
+<span class="rh_empos">n.</span></p>
+<ol>
+<li id="advanced_1" value="1"><span class="rh_def">the condition of a person or thing with respect to circumstances or experiences;<br />
+the way something is<span class="rh_ex"><span class="rh_lab">[countable; usually singular]</span>the state of one's health.</span></span></li>
+<li id="advanced_2" value="2"><span class="rh_def">the condition of substances with respect to structure, form, etc.<span class="rh_ex"><span class="rh_lab">[countable]</span>Water in a gaseous state is steam.</span></span></li>
+</ol>
+<p>(www.wordreference.com)</p></blockquote>
+<p>Discussing why<a href="http://www.ibm.com/developerworks/java/library/j-jtp02183/index.html"> immutability drives to way less buggy systems</a> is out of the scope of this post, hundreds of explanations can be found by googling "immutability reduces bugs". Even Java creators decided it was better, at least for their strings.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/03/state_transition.png" rel="attachment wp-att-2229"><img class="aligncenter size-full wp-image-2229" src="/assets/state_transition.png" alt="state_transition" width="588" height="246" /></a></p>
+<p>Each transition returning a whole new state reduces its responsibility  to just one: To generate a new state hence simplifying the DSL design. No changes in the state are to be expected beyond explicit transition calls.</p>
+<h2>The nitty-gritties of immutable state transitions</h2>
+<p>Following the utterly complex example of our uni-dimensional robot API (at this point you must have realized that the <a href="https://scalerablog.wordpress.com/2016/01/20/scalera-challenge-from-earth-to-the-moon/">previous Scalera Challenge</a> included a beautiful DSL), it can be altered to make it follow the above-described functional approach:</p>
+<p>[code language="scala"]<br />
+// All states extend `RobotState`<br />
+trait RobotState {<br />
+  def position: Int<br />
+}</p>
+<p>// Transitions which can be mixed with any state for which they<br />
+// make sense.</p>
+<p>trait MovementTransitions {<br />
+  self: RobotState =&amp;amp;gt;</p>
+<p>  def moveForward(nSteps: Int = 1): RobotState with MovementTransitions</p>
+<p>  def moveBackward(nSteps: Int = 1): RobotState with MovementTransitions</p>
+<p>}</p>
+<p>// States<br />
+// In this example, states only differ in the robot position so they all<br />
+// are represented by the same case class.<br />
+case class Robot(position: Int) extends RobotState with MovementTransitions {</p>
+<p>  def moveForward(nSteps: Int = 1) =<br />
+    Robot(position + nSteps)</p>
+<p>  def moveBackward(nSteps: Int = 1) =<br />
+    Robot(position - nSteps)</p>
+<p>}</p>
+<p>// Initial state<br />
+val robot = new Robot(0)<br />
+[/code]</p>
+<p>And its use:</p>
+<p>[code language="scala"]<br />
+robot moveForward(10) moveBackward() position<br />
+[/code]<br />
+The code above is an oversimplification but shows the basic tricks behind Scala DSLs, namely: The use of infix notation, families of states and transitions only usable within state definitions.</p>
+<h1>A bit of theory: Really? State Machines?</h1>
+<p>Is the state machine model actually needed to implement DSLs? Yes, if you like avoiding shooting yourself in the foot.</p>
+<p><img class="  wp-image-2230 alignleft" src="/assets/shootfoot.gif" alt="shootfoot" width="265" height="276" /></p>
+<p>Immutable state machines are easy to understand, maintain and expand.</p>
+<p>On the other hand, DSLs are languages, formal languages with grammars with a place in <a href="https://en.wikipedia.org/wiki/Chomsky_hierarchy">Noam Chomsky's classification</a>, commonly, Regular Grammars and Context-Free grammar.</p>
+<ul>
+<li>Which theoretical machine is able to recognize/process languages with regular grammars? A <a href="https://en.wikipedia.org/wiki/Finite_state_automaton">finite state automaton</a></li>
+<li>In the case of Context-Free grammar languages, they can be processed by <a href="https://en.wikipedia.org/wiki/Pushdown_automaton">push-down automatons</a> which (<span style="color:#ff0000;"><strong>ALERT!</strong></span> <span style="color:#ff0000;">Oversimplification ahead</span>) can be regarded as a finite automaton enjoying the perk of making use of its own stack to place and read symbols.</li>
+</ul>
+<p>The transition model described afore seems to be just made for implementing this kind of machines. A self-answered question arises as to whether DSLs' developers should dedicate their efforts to find buggy and flimsy solutions when such a solid model is available.</p>
+<blockquote><p>- Well, I suggest you gentlemen invent a way to put a square peg in a round hole.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/03/gene_krantz.png" rel="attachment wp-att-2292"><img class="aligncenter size-full wp-image-2292" src="/assets/gene_krantz.png" alt="gene_krantz" width="700" height="376" /></a></p>
+<p>- Sir, we have plenty of round pegs!</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/03/engineer.png" rel="attachment wp-att-2293"><img class="aligncenter size-full wp-image-2293" src="/assets/engineer.png" alt="engineer" width="700" height="316" /></a></p></blockquote>
+<h1>Coming soon...</h1>
+<p>In the next episode: A practical DSLs development step by step, no more history, theory or that silly things nobody cares about! Just...</p>
+<p style="text-align:center;"><a href="https://scalerablog.files.wordpress.com/2016/03/letsdoit.jpg" rel="attachment wp-att-2294"><img class="aligncenter size-full wp-image-2294" src="/assets/letsdoit.jpg" alt="letsdoit" width="400" height="400" /></a></p>

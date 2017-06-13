@@ -1,0 +1,47 @@
+<p><strong>¿Qué son las clases anónimas?</strong></p>
+<p>Como su propio nombre indica, las clases anónimas son clases sin nombre. Son las clases que más le gustan a los corruptos. No se declaran......BADUM, TSS!</p>
+<p>Ahora en serio, ¿cómo puedo crear una instancia mediante una clase anónima? Muy fácil. Simplemente con la palabra reservada <em>new</em> y definiendo el cuerpo con llaves.</p>
+<p>[code language="scala"]<br />
+val myPoint = new{ val x = 1; val y = 2 }<br />
+[/code]</p>
+<p>De esta forma creamos una instancia que contiene dos valores enteros: <em>x</em> e <em>y</em>. Sin embargo, como se puede apreciar, no hemos dado nombre a esta clase.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/04/wtf.jpg"><img class=" size-medium wp-image-196 aligncenter" src="/assets/wtf.jpg?w=300" alt="tGWoYYo" width="300" height="170" /></a></p>
+<p><strong>Azucar sintáctico</strong></p>
+<p>Hace un par de semanas hablamos de los Traits, y de como podíamos crear una instancia de un trait a traves de una clase anónima.<br />
+Quizás en ese momento, un WTF del tamaño de Sebastopol apareció en tu cabeza.<br />
+Si recordamos aquel post, la sintaxis para crear una instancia desde un trait era algo así:</p>
+<p>[code language="scala"]<br />
+  trait AnonymousHero {<br />
+    def superpower: String<br />
+  }</p>
+<p>  val myHero = new AnonymousHero {<br />
+    def superpower = &quot;I can compile Scala with my brain&quot;<br />
+  }<br />
+[/code]</p>
+<p>¡Estamos creando una instancia desde un trait! ¡No hay clases por ningún lado! ¿Esto es magia negra? Pues no, es <strong>sintactic sugar</strong>.</p>
+<p>Realmente, lo que ocurre por debajo es algo similar a esto:</p>
+<p>[code language="scala"]<br />
+  class AnonymousHeroClass extends AnonymousHero {<br />
+    def superpower: String = &quot;I can compile Scala with my brain&quot;<br />
+  }</p>
+<p>  val myHero = new AnonymousHeroClass</p>
+<p>[/code]</p>
+<p>Como se puede ver, a la hora de instanciar un trait, realmente se crea una clase que extiende de dicho trait. Después, se crea una nueva instancia de la clase creada.</p>
+<p>De esta manera se pueden crear instancias de un trait sin generar boilerplate.</p>
+<p><strong>Bonus-track: Funciones anónimas</strong></p>
+<p>En Scala es posible utilizar <strong>expresiones lambda</strong>, es decir, funciones anónimas. Más adelante, en otros posts, veremos la importancia del uso de funciones anónimas, por ejemplo, en métodos que admiten funciones como parámetro.<br />
+Las funciones anónimas, al igual que las clases anónimas, son funciones que no es necesario declarar.<br />
+Un ejemplo de función anónima es la siguiente:</p>
+<p>[code language="scala"]<br />
+  (x: Int) =&gt; x + 1<br />
+[/code]</p>
+<p>En este caso, la función anónima espera un entero y devolverá ese entero sumado una unidad.</p>
+<p>No hay que olvidar que, en Scala, las funciones realmente son objetos. Y teniendo en cuenta esto último, podemos relacionar las funciones anónimas (o expresiones lambda) con clases anónimas.</p>
+<p>Realmente, cuando se utiliza la función anónima <em>(x: Int) =&gt; x + 1</em> lo que se está haciendo por debajo es crear una instancia de la clase anónima utilizando el trait <em>Function1</em>:</p>
+<p>[code language="scala"]<br />
+new Function1[Int, Int] {<br />
+  def apply(x: Int): Int = x + 1<br />
+}<br />
+[/code]</p>
+<p>¡Todo encaja!</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/04/understand.gif"><img class=" size-medium wp-image-196 aligncenter" src="/assets/understand.gif?w=300" alt="tGWoYYo" width="300" height="170" /></a></p>

@@ -1,0 +1,98 @@
+<p>Today we bring you some <del>extra</del> black magic. I was reading the other day a little bit about the Scala Improvement Processes (SIPs), I found <a href="http://docs.scala-lang.org/sips/completed/type-dynamic.html" target="_blank">something</a> that really got my attention: dynamic types.</p>
+<h2>What are they?</h2>
+<p>Dynamic types allow to define the behavior of some object when a method or a member that doesn't exist is tried to be accessed. I.e.:</p>
+<p>[code language="scala"]<br />
+class MyClass {<br />
+  def someMethod(): String = &quot;hi&quot;<br />
+}<br />
+val myInstance = new MyClass<br />
+myInstance.nonExistentMethod<br />
+[/code]</p>
+<p>will complain at compile time. With dynamic types we can decide that, in case some whatever-its-name-is method is invoked, it will return certain value.</p>
+<h2>How do they work?</h2>
+<p>In order to use dynamic types, it's necessary to <code>import scala.language.dynamics</code> and extend trait <code><a href="https://github.com/scala/scala/blob/v2.11.7/src/library/scala/Dynamic.scala" target="_blank">Dynamic</a></code>:</p>
+<p>[code language="scala"]<br />
+class MyClass extends Dynamic {<br />
+  //...<br />
+}<br />
+[/code]</p>
+<p>The class (or trait) that we will define may have all the attributes and methods we want, but we can also define the following:</p>
+<h3>applyDynamic</h3>
+<p>this method is in charge of managing the invocations to the instance methods.<br />
+If we want our instance to know how to invoke 'myMethod' method with a 'hi' parameter, we can do it as follows:</p>
+<p>[code language="scala"]<br />
+class MyClass extends Dynamic {<br />
+  def applyDynamic(methodName: String)(args: Any*) = {<br />
+    val beginning =<br />
+      args.headOption.getOrElse(&quot;hello&quot;)<br />
+    if (methodName==&quot;myMethod&quot;)<br />
+      println(beginning + &quot; you&quot;)<br />
+    else println(&quot;Dunno...&quot;)<br />
+  }<br />
+}<br />
+[/code]</p>
+<p>If we now create a new instance and we invoke another made-up method, we'll see that it will print out that it doesn't know what you're talking about:</p>
+<p>[code language="scala"]<br />
+val myInstance = new MyClass<br />
+myInstance.anotherMethod()//Dunno...<br />
+[/code]</p>
+<p>And if we invoke the <code>myMethod</code> method we've considered:</p>
+<p>[code language="scala"]<br />
+myInstance.myMethod(&quot;hi&quot;)//hi you<br />
+myInstance.myMethod(2)//2 you<br />
+myInstance.myMethod()//hello you<br />
+[/code]</p>
+<h3>applyDynamicNamed</h3>
+<p>It works exactly like the <code>applyDynamic</code> method, except that it only allows to get by name the parameters that are used when invoking the method:</p>
+<p>[code language="scala"]<br />
+class MyClass extends Dynamic {<br />
+  def applyDynamicNamed(name: String)(args: (String, Any)*) = {<br />
+    val (argName,argValue) =<br />
+      args.headOption.getOrElse((&quot;unknown&quot;,&quot;hello&quot;))<br />
+    if (name==&quot;myMethod&quot;)<br />
+      println(s&quot;$argName : $argValue - you&quot;)<br />
+    else println(&quot;Dunno...&quot;)<br />
+  }<br />
+}<br />
+[/code]</p>
+<p>If the method is invoked without explicitly naming any parameter, this parameter's name will be an empty string. The thing is, to make <code>applyDynamicNamed</code> work, at least one of the parameters has to owe a name.</p>
+<p>[code language="scala"]<br />
+myInstance.myMethod(test=2)//test : 2 - you<br />
+myInstance.myMethod(true,test=2)// : true - you<br />
+myInstance.myMethod(true)<br />
+/*<br />
+error: value applyDynamic is not a member of MyClass<br />
+error after rewriting to myInstance.&lt;applyDynamic: error&gt;(&quot;myMethod&quot;)<br />
+possible cause: maybe a wrong Dynamic method signature?<br />
+*/<br />
+[/code]</p>
+<h3>selectDynamic</h3>
+<p>It is similar to a 'dynamic getter'. I mean:</p>
+<p>[code language="scala"]<br />
+class MyClass extends Dynamic {<br />
+  def selectDynamic(name: String) =<br />
+    s&quot;My $name equals this string&quot;<br />
+}<br />
+val myInstance = new MyClass<br />
+myInstance.someAttribute//My someAttribute equals this string<br />
+[/code]</p>
+<h3>updateDynamic</h3>
+<p>And with this last method, we define the updating behavior of all members of the instance that are not statically defined:</p>
+<p>[code language="scala"]<br />
+class MyClass extends Dynamic {<br />
+  def updateDynamic(name: String)(value: Any) {<br />
+    println(s&quot;you updated your attribute $name with $value value&quot;)<br />
+  }<br />
+}<br />
+val myInstance = new MyClass<br />
+myInstance.myAttribute = 2<br />
+//you updated your attribute myAttribute with 2 value<br />
+[/code]</p>
+<p>NB: It doesn't work really well in the REPL (actually it is compiled as a getter). If you encapsulate it inside an App block, it should work.</p>
+<p>Easy peasy.</p>
+<h2>Why this in a statically typed language?</h2>
+<p><a href="https://scalerablog.files.wordpress.com/2016/01/haters.jpg" rel="attachment wp-att-1281"><img src="/assets/haters.jpg?w=300" alt="haters" width="300" height="216" class="aligncenter size-medium wp-image-1281" /></a></p>
+<p>Official motivation of this SIP was:</p>
+<blockquote><p>Static types are great, but sometimes we would like to do without them. This could give better support for flexible DSLs that do not require defining the members of a type. It could also provide simpler interfaces with dynamic languages. Scala already provides a number of ways to escape from the straightjacket of the type system: The universal type Any, type tests and type casts, as well as pattern matching. However, one thing is missing: When selecting a member qual.sel, sel must be defined in qual, or be addable with an implicit conversion. This means that we can select members or call methods only if it is statically known that the receiver type supports that member.</p></blockquote>
+<p>Even it's true that the purists may see it like an aberration of the statically typed language nature; for the jugglers, it could be seen as another way to risk their necks defining DSLs without compile-time checkings. You judge</p>
+<p>Peace out!</p>

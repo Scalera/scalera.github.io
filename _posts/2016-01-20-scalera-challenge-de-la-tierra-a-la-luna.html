@@ -1,0 +1,67 @@
+---
+layout: post
+title: 'Scalera challenge: De la Tierra a la Luna'
+date: 2016-01-20 12:00:04.000000000 +01:00
+type: post
+published: true
+status: publish
+categories:
+- Castellano
+tags:
+- challenge
+- command
+- dsl
+- esa
+- goto
+- moon
+- move
+- nop
+- prize
+- robot
+- rover
+- scalera
+- space
+meta:
+  _edit_last: '59615419'
+  geo_public: '0'
+  _publicize_job_id: '18935011010'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/689749448331624449";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+  _wpas_skip_10515941: '1'
+author:
+  login: jpaniego
+  email: javiersantospaniego@gmail.com
+  display_name: Javier S. Paniego
+  first_name: ''
+  last_name: ''
+---
+<p>Hemos entrado en el nuevo año, y hemos querido hacerlo pisando fuerte. Como prometimos, uno de nuestros propósitos para este año es tratar de innovar y hacer más participativo el blog. Por ello, os presentamos nuestro primer desafío Scalera, para poner a prueba vuestras cabezitas :-)</p>
+<h2> De la Tierra a la Luna </h2>
+<p><a href="https://scalerablog.files.wordpress.com/2016/01/forever-alone-moon_o_1332879.jpg" rel="attachment wp-att-1262"><img src="{{ site.baseurl }}/assets/forever-alone-moon_o_1332879.jpg?w=300" alt="forever-alone-moon_o_1332879" width="300" height="231" class="aligncenter size-medium wp-image-1262" /></a></p>
+<p>La ESA (Agencia Espacial Europea) quiere mandar dos robots (rovers) a la Luna. Para aterrizar disponen de un sofisticado sistema: un paracaídas. El problema es que todo apunta a que los robots no aterrizaran en el mismo sitio...<br />
+Una vez aterrizados, justo encima de sus propios paracaídas, en la Luna, la cual tiene una superficie discreta de tamaño infinito, ambos rovers deben encontrarse para empezar el desarrollo de la misión juntos.</p>
+<p>El reto consiste en programar, utilizando un conjunto de instrucciones limitado, el rover de manera que se acaben encontrando. Ten en cuenta, que el mismo programa será cargado en ambos robots y los rovers no tienen forma programática de saber su identificador.</p>
+<h2> DSL de navegación</h2>
+<p>El set de instrucciones para programar los rovers se compone de:</p>
+<ul>
+<li><strong>MOVE &lt;direction&gt;</strong> : Mueve el rover una unidad del espacio discreto hacia la izquierda o la derecha.
+</li>
+<li><strong>IF FOUND PARACHUTE &lt;command&gt;</strong> : Si el rover encuentra un paracaídas en la parcela de suelo donde se encuentra, entonces ejecuta la instrucción indicada.
+</li>
+<li><strong>NOP</strong>: El rover no hace nada...
+</li>
+<li><strong>GOTO &lt;lineId&gt;</strong> : Salta a la instrucción que se encuentra en la línea indicada.
+</li>
+</ul>
+<h2> ¡Participa! </h2>
+<p><a href="https://scalerablog.files.wordpress.com/2016/01/moonrover_example.png" rel="attachment wp-att-1263"><img src="{{ site.baseurl }}/assets/moonrover_example.png?w=300" alt="moonrover_example" width="300" height="224" class="aligncenter size-large wp-image-1263" /></a></p>
+<p>Puedes encontrar el proyecto para empezar a programar tus robot <a href="https://github.com/Scalera/moonrover" target="_blank">en github</a>.<br />
+Encontrarás toda la información técnica necesaria en el fichero <strong>README.md</strong>.</p>
+<p>Para participar solo teneis que mandarnos a <strong><u>scalerablog at gmail dot com</u></strong> el fichero <strong>Launch.scala</strong> con el programa que habéis usado y vuestro usuario de twitter para mencionaros en nuestro hall de la fama virtual :-P</p>
+<p>El plazo de participación finaliza en dos semanas naturales desde la fecha de publicación de este post.</p>
+<p>Entre las mejores soluciones (menos ticks de reloj empleados, menos lineas de programa) sortearemos una camiseta del blog :-)</p>
+<p>¡Ánimo y mucha suerte!</p>
+<blockquote><p><em>Cuántas cosas negadas la víspera han sido una realidad al día siguiente</em><br />
+<br />Julio Verne</p></blockquote>

@@ -1,0 +1,95 @@
+<p>Some days you feel handyman, some others you don't. Today is one of those first.<br />
+In this post we'll create a small application with Spark Streaming that allows us to perform analytics over Twitter in a very basic way. Filtering is just the beginning: the limit is your imagination :-)</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/04/giphy-1.gif" rel="attachment wp-att-1870"><img src="/assets/giphy-1.gif" alt="giphy (1)" width="500" height="280" class="aligncenter size-full wp-image-1870" /></a></p>
+<h2>Step 1: Create your OAuth token at Twitter</h2>
+<p>Before start coding like crazy, we have to get an OAuth token for being able to use Twitter's API. It's really easy and you can follow the steps as described in <a href="https://dev.twitter.com/oauth/overview/application-owner-access-tokens" target="_blank"> Twitter's official documentation</a>.</p>
+<p>Once created, if you log in at <a href="http://apps.twitter.com" target="_blank">apps.twitter.com</a> and you click on the application you have just created, inside <strong>Keys and Access Tokens</strong> tab you'll get all the data that our application requires:</p>
+<ul>
+<li>Consumer Key (API Key)</li>
+<li>Consumer Secret (API Secret)</li>
+<li>Access Token</li>
+<li>Access Token Secret</li>
+</ul>
+<h2>Step 2: Defining our DSL</h2>
+<p>For that purpose, you can fork or just clone the <a href="https://github.com/Scalera/twitter-stream" target="_blank">twitter-stream</a> project that can be found at Scalera's Github account. In this section, we'll cover in a flash all components that take part in the project.</p>
+<h3>The core: Source</h3>
+<p>The core of this PoC is deploying a Spark Streaming application that reads from some source (in this case Twitter). We have to mention that Spark's streaming is NRT (Near Real Time) given that, based on certain N window size, every N seconds a new batch will be created with all elements that were written in the source in that time window. </p>
+<p>That data stream in Spark is called <code>DStream</code>, while each of those batches is called <code>RDD</code>. For people that is not familiarized with Spark, an RDD represents a collection that is distributed among the Spark cluster (<em><strong>R</strong>esilient <strong>D</strong>istributed <strong>D</strong>ataset</em>).</p>
+<p>If we take a look at <code>Source</code> trait (Later on we'll see which functionality both <code>Actions</code> and <code>Filters</code> provide):</p>
+<p>[code language="scala"]<br />
+trait Source extends Actions with Filters {<br />
+  _: util.Config =&gt;</p>
+<p>  type Content = twitter4j.Status</p>
+<p>  val conf = new SparkConf()<br />
+    .setAppName(config.getString(Config.AppName))<br />
+    .setMaster(config.getString(Config.SparkMaster))</p>
+<p>  val windowTime = Seconds(config.getInt(Config.WindowSeconds))</p>
+<p>  val ssc = new StreamingContext(conf, windowTime)</p>
+<p>  lazy val stream = TwitterUtils.createStream(ssc, None, filters)</p>
+<p>}<br />
+[/code]</p>
+<p>as you'll see, we define some Spark configuration (<code>SparkConf</code>) from the parameters defined in the configuration file. </p>
+<p>We also define the time window size and instantiate a <code>StreamingContext</code> that we will use to contain our next-declared <code>stream</code>. <code>TwitterUtils</code> (it's imported) provides the way to instantiate the stream, which requires the Streaming context and the key words we want to use for filtering.</p>
+<p>It's good to know that, by creating the stream, it won't start listening new items. It will be evaluated lazily. This is explained by the need of defining in an early moment all those actions that we will want to apply to each new batch in our stream.</p>
+<h3>Defining filters</h3>
+<p>No gimmicks: just a private synchronized variable that allows adding filters as a <code>String</code> sequence. When creating the stream, as we've seen when talking about <code>Source</code>, these filters are passed as parameters.</p>
+<p>[code language="scala"]<br />
+trait Filters {</p>
+<p>  private var _filters: Seq[String] = Seq()</p>
+<p>  def filters = synchronized(_filters)</p>
+<p>  def filter(filters: String*): Unit =<br />
+    synchronized(_filters = _filters ++ filters.toSeq)</p>
+<p>}<br />
+[/code]</p>
+<h3>How to define stream's behavior: Actions</h3>
+<p>The <code>Actions</code> trait is in charge of adding actions/handlers/callbacks to execute each time a new batch is received. These actions will be saved inside <code>actions</code> variable. For adding a new action (<code>Action</code> is just a type alias for a batch - <code>RDD[Content]</code> - to <code>Unit</code> function), method <code>when</code> is invoked.</p>
+<p>Once we have defined all possible actions to perform, we'll start receiving items in the stream after having invoked <code>listen</code> method. It will settle that all defined function inside <code>actions</code> will be applied over the stream and then it starts listening.</p>
+<p>[code language="scala"]<br />
+trait Actions {<br />
+  _: util.Config =&gt;</p>
+<p>  type Content</p>
+<p>  type Action = RDD[Content] =&gt; Unit</p>
+<p>  private var actions: List[Action] = List()</p>
+<p>  val ssc: StreamingContext</p>
+<p>  val stream: ReceiverInputDStream[Content]</p>
+<p>  def listen(): Unit = {<br />
+    actions.foreach(f =&gt;<br />
+      stream.foreachRDD(rdd =&gt; f(rdd)))<br />
+    ssc.start()<br />
+  }</p>
+<p>  def when(action: Action): Unit = {<br />
+    actions = actions :+ action<br />
+  }</p>
+<p>}<br />
+[/code]</p>
+<h3>...the rest of it: Credentials and Analytics</h3>
+<p><code>Credentials</code> has the purpose of reading from the configuration file all parameters relative to the security token and write them as JVM properties.</p>
+<p>The <code>Analytics</code> trait extends from all previously defined components, so using it will be as easy as</p>
+<p>[code language="scala"]<br />
+object Boot extends Analytics<br />
+[/code]</p>
+<h2>Example</h2>
+<p>In first place, we're going to modify the configuration file for using the token we have just created: we replace the 'secret' word in <code>src/main/resources/app.conf</code> with real values.</p>
+<p>Once this is done, we'll add all the filters we want (for dealing only with the tweets than contain certain key workds):</p>
+<p>[code language="scala"]<br />
+  filter(<br />
+    &quot;dance&quot;,<br />
+    &quot;music&quot;<br />
+  )<br />
+[/code]</p>
+<p>We'll later indicate with one (or several) <code>when</code> clauses the actions to perform when a new bunch of tweets is arrived. For example, we count and print them out:</p>
+<p>[code language="scala"]<br />
+when { tweets =&gt;<br />
+  logger.info(s&quot;Received tweets [${tweets.count()}}]&quot;)<br />
+  tweets.foreach {<br />
+    tweet =&gt; logger.info(s&quot;\n$tweet&quot;)<br />
+  }<br />
+}<br />
+[/code]</p>
+<p>For making our exaple work, you only have to execute (over the project dir):</p>
+<p>[code]<br />
+sbt run<br />
+[/code]</p>
+<p>And tweets should start appearing among your messy blog output!</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/04/idwzlyrarjaylstrg8q7.gif" rel="attachment wp-att-1871"><img src="/assets/idwzlyrarjaylstrg8q7.gif?w=300" alt="idwzlyrarjaylstrg8q7" width="300" height="167" class="aligncenter size-medium wp-image-1871" /></a></p>
+<p>Easy peasy :-)</p>

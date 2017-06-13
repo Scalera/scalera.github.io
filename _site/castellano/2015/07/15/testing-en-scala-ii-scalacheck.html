@@ -1,0 +1,60 @@
+<p>Esta semana, en Scalera, os traemos la segunda parte del post que hablaba sobre frameworks de testing en Scala.<br />
+Si bien Scalatest aporta un enfoque bastante genérico que permite generar tests usando una gran variedad de specs y suites, Scalacheck permite implementar tests basados en propiedades.</p>
+<p>Para poder utilizarlo en tu proyecto de SBT basta con añadir la correspondiente dependencia:</p>
+<p>[code language="scala"]<br />
+libraryDependencies += &quot;org.scalacheck&quot; %% &quot;scalacheck&quot; % &quot;1.12.4&quot; % &quot;test&quot;<br />
+[/code]</p>
+<h2>Property-based tests</h2>
+<p>Los tests basados en propiedades, como su nombre indica, consisten en definir un conjunto de aserciones o propiedades que toda instancia de nuestro tipo de datos debe cumplir.<br />
+Si por ejemplo estamos testeando nuestro tipo de datos <code>Car</code>,</p>
+<p>[code language="scala"]<br />
+case class Car(wheelAmount: Int,speed: Double){</p>
+<p>  require(wheelAmount&gt;0,&quot;So, how? tell me how&quot;)</p>
+<p>  require(speed&gt;=0,&quot;Seriously?Negative speed?&quot;)</p>
+<p>  def accelerate(): Car = Car(wheelAmount,speed*2)</p>
+<p>}<br />
+[/code]</p>
+<p>definiríamos nuestra clase <code>CarSpec</code> con el siguiente contenido:</p>
+<p>[code language="scala"]<br />
+import org.scalacheck.Properties<br />
+import org.scalacheck.Prop.forAll</p>
+<p>object CarSpec extends Properties(&quot;Car&quot;) {</p>
+<p>  property(&quot;has non negative speed&quot;) = forAll { (c: Car) =&gt;<br />
+    car.speed &gt;= 0<br />
+  }</p>
+<p>  property(&quot;has at least one wheel&quot;) = forAll { (c: Car) =&gt;<br />
+    car.wheelAmount &gt; 0<br />
+  }</p>
+<p>  property(&quot;doubles its speed&quot;) = forAll { (c: Car) =&gt;<br />
+    val newCar = c.accelerate()<br />
+    newCar.speed = 2*c.speed<br />
+  }</p>
+<p>}<br />
+[/code]</p>
+<p>Como se puede ver, es tan sencillo como definir el nombre de las propiedades que debe cumplir. Mediante la aserción '<strong>forAll</strong>', se verificará que, para todos los coches, se deben cumplir las restricciones dictadas.</p>
+<h2>Generators</h2>
+<p>Ahora bien, para testear estas propiedades, es necesario generar valores (unos cuantos valores) de tipo <code>Car</code>. De esta tarea se encargan los generadores de ScalaCheck. Estas estructuras conocen la forma de generar valores de un determinado tipo. Por ejemplo,</p>
+<p>[code language="scala"]<br />
+import org.scalacheck.Gen</p>
+<p>val myStringGen: Gen[String] = Gen.alphaString</p>
+<p>val stringSample: Option[String] = myStringGen.sample</p>
+<p>[/code]</p>
+<p>Si utilizamos el generador predefinido <code>alphaString</code> seremos capaces de generar cadenas de texto aleatorias que contengan solo [a-z].<br />
+Con el método <code>sample</code> del generador, obtendremos un posible valor de tipo String.</p>
+<h2>Gen composition</h2>
+<p>Pero, ¿y si queremos crear generadores para tipos particulares, como es el caso de <code>Car</code>?<br />
+<code>Gen[T]</code> se puede componer para generar valores más complejos. Por ejemplo:</p>
+<p>[code language="scala"]<br />
+val carGen: Gen[Car] = for {<br />
+  wheels &lt;- Gen.choose(4,8)<br />
+  speed  &lt;- Gen.oneOf(0.0,50.0,100.0,120.0)<br />
+} yield Car(wheels,speed)<br />
+[/code]</p>
+<p>Utilizando el método <code>choose[T](min: T,max: T)</code> generamos valores entre 'min' y 'max'.<br />
+Con el método <code>oneOf[T](elems: T*)</code> elegimos un elemento de los facilitados en la secuencia de elementos.<br />
+Y así, utilizando el elemento obtenido del generador de enteros, y utilizando el elemento obtenido del generador de doubles, podemos construir un <code>Car</code>. Esto no significa que ya estén evaluados todos los posibles valores de los atributos del coche a generar, sino que indicamos, en caso de que nos demanden un coche de este generador, como poder obtenerlos.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/07/o7azz.jpg"><img class="aligncenter size-medium wp-image-545" src="/assets/o7azz.jpg?w=268" alt="o7azz" width="268" height="300" /></a></p>
+<h2>La punta del iceberg</h2>
+<p>Como podéis ver, ScalaCheck da bastante juego a la hora de crear tests basados en propiedades, pero el elemento <code>Gen[T]</code> para generar valores 'semi-aleatorios' de cierto tipo, puede usarse en más ámbitos, aparte del testing unitario.<br />
+En próximos posts veremos como usarlos para la generación de grandes bloques de datos en pruebas de stress para aplicaciones de BigData.</p>
+<p>¡Agur de limón! :-)</p>

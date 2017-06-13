@@ -1,0 +1,58 @@
+<p>It’s quite common to call functions that may throw exceptions. For instance, when a call is made to a web service, there could be a connection error which would throw an exception.</p>
+<p>At first sight, we can think of using a<strong> try-catch block</strong> to handle the error in case the function explodes:</p>
+<p>[code language="scala"]<br />
+try {<br />
+  val userInfo = myWebServer.getUserInfo(&quot;Royston&quot;)<br />
+  userInfo.email<br />
+} catch {<br />
+  case e: ConnectionException =&amp;gt; // do something<br />
+  case e: BadRequestException =&amp;gt; // do something<br />
+  case _ =&amp;gt; //do something<br />
+}<br />
+[/code]</p>
+<p>This is quite good because, if any exception is thrown, we will be able to catch and handle it. However, using the try block is not truly a functional approach. It leaves us with very few transformation options and nor are we allowed to decide at a later point in time on the action to perform in case an exception is raised.</p>
+<p><strong>Try type to the rescue</strong></p>
+<p><em><strong>Try</strong></em> is a type that, given an action to perform, it can return either a <em><strong>Success</strong></em> with the result of that action or the exception thrown when trying to execute that action, but encapsulated in a <em><strong>Failure</strong></em>.</p>
+<p>[code language="scala"]<br />
+import scala.util.{ Try, Success, Failure }</p>
+<p>Try(myWebServer.getUserInfo(&quot;Royston&quot;)) match {<br />
+  case Success(userInfo) =&amp;gt;<br />
+    userInfo.email<br />
+  case Failure(exception: ConnectionException) =&amp;gt;<br />
+    //do something<br />
+  case Failure(exception: BadRequestException) =&amp;gt;<br />
+    //do something<br />
+  case Failure(exception) =&amp;gt;<br />
+    //do something<br />
+}<br />
+[/code]</p>
+<p>As can be seen, by using <strong>pattern matching</strong>, we are able to define what to do depending on the result of executing the action. Now, as an example, we can use this type in the signature of a function:</p>
+<p>[code language="scala"]<br />
+def getUserInfo(username: String): Try[String] =<br />
+  Try(myWebServer.getUserInfo(&quot;Royston&quot;))<br />
+[/code]</p>
+<p>This way we can leave the decision on what to do with the result of the function to a different part of the code.</p>
+<p>Another advantage compared to using a try-catch block is that we can use the methods that the <em>Try</em> type API provides us with. These methods will allow us to evaluate or modify the value contained in a <em>Try</em>. For instance, we could use the map method:</p>
+<p>[code language="scala"]<br />
+def encrypt(value: String): String =<br />
+  value.map(_.toInt).mkString(&quot;-&quot;)</p>
+<p>getUserInfo(&quot;Royston&quot;).map(_.email).map(_.encrypt)<br />
+[/code]</p>
+<p>In the previous piece of code, what we are doing is encrypting the email in case it is successfully obtained. In case an exception is thrown, no transformation will be carried out. The behaviour is identical to the one we already saw applied to <a href="https://scalerablog.wordpress.com/2015/05/29/using-nulls-is-not-an-option/">Option type</a>.</p>
+<p>Besides, as it has a flatmap method, we can use it in <strong>for comprehension</strong> structures and combine several instances of the <em>Try</em> type.</p>
+<p>[code language="scala"]<br />
+def getEmail(username: String): Try[String] =<br />
+  getUserInfo(username).map(_.email)</p>
+<p>def getAge(username: String): Try[Int] =<br />
+  getUserInfo(username).map(_.age)</p>
+<p>for {<br />
+  email &amp;lt;- getEmail(&quot;Royston&quot;)<br />
+  age &amp;lt;- getAge(&quot;Royston&quot;)<br />
+  if age &amp;gt; 18<br />
+} yield s&quot;User with $email is not under 18&quot;<br />
+[/code]</p>
+<p>In this scenario, if any of the calls fails or if the user is underage, the execution flow will stop and no transformation will be performed. Otherwise, <em>Try</em> will be transformed.</p>
+<p><strong>Monads, monads everywhere</strong></p>
+<p>It would be quite wrong to conclude this post without our head being properly stimulated. We have seen that, by using the <em>Try</em> type, we can make our program more functional. As it <del>is a monad</del> complies some of the monad laws (what?), we can combine them in order to make our programs more expressive.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/06/56248419.jpg"><img class="  wp-image-490 aligncenter" src="/assets/56248419.jpg?w=300" alt="56248419" width="199" height="199" /></a></p>
+<p>Well, there’s no need to panic. Further on, we’ll go deeper into monads and other functional abstractions and we’ll see they are not as complicated as they may seem.</p>

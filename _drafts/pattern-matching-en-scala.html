@@ -1,0 +1,59 @@
+---
+layout: post
+title: Pattern Matching en Scala
+date: 
+type: post
+published: false
+status: draft
+categories:
+- Castellano
+tags: []
+meta:
+  _wpas_skip_facebook: '1'
+  _wpas_skip_google_plus: '1'
+  _wpas_skip_linkedin: '1'
+  _wpas_skip_tumblr: '1'
+  _wpas_skip_path: '1'
+author:
+  login: dvallejonava
+  email: d.vallejo.nava@gmail.com
+  display_name: dvallejonava
+  first_name: ''
+  last_name: ''
+---
+<p>Pattern Matching es el amigo de toda la vida que has conseguido incluir en tu grupo de amigos de la universidad, que acaba siendo invitado a la boda de tu hermano y que lo mismo le ves en la ópera como en un concierto de Iron Maiden. El Pattern Matching es ese tío que siempre encaja :)</p>
+<p>El Pattern Matching consta de dos elementos básicos: una expresión a evaluar, una serie de acciones que realizar en función de si encaa</p>
+<p>http://www.ripley.cl/wcsstore/ripleycl_CAT_AS/Attachment/WOP/2000347154594/2000347154594-2.jpg</p>
+<p>Vamos a ver un ejemplo sencillo:</p>
+<p>val someValue: Int = 1</p>
+<p>[code language="scala"]<br />
+someValue match {<br />
+  case 0 =&gt; println(&quot;It's not zero,man...&quot;)<br />
+  case 1 =&gt; println(&quot;yeah!&quot;)<br />
+  case _ =&gt; println(&quot;If other cases didn't match...&quot;)<br />
+}<br />
+[/code]</p>
+<p>En este caso, primero es definida un valor al cual se le asocia un 1.<br />
+A continuación, se realiza un pattern matching. Existen tres distintas vías de ejecución:</p>
+<ul>
+<li>Si el valor es 0 se mostrará por pantalla "It´s not zero, man...".</li>
+<li>Si el valor es 1 se mostrará por pantalla "yeah!"</li>
+<li>En cualquier otro caso se mostrará: "If other cases didn´t match..."</li>
+</ul>
+<p>En este caso, el código devolverá un "yeah!" molón como una casa.</p>
+<p>Para las personas que vengan de Java esto les recordará mucho a un switch. Sin embargo, el pattern matching permite mucho más. Vamos a ver unos ejemplos más complejos:</p>
+<p>case class Wheel(inch: Float)</p>
+<p>case class Car(brand: String, wheelType: Wheel)</p>
+<p>val mySundaysCar: Car = Car("Tiaf Fanda", Wheel(28))</p>
+<p>[code language="scala"]<br />
+mySundaysCar match {<br />
+  case Car(&quot;Ferrari&quot;, _) =&gt; println(&quot;You wish it was a Ferrari&quot;)<br />
+  case Car(_, Wheel(35)) =&gt; println(&quot;Of course it's not a tractor...&quot;)<br />
+  case Car(_, Wheel(size)) if size &gt; 10 =&gt; println(&quot;Maybe a tank?&quot;)<br />
+  case Car(_, Wheel(size)) =&gt; println(&quot;Actual wheel size is &quot; + size)<br />
+  case car: Car =&gt; println(&quot;Ok, we were assuming this was a car...&quot;)<br />
+  case `mySundaysCar` =&gt; println(&quot;... oh, wait! We were assuming this was my sunday's car!&quot;)<br />
+  case _ =&gt; println(&quot;Don't know what to do with this car&quot;)<br />
+}<br />
+[/code]</p>
+<p>http://blog.originate.com/images/scala_pattern_match_meme.jpg</p>

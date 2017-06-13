@@ -1,0 +1,69 @@
+---
+layout: post
+title: Transformando el futuro
+date: 2016-05-04 17:00:54.000000000 +02:00
+type: post
+published: true
+status: publish
+categories:
+- Castellano
+tags:
+- beginner
+- flatmap
+- future
+- map
+meta:
+  _rest_api_published: '1'
+  _rest_api_client_id: "-1"
+  _publicize_job_id: '22472170841'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/727878075015270400";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: dvallejonava
+  email: d.vallejo.nava@gmail.com
+  display_name: dvallejonava
+  first_name: ''
+  last_name: ''
+---
+<p style="text-align:justify;">Hace ya unas cuantas semanas <a href="https://scalerablog.wordpress.com/2015/12/09/leyendo-el-futuro-en-scala/">estuvimos hablando</a> sobre el tipo <em><strong>Future</strong></em> para crear llamadas asíncronas.<br />
+Vimos como trabajar con llamadas bloqueantes para obtener el valor del futuro. También utilizamos callbacks para obtener el resultado del futuro de forma asíncrona. Sin embargo se quedaron algunos puntos en el tintero. Me refiero a transformar los <em><strong>Future</strong></em> sin bloquear la ejecución.</p>
+<h3>Transformaciones de Futuros</h3>
+<p style="text-align:justify;">Para transformar los futuros, al igual que con otros tipos básicos de Scala, se usa principalmente los métodos <em><strong>map</strong></em> y <em><strong>flatmap</strong></em>.</p>
+<h4 style="text-align:justify;">El método map</h4>
+<p style="text-align:justify;">El método <em>map</em> nos permite cambiar el contenido de un futuro aplicando una función. Por ejemplo, si tenemos un método que nos permite obtener el primer millón de números primos, pero queremos transformarlo para que solo nos devuelva los cien primeros, podemos aplicar el método <em>map</em> de la siguiente manera:</p>
+<p>[code language="scala"]<br />
+def getFirstMillionOfPrimes(): Future[List[Int]] = ???</p>
+<p>getFirstMillionOfPrimes().map(<br />
+  (list: List[Int]) =&gt; list.take(100)<br />
+)<br />
+[/code]</p>
+<p style="text-align:justify;">De esta forma estamos transformando el interior del Futuro sin romper la asincronía.</p>
+<p><img class="  wp-image-2780 aligncenter" src="{{ site.baseurl }}/assets/pi2band2bi.jpg" alt="pi2band2bi" width="283" height="230" /></p>
+<h4 style="text-align:justify;">El método flatMap</h4>
+<p style="text-align:justify;">Por otro lado, el método <em>flatMap</em> nos permite aplicar una función al contenido del futuro, que devuelve un Futuro a su vez. Después, aplica una operación de <strong><em>flatten</em></strong> para convertir el Future[Future[A]] en un simple Future[A]. What the f...? Se entiende mejor con un ejemplo.</p>
+<p style="text-align:justify;">Imaginemos que queremos concatenar en una cadena de texto el primer millón de números primos. Para ello utilizamos un nuevo método:</p>
+<p>[code language="scala"]<br />
+def concatenate(l: List[Int]): Future[String] = ???<br />
+[/code]</p>
+<p>y ahora realizamos un <em>flatMap</em></p>
+<p>[code language="scala"]<br />
+getFirstMillionOfPrimes().flatMap(<br />
+  (list: List[Int]) =&gt; concatenate(list)<br />
+) //Future[String]<br />
+[/code]</p>
+<h3 style="text-align:justify;">¿Y como podemos componer hacer todo esto de una forma más sencilla?</h3>
+<p style="text-align:justify;">Pues muy sencillo. ¡<em><strong>For comprehenssion</strong></em> al rescate! Aplicando un poco de syntactic sugar podemos tener un código mucho más legible.<br />
+Basta con hacer lo siguiente:</p>
+<p>[code language="scala"]<br />
+for {<br />
+  primes &lt;- getFirstMillionOfPrimes()<br />
+  primesString &lt;- concatenate(primes)<br />
+} yield primesString<br />
+[/code]</p>
+<p style="text-align:justify;">De esta manera, no se aplicará la operación de concatenación hasta que no se hayan obtenido los números primos mediante el método <em>getFirstMillionPrimes</em>.<br />
+Esta permite guardar un cierto orden a la hora de hacer composición de llamadas asíncronas. Además, si la primera llamada asíncrona falla, no se efectuará la segunda.</p>
+<p style="text-align:justify;">Y esto es todo por hoy. Ahora ya sabes como cambiar el Futuro. Una lástima no poder cambiar el pasado :(</p>
+<p><img class="  wp-image-2783 aligncenter" src="{{ site.baseurl }}/assets/doesnt-go-into-girls-shower.jpg" alt="doesnt-go-into-girls-shower" width="308" height="299" /></p>
+<p>¡Hasta la próxima!</p>

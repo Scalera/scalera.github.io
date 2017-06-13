@@ -1,0 +1,30 @@
+<p>Though it has been a few days since Halloween, today we will be able to satisfy our killer instinct.</p>
+<p><img class="size-full wp-image-817 aligncenter" src="/assets/17c8f21e452c8161a7f19b8fc3f7d1a5.jpg" alt="17c8f21e452c8161a7f19b8fc3f7d1a5" width="250" height="250" /></p>
+<p>In this post we go back to playing with Akka, the toolkit designed to create distributed applications using actors. Actors work very well and are very helpful but the time comes when you have to kill them. How can we do it? Can we make it look like an accident? Are they highly resistant to cyanide? Today we hope to answer some of these questions.</p>
+<p><strong>First way: Poisoning</strong></p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/11/tumblr_n6da8xjdli1t4x1pbo1_500.gif"><img class="size-medium wp-image-821 aligncenter" src="/assets/tumblr_n6da8xjdli1t4x1pbo1_500.gif?w=300" alt="tumblr_n6da8xJdLi1t4x1pbo1_500" width="300" height="211" /></a></p>
+<p>The simplest thing you can do in order to kill an actor is send a message of <em>PoisonPill</em> type. As soon as the message is handled, the actor dies.</p>
+<p>[code language="scala"]<br />
+seanBeanCharacter ! PoisonPill<br />
+[/code]</p>
+<p>This mechanism does not only work for murder, but also for suicide. An actor can send a PoisonPill message to himself.</p>
+<p>[code language="scala"]<br />
+self ! PoisonPill<br />
+[/code]</p>
+<p><strong>Second way: Cardiac arrest</strong></p>
+<p><img class="size-medium wp-image-820 aligncenter" src="/assets/jack-30-rock-heart-attack-study.gif?w=300" alt="jack-30-rock-heart-attack-study" width="300" height="174" /></p>
+<p>Another option we have is to stop the actor. For this purpose, we use the stop method.</p>
+<p>[code language="scala"]<br />
+context.stop(seanBeanCharacter)<br />
+[/code]</p>
+<p>The fundamental difference between using a <em> PoisonPill </em> and calling the <em>stop</em> method, is that the method <em> stop </em> performs an immediate stop of the actor. In the case of <em> PoisonPill </em>, because it is just another message in the mailbox, it is necessary to wait for it to be handled.</p>
+<p><strong>Third way: Cause an internal bleeding</strong></p>
+<p><img class="size-medium wp-image-819 aligncenter" src="/assets/tumblr_mk2nondhhx1qasthro1_r1_500.gif?w=300" alt="tumblr_mk2nondHhx1qasthro1_r1_500" width="300" height="187" /></p>
+<p>Finally, we can make an actor throw an exception, by sending him a message of type Kill.</p>
+<p>[code language="scala"]<br />
+seanBeanCharacter ! Kill<br />
+[/code]</p>
+<p>This message, when handled by the actor, forces an exception of type <em> ActorKilledException </em>to be thrown. We can use this kind of killing when we want to handle this type of emergency in the supervision policy. You are allowed to decide what action has to be performed by a supervisor when a player throws an exception of this kind.</p>
+<p><strong>Last will</strong></p>
+<p>All actors, no matter how bad the film is, are entitled to a last will. This last will is materialized by a series of actions, such as stopping the actors it has under its supervision. It is also possible to add customized functionality by overwriting the <strong> <em> poststop </em> </strong> method.</p>
+<p>And that's all for now. Just remember one thing. May you use any of these techniques, you don't know the Scalera guys at all :P</p>

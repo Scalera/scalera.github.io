@@ -1,0 +1,40 @@
+<h2>Inmutable vs mutable</h2>
+<p>Una de las primeras lecciones con las que nos congratula el mundo de lo funcional es que, los valores que declaramos (<strong>val</strong>), son inmutables, es decir, solo se asignan una vez y no pueden ser modificados (luego veremos que esto tiene matices). Por tanto, si declarásemos:</p>
+<p>[code language="scala"]<br />
+val myNumber: Int = 2<br />
+myNumber = 3 //Compile-time error<br />
+[/code]</p>
+<p>No podríamos modificar su valor. Puede resultar extraño al principio, pero las variables (<strong>var</strong>) de uso común en otros lenguajes de programación como Java, están totalmente desaconsejadas en Scala.</p>
+<p>[code language="scala"]<br />
+var myNumber: Int = 2<br />
+myNumber = 3<br />
+println(myNumber) //Prints out '3'<br />
+[/code]</p>
+<p>¿Qué sentido tiene esto? Si pensamos que toda función pura no debe mantener estado, es obvio que no tienen cabida las variables dentro de ellas. Por otra parte, podéis pensar: "Pero el mundo no es funcional: el I/O, por ejemplo, es necesario para configurar la ejecución de un programa". ...Pues tenéis toda la razón. Por eso se recomienda, en el caso de necesitar introducir una variable, comprobar si es realmente necesario, y en caso de que así sea, tratar de ponerlas en el punto más cercano a la entrada de la aplicación. Para todo lo demás....<em>masterVal</em>.</p>
+<h1>Matices: Stateful objects.</h1>
+<p>Decíamos antes que el hecho de que un valor se defina como val, implica que no puede modificarse. Del mismo modo también dijimos, que esto tiene matices. Supongamos el siguiente fragmento de código.</p>
+<p>[code language="scala"]<br />
+class Foo {<br />
+  private var initialized: boolean = false<br />
+  def initialize(): Unit = {<br />
+    initialized = true<br />
+  }<br />
+  def isInitialized(): Boolean = initialized<br />
+}<br />
+[/code]</p>
+<p>Si ahora instanciaramos un objeto de tipo Foo</p>
+<p>[code language="scala"]<br />
+val immutableFoo = new Foo<br />
+immutableFoo.isInitialized() // false<br />
+immutableFoo = new Foo //Compile-time error<br />
+[/code]</p>
+<p>Si intentamos reasignar el valor, obtendremos un error de compilación (hasta aquí nada nuevo). Pero si invocamos a su método initialize...</p>
+<p>[code language="scala"]<br />
+immutableFoo.isInitialzed() // false<br />
+immutableFoo.initialize()<br />
+immutableFoo.isInitialized() // true<br />
+[/code]</p>
+<p>...habremos modificado su estado interno. Nuestro Foo es lo que se denomina un 'Stateful object': un objeto con estado. En Scala se procura rehusar de este comportamiento, pero no olvidemos que esto es lo habitual en código proveniente de Java, y dado que una de las facilidades que aporta Scala es la integración con Java, es muy común utilizar librerías y frameworks escritos en Java. Por tanto, de cara a nuevos desarrollos en Scala, es preferible evitar este tipo de patrón, aun siendo conscientes que es probable que al integrar con otras herramientas, podemos encontrárnoslo.</p>
+<h1>Lo mejor de los dos mundos...</h1>
+<p>Una de las virtudes que tiene Scala (la gente de scalaz nos mata), es la existencia de los var. <a href="https://scalerablog.files.wordpress.com/2015/03/kqsqldv.gif"><img class="alignnone  wp-image-140 aligncenter" src="/assets/kqsqldv.gif?w=300" alt="KqsQlDV" width="215" height="124" /></a></p>
+<p>¿Pero no habías dicho antes que <strong>var=<del>caca</del></strong>? Cierto. Pero precisamente el permitir este tipo de expresiones facilita la adopción de Scala a la gente que viene de otros lenguajes como Java. Una transición puede ser menos traumática si, en principio, usando la sintaxis de Scala, utilizas las mismas construcciones del lenguaje de donde provienes para, más adelante, acabar adoptando un estilo más funcional.</p>

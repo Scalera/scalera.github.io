@@ -1,0 +1,80 @@
+<p>A couple of days ago (translation for the masses: like a month ago) I noticed Viktor Klang was tweeting about removing the annoying implicit evidences from methods. And some things I read seemed so elegant to me that I was forced to share some related ideas with all of you that don't follow him at Twitter (<a href="https://twitter.com/viktorklang" target="_blank">@viktorklang</a>).</p>
+<p><a href="https://scalerablog.files.wordpress.com/2017/04/giphy.gif"><img src="/assets/giphy.gif" alt="" width="400" height="225" class="aligncenter size-full wp-image-4362" /></a></p>
+<h2>Setting some context</h2>
+<p>Imagine the typical polymorphic method where we need an execution context for evaluating some Future:</p>
+<p>[code language="scala"]<br />
+import scala.concurrent.{ExecutionContext, Future}</p>
+<p>def myMethod[T]<br />
+  (element: T)<br />
+  (implicit ev: ExecutionContext): Future[Boolean] = ???<br />
+[/code]<br />
+You could say it's as typical as disgusting, having to repeat the same exact words in the following 10 method definitions: <code>(implicit ev: ExecutionContext)</code>.</p>
+<h2>Playing with type alias</h2>
+<p>The happy idea that is being proposed is to define a type alias like the following one:</p>
+<p>[code language="scala"]<br />
+type EC[_] = ExecutionContext<br />
+[/code]</p>
+<p>This way, by adding some syntax sugar, we would re-define the method signature:</p>
+<p>[code language="scala"]<br />
+def myMethod[T:EC](element: T): Future[Boolean] = ???<br />
+myMethod(&quot;hi&quot;)<br />
+[/code]</p>
+<p>Beautiful, isn't it?</p>
+<p><a href="https://scalerablog.files.wordpress.com/2017/04/giphy-1.gif"><img src="/assets/giphy-1.gif" alt="" width="320" height="240" class="aligncenter size-full wp-image-4365" /></a></p>
+<h2>Some other possibilities</h2>
+<h3>Non-polymorphic methods</h3>
+<p>In case our method isn't parameterized, we would have to add some boilerplate (by adding a wildcard for the type that parameterizes the method). In essence, it should be working the same principle:</p>
+<p>[code language="scala"]<br />
+def myMethod[_:EC](element: Int): Future[Boolean] = ???<br />
+myMethod(2)<br />
+[/code]</p>
+<h3>Multiple implicit contexts</h3>
+<p>The not-so-crazy case in which we needed several implicit parameters of different natures, we would have to define as many type alias as different type parameters we required:</p>
+<p>[code language="scala"]<br />
+type EC[_] = ExecutionContext<br />
+type MongoDB[_] = MongoDBDatabase</p>
+<p>def myMethod[_:EC:MongoDB](element: Int): Future[Boolean] = ???<br />
+[/code]</p>
+<h2>But what if ...?</h2>
+<h3>Multiple implicit parameters with same type</h3>
+<p>In case we have several implicit parameters that share the same type, </p>
+<p>[code language="scala"]<br />
+def myMethod<br />
+  (element: Int)<br />
+  (implicit ev1: ExecutionContext, ev2: ExecutionContext): Future[Boolean] = ???<br />
+[/code]</p>
+<p>it turns out that ...</p>
+<p><a href="https://scalerablog.files.wordpress.com/2017/04/giphy-2.gif"><img src="/assets/giphy-2.gif" alt="" width="485" height="273" class="aligncenter size-full wp-image-4366" /></a></p>
+<p>Well, by definition that's impossible given that it would incur in some ambiguity issue when resolving implicits. It's true that Scala allows having these kind of signatures, but we could only invoke them by making explicit the arguments contained in the second parameter group.:</p>
+<p>[code language="scala"]<br />
+myMethod(2)(ec1,ec2)<br />
+[/code]</p>
+<p>which is kind of...</p>
+<p><a href="https://scalerablog.files.wordpress.com/2017/04/giphy-3.gif"><img src="/assets/giphy-3.gif" alt="" width="460" height="259" class="aligncenter size-full wp-image-4367" /></a></p>
+<h3>Type-constructor implicit contexts</h3>
+<p>When we have implicit parameters that are also type constructors like <code>List[T], Future[T], Option[T]</code> ...</p>
+<p>...well, it actually depends.</p>
+<h4>Case 1</h4>
+<p>If the type that parameterizes the method and the one that parameterizes the evidence are not related, there's no big deal: we define another type alias and move on:</p>
+<p>[code language="scala"]<br />
+type EC[_] = ExecutionContext<br />
+type MongoDB[_] = MongoDBDatabase<br />
+type IntOpt[_] = Option[Int]<br />
+type StrList[_] = List[String]</p>
+<p>def myMethod[_:EC:MongoDB:IntOpt:StrList](<br />
+  element: Int): Future[Boolean] = ???<br />
+[/code]</p>
+<p>Which would be equivalent to:</p>
+<p>[code language="scala"]<br />
+def myMethod(<br />
+  element: Int)(<br />
+  implicit ev1: ExecutionContext,<br />
+  ev2: MongoDBDatabase,<br />
+  ev3: Option[Int],<br />
+  ev4: List[String]): Future[Boolean] = ???<br />
+[/code]</p>
+<h4>Case 2</h4>
+<p>If the type that parameterizes the method and the one that parameterizes the evidence have to match ...</p>
+<p><a href="https://scalerablog.files.wordpress.com/2017/04/giphy-4.gif"><img src="/assets/giphy-4.gif" alt="" width="200" height="150" class="aligncenter size-full wp-image-4368" /></a></p>
+<p>Well, it's not possible. The syntax sugar we're using here implies that both types have to match. Maybe it was too pretty for our bodies :-)</p>
+<p>See you in the next post. Peace out!</p>

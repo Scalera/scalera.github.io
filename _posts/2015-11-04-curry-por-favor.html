@@ -1,0 +1,128 @@
+---
+layout: post
+title: Curry, por favor...
+date: 2015-11-04 12:00:53.000000000 +01:00
+type: post
+published: true
+status: publish
+categories:
+- Castellano
+tags:
+- beginner
+- case
+- class
+- currify
+- function
+- method
+- partial
+- scala
+meta:
+  _edit_last: '59615419'
+  geo_public: '0'
+  _publicize_job_id: '16524027318'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/661849169049485312";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: jpaniego
+  email: javiersantospaniego@gmail.com
+  display_name: Javier S. Paniego
+  first_name: ''
+  last_name: ''
+---
+<p>Uno de los aportes de Scala de los que no podemos dejar pasar la ocasión de hablar acerca de ellos es el currying.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/11/4252082-curry.jpg"><img class="aligncenter size-medium wp-image-805" src="{{ site.baseurl }}/assets/4252082-curry.jpg?w=300" alt="4252082-curry" width="300" height="225" /></a></p>
+<h2>La teoría</h2>
+<p>Si tenemos una función <code>(T,U) =&gt; V</code>, currificar la función supone descomponer la función en otra más sencilla que permite construir el resultado de manera incremental. En este caso pasaríamos a tener una función <code>T =&gt; (U =&gt; V)</code>, es decir, a partir de un <code>T</code> obtenemos una función que solo necesita un <code>U</code> para generar un <code>V</code>. ¿Lioso? Veámoslo mejor con el siguiente ejemplo.</p>
+<p>Supongamos que tenemos una <code>case class</code> que modela un estudiante:</p>
+<p>[code language="scala"]<br />
+case class Student(<br />
+  name: String,<br />
+  age: Int,<br />
+  enrolled: Boolean)<br />
+[/code]</p>
+<p>Podríamos tener adicionalmente un método que nos instanciara un estudiante como, por ejemplo, el método <code>apply</code> que se ha generado automáticamente para la <code>case class</code>:</p>
+<p>[code language="scala"]<br />
+//Auto generated code below<br />
+object Student {</p>
+<p>  def apply(<br />
+    name: String,<br />
+    age: Int,<br />
+    enrolled: Boolean): Student =<br />
+    new Student(name, age, enrolled)</p>
+<p>}<br />
+[/code]</p>
+<p>Utilizando dicho método, podemos construir un estudiante como sigue:</p>
+<p>[code language="scala"]<br />
+Student(&quot;john&quot;, 18, enrolled=true)<br />
+[/code]</p>
+<p>Hasta aquí fácil. Ahora supongamos la siguiente situación:</p>
+<blockquote><p>En nuestro proceso de admisión de alumnos, el candidato tiene que pasar por una serie de ventanillas para aportar su documentación poco a poco (en la ventanilla A indicaría el nombre, en la ventanilla B indicaría la edad; y en la ventanilla C le daríamos el visto bueno, o no, para formar parte de la escuela).</p></blockquote>
+<h2>Primera aproximación: Hacer clases es gratis</h2>
+<p>Podemos definir nuestras ventanillas como alias de funciones transformadoras. Es decir:</p>
+<p>[code language="scala"]<br />
+type WindowA = String =&gt; NotAStudientYet<br />
+type WindowB = (NotAStudentYet, Int) =&gt; AlmostAStudent<br />
+type WindowC = (AlmostAStudent, Boolean) =&gt; Student</p>
+<p>case class NotAStudentYet(name: String)<br />
+case class AlmostAStudent(name: String, age: Int)<br />
+[/code]</p>
+<p>Fijaros que, por una parte, las ventanillas se representan mediante funciones.<br />
+La primera ventanilla es una función que, a partir de un nombre, genera algo "que aún no es estudiante".<br />
+La segunda ventanilla, teniendo algo "que aún no es estudiante" y recibiendo una edad, devuelve algo que "casi es un estudiante".<br />
+Y la última ventanilla recibe algo "que casi es un estudiante" y una aprobación de admisión (aprobada o denegada) y genera un estudiante.</p>
+<p>Para ello, en esta primera aproximación, hemos generado dos case classes nuevas, que van a servir de acumuladores, para finalmente crear un estudiante.</p>
+<p>La implementación sería algo del estilo:</p>
+<p>[code language="scala"]<br />
+val windowA: WindowA =<br />
+  (name) =&gt;<br />
+    NotAStudentYet(name)</p>
+<p>val windowB: WindowB =<br />
+  (notStudent, age) =&gt;<br />
+    AlmostStudent(notStudent.name, age)</p>
+<p>val windowC: WindowC =<br />
+  (almost, enrolled) =&gt;<br />
+    Student(almost.name, almost.age, enrolled)<br />
+[/code]</p>
+<p>...sinceramente, no es posible que para hacer tal cosa tengamos que definirnos dos clases adicionales. Optemos por dar otro enfoque.</p>
+<h2>Segunda aproximación: Funciones, funciones everywhere ...</h2>
+<p>Probemos a definir funciones que devuelvan otras funciones (funciones de orden superior):</p>
+<p>[code language="scala"]<br />
+type WindowA = String =&gt; WindowB<br />
+type WindowB = Int =&gt; WindowC<br />
+type WindowC = Boolean =&gt; Student</p>
+<p>val windowA: WindowA =<br />
+  (name: String) =&gt; {<br />
+    val windowB: WindowB =<br />
+      (age: Int) =&gt; {<br />
+        val windowC: WindowC =<br />
+          (enrolled: Boolean) =&gt;<br />
+            Student(name, age, enrolled)<br />
+        windowC<br />
+      }<br />
+    windowB<br />
+  }<br />
+[/code]</p>
+<p>Fijaros que a partir de pequeñas funciones, vamos dando valores a los parámetros que construirán nuestro estudiante. Es más fácil si intentamos leerlo desde la función más interior a la mas exterior(primero <code>windowC</code>, después <code>windowB</code> y finalmente <code>windowA</code>). Para invocar nuestra función basta con ejecutar:</p>
+<p>[code language="scala"]<br />
+val student = windowA(&quot;john&quot;)(18)(true)<br />
+[/code]</p>
+<h2>Tercera aproximación: ¿Seguro que no existe nada que haga esto?</h2>
+<p>Por supuesto que lo hay. Dentro del companion de <code>Function</code> en Scala, se encuentra el método <code>curried</code>, cuyo cometido es descomponer una función que recibe N argumentos en N funciones concatenadas, como veíamos al principio del post, y en el último ejemplo.</p>
+<p>Para aplicar esta maravilla al ejemplo expuesto bastaría con escribir:</p>
+<p>[code language="scala"]<br />
+val f = (Sudent.apply _).curried<br />
+//f: String =&gt; (Int =&gt; (Boolean =&gt; Student))</p>
+<p>f(&quot;john&quot;)(18)(true)<br />
+//Student(&quot;john&quot;, 18, true)<br />
+[/code]</p>
+<p>Existe además la función inversa <code>uncurried</code>, que dadas N funciones encadenadas, por ejemplo, <code>Int =&gt; (String =&gt; (Boolean =&gt; Double)))</code> devuelve una única función que recibe N argumentos: <code>(Int, String, Boolean) =&gt; Double</code>:</p>
+<p>[code language="scala"]<br />
+val myApply = Function.uncurried(f)<br />
+//myApply: (String, Int, Boolean) =&gt; Student</p>
+<p>myApply(&quot;john&quot;,18,true)<br />
+//Student(&quot;john&quot;,18,true)<br />
+[/code]</p>
+<p>Fácil, sencillo y para toda la familia.<br />
+Agur de limón :-)</p>

@@ -1,0 +1,93 @@
+---
+layout: post
+title: Traversable ops - partition, span y otras chicas del montón
+date: 2015-10-14 12:00:08.000000000 +02:00
+type: post
+published: true
+status: publish
+categories:
+- Castellano
+tags:
+- beginner
+- dropwhile
+- faq
+- ops
+- partition
+- scala
+- span
+- takewhile
+- traversable
+meta:
+  _edit_last: '59615419'
+  geo_public: '0'
+  _wpas_skip_10515941: '1'
+  _publicize_job_id: '15809249285'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/654239192252223488";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: jpaniego
+  email: javiersantospaniego@gmail.com
+  display_name: Javier S. Paniego
+  first_name: ''
+  last_name: ''
+---
+<p>¿Nunca te ha pasado que te encuentras con una colección y quieres quedarte con dos partes de la colección: la que cumple un cierto predicado y el resto? ¿Acabas recurriendo a un filter y un filterNot? Tranquilo, en la <del>teletienda</del> entrada de hoy, veremos algunos de los métodos más comunes para dividir colecciones.</p>
+<h2>takeWhile</h2>
+<p>Para una colección <code>Traversable[A]</code>, tenemos la notación:</p>
+<p>[code language="scala"]<br />
+def takeWhile(p: A =&gt; Boolean): Traversable[A]<br />
+[/code]</p>
+<p>Este método recibe como argumento la condición que deben cumplir los N primeros elementos a recolectar de la colección actual. <em>Don't worry</em>: se ve mejor con un ejemplo:</p>
+<p>[code language="scala"]<br />
+val numbers = List(2, 4, 5, 6, 7)<br />
+val firstEven = numbers.takeWhile(_ % 2 == 0)<br />
+//List(2, 4)<br />
+[/code]</p>
+<p>Como podéis ver, la lista que se obtiene es el resultado de obtener los primeros elementos de la colección mientras se cumpla la condición indicada.</p>
+<h2>dropWhile</h2>
+<p>Al igual que su hermano mayor, <code>dropWhile</code> recibe como argumento una función, solo que su comportamiento se basa en eliminar todos los elementos desde el principio, hasta que deje de darse la condición que pasamos como argumento.</p>
+<p>Por ejemplo:</p>
+<p>[code language="scala"]<br />
+val names = List(&quot;Julio&quot;, &quot;Jose&quot;, &quot;Alberto&quot;, &quot;Javier&quot;)<br />
+val survivors = names.dropWhile(_.startsWith(&quot;J&quot;))<br />
+//List(&quot;Alberto&quot;,&quot;Javier&quot;)<br />
+[/code]</p>
+<p>Fijaros que aunque hay otros elementos en la lista que cumplen la condición, el método <code>dropWhile</code> solamente eliminará los N primeros elementos mientras que todos ellos cumplan la condición. En el momento en que esta aserción no puede ser comprobada, el método deja de eliminar elementos.</p>
+<h2>span</h2>
+<p>Pero como decíamos en la introducción, ¿qué ocurre si quiero aplicar una de estas funciones sin perder el resto de elementos? En ese caso tu amigo es <code>span</code></p>
+<p>Su notación es</p>
+<p>[code language="scala"]<br />
+def span(p: A =&gt; Boolean): (Traversable[A], Traversable[A])<br />
+[/code]</p>
+<p>Y su funcionamiento, para que os hagáis una idea, es como devolver para una colección <code>t</code> y un predicado (función) <code>f</code>, <code>(t takeWhile f, t dropWhile f)</code>, pero (y cito textualmente de la <a href="http://www.scala-lang.org/api/current/index.html#scala.collection.Traversable">documentación de Scala</a>) "posiblemente más eficiente".</p>
+<p>Ejemplos, ejemplos everywhere...</p>
+<p>[code language="scala"]<br />
+case class Event(timeStamp: Long)</p>
+<p>val events: Stream[Event] = ???</p>
+<p>val systemCrashTimestamp: Long = ???</p>
+<p>val (eventsBeforeCrash,eventsAfterCrash) =<br />
+  events.span(_.timeStamp &lt;= systemCrashTimeStamp)<br />
+[/code]</p>
+<p>En este ejemplo, modelamos posibles eventos acontecidos en un sistema. Mediante un <code>Stream</code>, accedemos a los eventos acontecidos en el sistem a monitorizar. Por otra parte, se nos notifica del instante de un error fatal en el sistema (<code>systemCrashTimeStamp</code>).</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/10/942.jpg"><img class="aligncenter size-medium wp-image-754" src="{{ site.baseurl }}/assets/942.jpg?w=222" alt="942" width="222" height="300" /></a></p>
+<p>Para separar los eventos que acontecieron antes del pete de la muerte, de los que siguieron después; usamos <code>span</code> (<em>et voilà!</em>)</p>
+<h2>partition</h2>
+<p>Ahora bien, si os fijasteis bien en los ejemplos que poníamos más arriba con <code>takeWhile</code> y <code>dropWhile</code> se podía intuir una problemática que consiste en separar los elementos que cumplen una cierta condición, de los que no; y takeWhile solo se quedaba con los primeros que lo cumplían, pero no con el resto.</p>
+<p>Una primera aproximación, que seguro que alguno habréis usado antes de conocer el último método de este post, es la siguiente:</p>
+<p>[code language="scala"]<br />
+val numbers = List(2, 3, 4, 5, 6, 7)</p>
+<p>val isEven: Int =&gt; Boolean = _ % 2 == 0</p>
+<p>val even = numbers.filter(isEven)</p>
+<p>val odd = numbers.filterNot(isEven)<br />
+[/code]</p>
+<p>Not bad. Pero al igual que con el método <code>span</code> podemos pensar en <code>partition</code> que para una colección <code>t</code> y un predicado (función) <code>f</code>, se comporta como sigue <code>(t filter f, t filterNot f)</code>; haciendo la implementación mucho más sencilla (<em>"y posiblemente más eficiente"</em>):</p>
+<p>[code language="scala"]<br />
+val numbers = List(2, 3, 4, 5, 6, 7)</p>
+<p>val isEven: Int =&gt; Boolean = _ % 2 == 0</p>
+<p>val (even, odd) = numbers.partition(isEven)<br />
+[/code]</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/10/2395690.jpg"><img class="aligncenter size-medium wp-image-757" src="{{ site.baseurl }}/assets/2395690.jpg?w=300" alt="2395690" width="300" height="300" /></a></p>
+<p>Hasta el próximo tip.<br />
+¡Yogur de limón!</p>

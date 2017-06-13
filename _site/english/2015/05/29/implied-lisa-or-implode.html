@@ -1,0 +1,96 @@
+<p>One of the worst fears a Scalaman may have is implicits: you don't like them, you avoid them, they're scary, they're bloody hell.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/05/satan.jpg"><img class="  wp-image-316 aligncenter" src="/assets/satan.jpg?w=300" alt="satan" width="175" height="131" /></a></p>
+<p>And it's a pitty that, being able to use that powerful tool, you might get in panic and forget about it, avoiding its use. Implicits may result a fancy solution for certain circumstances as we will enum you later.</p>
+<p>To have a much better understanding, lets set up a theoretical framwork.</p>
+<h3>Implicit values</h3>
+<p>Imagine you are defining 'identity' function over integer numbers' operations (given an integer number and an operation, it should return the same number). Depending on operation type, the value to be used in the operation (add,product) is different. For example, for adding we use zero (<em><strong>0 + n = n</strong></em>) and for multiplying we use 1 (<em><strong>1 * n = n</strong></em>). If you want to avoid passing the neutral element in a explicit way, you can use implicit values as follows.</p>
+<p>First of all, we declare an implicit integer that will represent adding neutral element:</p>
+<p>[code language="scala"]<br />
+implicit val addNeutralElement: Int = 0<br />
+[/code]</p>
+<p>And now, we can declare identity function at adding:</p>
+<p>[code language="scala"]<br />
+def addIdentity(n: Int)(implicit neutral: Int): Int =<br />
+  n + neutral<br />
+[/code]</p>
+<p>Have a closer look and realize that implicit parameters in the method are declared in a different parameter group, and they are preceded by the reserverd word '<em><strong>implicit</strong></em>'.</p>
+<p>Another tip to have in mind is that, what really matters is the argument type instead of its name: compiler will look for an implicit integer within the set up scope.</p>
+<p>This can be also applied to methods:</p>
+<p>[code language="scala"]<br />
+implicit def generateAddIdentity():Int = 0<br />
+[/code]</p>
+<p>...and objects...</p>
+<p>[code language="scala"]<br />
+abstract class NeutralElement(n: Int)<br />
+implicit case object AddNeutralElement extends NeutralElement(0)<br />
+[/code]</p>
+<h3>Implicit ambiguity / Scopes</h3>
+<p>So let's say we want to define now the identity function for multiplying. At the same scope, we could define another implicit value for product neutral element:</p>
+<p>[code language="scala"]<br />
+implicit val addNeutralElement: Int = 0<br />
+implicit val productNeutralElement: Int = 1<br />
+def addIdentity(n: Int)(implicit neutral: Int): Int =<br />
+  n + neutral<br />
+def productIdentity(n: Int)(implicit neutral: Int): Int =<br />
+  n * neutral<br />
+[/code]</p>
+<p>If we try to execute any of both methods...<strong>Woops</strong>! The compiler will complain about something nearly understandable:</p>
+<p>[code]<br />
+scala&gt; addIdentity(2)<br />
+&lt;console&gt;:13: error: ambiguous implicit values:<br />
+ both value addNeutralElement of type =&gt; Int<br />
+ and value productNeutralElement of type =&gt; Int<br />
+ match expected type Int<br />
+              addIdentity(2)<br />
+                         ^<br />
+[/code]</p>
+<p>What it really means is it doesn't know which of both implicit values is the needed one: there's implicit ambiguity. To avoid this, you can define different scopes which are provided by context objects. Something like:</p>
+<p>[code language="scala"]<br />
+object AddStuff {<br />
+  implicit val addNeutralElement: Int = 0<br />
+  def addIdentity(n: Int)(implicit neutral: Int): Int =<br />
+    n + neutral<br />
+}</p>
+<p>//in your snippet...</p>
+<p>{<br />
+  import AddStuff._<br />
+  addIdentity(2)<br />
+}<br />
+[/code]</p>
+<p>I know this is yelling: "I need type-classes!" but we're not removing these gold minutes from implicits topc. We're not that much cruel...</p>
+<h3>Implicit classes</h3>
+<p>We can also define implicit classes in Scala. Their main target is to extend functionality of certain classes. For example, if we're using some third parties' framework, and one of its classes looks like this:</p>
+<p>[code language="scala"]<br />
+class ThirdParties {<br />
+  def method1(): Int = ???<br />
+  def method2(n:Int): Boolean = ???<br />
+}<br />
+[/code]</p>
+<p>we cannot modify its source code, but if we want to add some extra methods to ThirdParties' class, we can define an implicit class:</p>
+<p>[code language="scala"]<br />
+implicit class ExtraThirdParties(tp: ThirdParties){<br />
+  def method3(n: Int): Boolean =<br />
+    !tp.method2(n)<br />
+  def method4(): Int = ???<br />
+  def method5(): Int =<br />
+    tp.method1() * 2<br />
+}<br />
+[/code]</p>
+<p>This way, when we type down a 'ThirdParties' value and a method that doesn't belong to its class, the compiler will look for implicit classes and/or methods that may fit in such signature. So we'll be able to use, both originaly defined methods and the new ones (those we have just implemented in the implicit class):</p>
+<p>[code language="scala"]<br />
+val myTp = new ThirdParties<br />
+myTp.method1()<br />
+myTp.method2(5)<br />
+myTp.method3(2)<br />
+myTp.method4()<br />
+myTp.method5()<br />
+[/code]</p>
+<h3>Use cases</h3>
+<p>So the million dollar question is, in which cases we can use this powerful swiss knife?</p>
+<p>* Setting up execution contexts<br />
+* Providing additional information about parameter types (type classes)<br />
+* Generating DSLs<br />
+* Extending a class functionality (implicit classes)</p>
+<p>Providing an example of all these cases would be really tough, so we will take a look at some of them in future posts.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/05/giphy.gif"><img class=" size-full wp-image-320 aligncenter" src="/assets/giphy.gif" alt="giphy" width="245" height="180" /></a></p>
+<p>Peace out! :-)</p>

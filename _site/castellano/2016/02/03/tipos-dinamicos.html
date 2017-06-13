@@ -1,0 +1,98 @@
+<p>Hoy traemos un poco <del>más</del> de magia negra. Leyendo el otro día un poco sobre los procesos de mejora de Scala (SIPs) me encontré <a href="http://docs.scala-lang.org/sips/completed/type-dynamic.html" target="_blank">algo</a> que realmente me llamó la atención: tipos dinámicos.</p>
+<h2>¿Qué son?</h2>
+<p>Los tipos dinámicos permiten definir el comportamiento de un objeto cuando se invoca un método o se intenta acceder a un miembro que no existe. Por ejemplo:</p>
+<p>[code language="scala"]<br />
+class MyClass {<br />
+  def someMethod(): String = &quot;hi&quot;<br />
+}<br />
+val myInstance = new MyClass<br />
+myInstance.nonExistentMethod<br />
+[/code]</p>
+<p>dará un fallo en tiempo de compilación. Con los tipos dinámicos podemos decir que en caso de que se invoque a un método, se llame como se llame, devuelva cierto valor.</p>
+<h2>¿Cómo funcionan?</h2>
+<p>Para poder utilizar los tipos dinámicos, es preciso importar <code>import scala.language.dynamics</code> y extender del trait <code><a href="https://github.com/scala/scala/blob/v2.11.7/src/library/scala/Dynamic.scala" target="_blank">Dynamic</a></code>:</p>
+<p>[code language="scala"]<br />
+class MyClass extends Dynamic {<br />
+  //...<br />
+}<br />
+[/code]</p>
+<p>La clase (o trait) que definamos puede tener todos los atributos y métodos que queramos, pero además podemos implementar los siguientes métodos:</p>
+<h3>applyDynamic</h3>
+<p>este método se encarga de gestionar las llamadas a métodos de la instancia.<br />
+Si queremos que nuestra instancia sepa como invocar el método 'myMethod' con el argumento "hi", podemos hacerlo como sigue:</p>
+<p>[code language="scala"]<br />
+class MyClass extends Dynamic {<br />
+  def applyDynamic(methodName: String)(args: Any*) = {<br />
+    val beginning =<br />
+      args.headOption.getOrElse(&quot;hello&quot;)<br />
+    if (methodName==&quot;myMethod&quot;)<br />
+      println(beginning + &quot; you&quot;)<br />
+    else println(&quot;Dunno...&quot;)<br />
+  }<br />
+}<br />
+[/code]</p>
+<p>Si ahora creamos una instancia e invocamos otro método inventado, veremos que imprimirá por pantalla que no sabe a que se refiere:</p>
+<p>[code language="scala"]<br />
+val myInstance = new MyClass<br />
+myInstance.anotherMethod()//Dunno...<br />
+[/code]</p>
+<p>Y si invocamos al método <code>myMethod</code> que tenemos contemplado:</p>
+<p>[code language="scala"]<br />
+myInstance.myMethod(&quot;hi&quot;)//hi you<br />
+myInstance.myMethod(2)//2 you<br />
+myInstance.myMethod()//hello you<br />
+[/code]</p>
+<h3>applyDynamicNamed</h3>
+<p>Funciona exactamente igual que el <code>applyDynamic</code> solo que permite obtener por nombre los argumentos con los que se invoca al método:</p>
+<p>[code language="scala"]<br />
+class MyClass extends Dynamic {<br />
+  def applyDynamicNamed(name: String)(args: (String, Any)*) = {<br />
+    val (argName,argValue) =<br />
+      args.headOption.getOrElse((&quot;unknown&quot;,&quot;hello&quot;))<br />
+    if (name==&quot;myMethod&quot;)<br />
+      println(s&quot;$argName : $argValue - you&quot;)<br />
+    else println(&quot;Dunno...&quot;)<br />
+  }<br />
+}<br />
+[/code]</p>
+<p>Si se invoca al método sin indicar el nombre de algún parámetro, este será cadena vacía, pero para que se invoque a <code>applyDynamicNamed</code> al menos uno de los argumentos debe tener nombre:</p>
+<p>[code language="scala"]<br />
+myInstance.myMethod(test=2)//test : 2 - you<br />
+myInstance.myMethod(true,test=2)// : true - you<br />
+myInstance.myMethod(true)<br />
+/*<br />
+error: value applyDynamic is not a member of MyClass<br />
+error after rewriting to myInstance.&lt;applyDynamic: error&gt;(&quot;myMethod&quot;)<br />
+possible cause: maybe a wrong Dynamic method signature?<br />
+*/<br />
+[/code]</p>
+<h3>selectDynamic</h3>
+<p>Sería el equivalente a un getter dinámico. Es decir:</p>
+<p>[code language="scala"]<br />
+class MyClass extends Dynamic {<br />
+  def selectDynamic(name: String) =<br />
+    s&quot;My $name equals this string&quot;<br />
+}<br />
+val myInstance = new MyClass<br />
+myInstance.someAttribute//My someAttribute equals this string<br />
+[/code]</p>
+<h3>updateDynamic</h3>
+<p>Y con este método definimos el comportamiento de actualización de miembros que no están definidos de manera estática:</p>
+<p>[code language="scala"]<br />
+class MyClass extends Dynamic {<br />
+  def updateDynamic(name: String)(value: Any) {<br />
+    println(s&quot;you updated your attribute $name with $value value&quot;)<br />
+  }<br />
+}<br />
+val myInstance = new MyClass<br />
+myInstance.myAttribute = 2<br />
+//you updated your attribute myAttribute with 2 value<br />
+[/code]</p>
+<p>NB: En la REPL no funciona de manera muy católica (lo interpreta como un getter). Si lo encapsulais dentro de un App debería funcionar.</p>
+<p>Easy peasy.</p>
+<h2>¿Por qué en un lenguaje de tipado estático?</h2>
+<p><a href="https://scalerablog.files.wordpress.com/2016/01/haters.jpg" rel="attachment wp-att-1281"><img src="/assets/haters.jpg?w=300" alt="haters" width="300" height="216" class="aligncenter size-medium wp-image-1281" /></a></p>
+<p>La motivación oficial de la propuesta de mejora es:</p>
+<blockquote><p>Static types are great, but sometimes we would like to do without them. This could give better support for flexible DSLs that do not require defining the members of a type. It could also provide simpler interfaces with dynamic languages. Scala already provides a number of ways to escape from the straightjacket of the type system: The universal type Any, type tests and type casts, as well as pattern matching. However, one thing is missing: When selecting a member qual.sel, sel must be defined in qual, or be addable with an implicit conversion. This means that we can select members or call methods only if it is statically known that the receiver type supports that member.</p></blockquote>
+<p>Si bien es cierto que los más puristas pueden verlo como una aberración hacia la naturaleza de tipado estático del lenguaje, para los más malabaristas puede dar margen de maniobra a la hora de jugarse el tipo definiendo DSLs sin comprobaciones en tiempo de compilación. Juzguen ustedes.</p>
+<p>¡Agur de limón!</p>

@@ -1,0 +1,89 @@
+<p>Existen multitud de dudas existenciales en el mundo moderno en el que vivimos. Pero hay una duda que supera a todas ellas. ¿Qué hace realmente una <em><strong>for comprehension</strong></em>?</p>
+<p>La respuesta a esta intrincada cuestión es....nada nuevo. Las estructuras <em>for comprehension</em> son simplemente <strong><em>syntactic sugar</em></strong>. Por debajo, en función de como construyamos el bloque, habrá llamadas a <em>map</em>, <em>flatmap</em>, <em>withFilter</em> o <em>foreach</em>.</p>
+<p>Las for comprehension contarán con dos partes clave:</p>
+<ul>
+<li>El bloque for mediante el cual se realizan consultas anidadas</li>
+<li>El bloque yield donde se agrupan y tratan las consultas realizadas anteriormente</li>
+</ul>
+<p>Para entender estos conceptos vamos a ver un pequeño ejemplo:</p>
+<p>[code language="scala"]<br />
+for {<br />
+  x &lt;- List(1, 2, 3)<br />
+  y &lt;- List(true, false)<br />
+} yield (x, y)<br />
+[/code]</p>
+<p>El resultado de esta expresión será la combinación mediante tuplas de la primera lista con la segunda:</p>
+<p>[code language="scala"]<br />
+List(<br />
+  (1, true),<br />
+  (1, false),<br />
+  (2, true),<br />
+  (2, false),<br />
+  (3, true),<br />
+  (3, false)<br />
+)<br />
+[/code]</p>
+<p>Esta for comprehension realmente realizará las siguientes acciones:</p>
+<p>[code language="scala"]<br />
+List(1, 2, 3).flatMap(x =&gt;<br />
+  List(true, false).map( y =&gt; (x, y))<br />
+)<br />
+[/code]</p>
+<p>Como se puede observar, mediante los bloques for todo se vuelve mucho más legible. Lo único que hacemos es hilar varios flatmap para culminar con un map. Vamos a ver otro ejemplo:</p>
+<p>[code language="scala"]<br />
+for {<br />
+  x &lt;- List(1, 2)<br />
+  y &lt;- List(true, false)<br />
+  z &lt;- List(&quot;a&quot;, &quot;b&quot;)<br />
+} yield (x, y, z)<br />
+[/code]</p>
+<p>cuyo equivalente será:</p>
+<p>[code language="scala"]<br />
+List(1, 2, 3).flatMap(x =&gt;<br />
+  List(true, false).flatMap( y =&gt;<br />
+    List(&quot;a&quot;, &quot;b&quot;).map(z =&gt; (x, y, z))<br />
+  )<br />
+)<br />
+[/code]</p>
+<p>y el resultado producido será:</p>
+<p>[code language="scala"]<br />
+List(<br />
+  (1, true, &quot;a&quot;),<br />
+  (1, true, &quot;b&quot;),<br />
+  (1, false, &quot;a&quot;),<br />
+  (1, false, &quot;b&quot;),<br />
+  (2, true, &quot;a&quot;),<br />
+  (2, true, &quot;b&quot;),<br />
+  (2, false, &quot;a&quot;),<br />
+  (2, false, &quot;b&quot;)<br />
+)<br />
+[/code]</p>
+<p>Además, también podemos utilizar filtros mediante sentencias if embebidas:</p>
+<p>[code language="scala"]<br />
+for {<br />
+  x &lt;- List(1, 2, 3, 4, 5, 6, 7)<br />
+  if x &lt; 3<br />
+  y &lt;- List(&quot;a&quot;, &quot;b&quot;)<br />
+} yield (x, y)</p>
+<p>//result: List((1,a), (1,b), (2,a), (2,b))</p>
+<p>[/code]</p>
+<p>cuyo equivalente es:</p>
+<p>[code language="scala"]<br />
+List(1, 2, 3, 4, 5, 6, 7).withFilter(_ &lt; 3).flatMap( x =&gt;<br />
+  List(&quot;a&quot;, &quot;b&quot;).map(<br />
+    y =&gt; (x, y)<br />
+  )<br />
+)<br />
+[/code]</p>
+<p>Existe la posibilidad de que no solo queramos crear una nueva colección, sino realizar una acción con cada uno de los elementos. En ese caso no utilizaremos el bloque yield. Esto provocará que la traducción, al no querer realizar transformaciones a una colección, en vez de ser un método map, sea mediante el método foreach. Tiene bastante sentido ya que en este caso solo queremos realizar acciones por cada evento generado y el resultado final será de tipo <em>Unit</em>.</p>
+<p>[code language="scala"]<br />
+for {<br />
+  x &lt;- List(1, 2, 3)<br />
+  y &lt;- List(true, false) } println(s&quot;($x , $y)&quot;) List(1, 2, 3).foreach(x =&gt;<br />
+  List(true, false).foreach( y =&gt;<br />
+    println(s&quot;($x , $y)&quot;)<br />
+  )<br />
+)<br />
+[/code]</p>
+<p>Después de todos estos ejemplos, esperamos que utilicéis las for comprehension para hacer vuestro código más legible siempre que sea posible. Aunque todos sepamos que la magia se crea en el interior.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/09/35dunb.jpg"><img class="size-medium wp-image-685 aligncenter" src="/assets/35dunb.jpg?w=300" alt="35dunb" width="300" height="225" /></a></p>

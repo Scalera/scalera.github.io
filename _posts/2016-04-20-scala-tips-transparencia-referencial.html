@@ -1,0 +1,64 @@
+---
+layout: post
+title: 'Scalera tips: Transparencia referencial'
+date: 2016-04-20 17:00:14.000000000 +02:00
+type: post
+published: true
+status: publish
+categories:
+- Castellano
+tags:
+- beginner
+- functional
+- referential transparency
+meta:
+  _rest_api_published: '1'
+  _rest_api_client_id: "-1"
+  _publicize_job_id: '21980038923'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/722802252239347715";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: dvallejonava
+  email: d.vallejo.nava@gmail.com
+  display_name: dvallejonava
+  first_name: ''
+  last_name: ''
+---
+<p style="text-align:justify;">Ya hemos hablado en otros <a href="https://scalerablog.wordpress.com/2016/03/09/scalera-tips-var-inmutable-vs-val-mutable/">post</a> sobre algunos detalles de la <em><strong>programación funcional pura</strong> </em>o sobre la importancia de evitar los <em><strong>efectos de lado</strong></em> siempre que sea posible.</p>
+<p>Si investigamos un poco en el tema, es posible que nos encontremos con el concepto de t<em><strong>ransparencia referencial</strong></em>. Hoy vamos a ver a qué se refiere este concepto.</p>
+<p><img class=" size-full wp-image-2693 aligncenter" src="{{ site.baseurl }}/assets/giphy.gif" alt="giphy" width="260" height="225" /></p>
+<p style="text-align:justify;">La transparencia referencial está fuertemente ligada con el modelo de sustitución. Si queremos utilizar Scala utilizando toda su potencia como lenguaje de programación funcional, es necesario que tengamos en mente este concepto. A pesar de tener un nombre algo raruno, es bastante fácil de entender. La transparencia referencial indica que una función de tipo E =&gt; S debería poder ser sustituda por un valor de tipo S sin que eso supusiera una pérdida de funcionalidad. De esta forma, podemos estar seguros de que no la función no tiene efectos de lado.</p>
+<blockquote><p><em><strong>Efectos de lado</strong></em>: una función no tiene efectos de lado si solamente transforma los argumentos de entrada en los de salida, y no realiza absolutamente nada más. Conectarse con una base de datos, imprimir por pantalla, crear logs o modificar una variable fuera del scope de la función, se consideran efectos de lado.</p></blockquote>
+<p style="text-align:justify;">Vamos a ver un ejemplo con código. En este ejemplo vamos a crear una función que permita reservar una habitación de hotel. La función actualizará la lista de reservas del hotel y además devolverá un identificador para el usuario:</p>
+<p>[code language="scala"]<br />
+var reservations: List[Reservation] = List.empy[Reservation]</p>
+<p>def reserveRoom(roomNumber: Int, from: String, to: String): Int = {<br />
+  val id = generateId()<br />
+  reservations = Reservation(roomNumber, from, to, id) :: reservations<br />
+  id<br />
+}</p>
+<p>val myReservation: Int = reserveRoom(1, &quot;1/8/16&quot;, &quot;15/8/16&quot;)<br />
+[/code]</p>
+<p style="text-align:justify;">En este caso, estamos modificando una lista que está fuera del ámbito de la función. Esto es un efecto de lado. Por tanto, si realizamos una sustitución por un valor cualquiera perteneciente al dominio de la función realmente estamos perdiendo funcionalidad porque ya no se está añadiendo nada a la lista de reservas:</p>
+<p>[code language="scala"]<br />
+var reservations: List[Reservation] = List.empy[Reservation]</p>
+<p>val myReservation: Int = &quot;1&quot; //Result of reserveRoom method</p>
+<p>reservations.isEmpty //true....where is my reservation???<br />
+[/code]</p>
+<p style="text-align:justify;">¿Cómo podríamos cumplir la transparencia referencial? Una opción sencilla sería devolver, tanto una nueva lista actualizada, como el identificador de la reserva:</p>
+<p>[code language="scala"]<br />
+var reservations: List[Reservation] = List.empy[Reservation]</p>
+<p>def reserveRoom(<br />
+  roomNumber: Int,<br />
+  from: Date,<br />
+  to: Date<br />
+): (Int, List[Reservation]) = {<br />
+  val id = generateId()<br />
+  (id, Reservation(roomNumber, from, to, id) :: reservations)<br />
+}</p>
+<p>val (myReservation, reservationsUpdated) = reserveRoom(1, &quot;1/8/16&quot;, &quot;15/8/16&quot;)<br />
+reservations = reservationsUpdated</p>
+<p>[/code]</p>
+<p style="text-align:justify;">De esta manera, si repetimos el ejercicio de sustituir por un valor, no perdemos información ¡Y ya hemos acabado! Hasta la próxima ;)</p>

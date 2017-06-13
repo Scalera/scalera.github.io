@@ -1,0 +1,93 @@
+<p>There are many existential questions in the modern world we live in. But there is one question that surpasses them all. What does a <strong><em>for comprehension </em></strong>really do?</p>
+<p>The answer to this intricate matter is... nothing new. For comprehension structures are just <strong><em>syntactic sugar</em></strong>. Underneath, and depending on how the block is built, there will be calls to <em>map, flatMap, withFilter or foreach</em>.</p>
+<p>For comprehension structures will have two key parts:</p>
+<ul>
+<li>The for block, by which nested queries are performed</li>
+<li>The yield block, where previous queries are grouped and treated</li>
+</ul>
+<p>In order to understand these concepts, let's take a look at a small example:</p>
+<p>[code language="scala"]<br />
+for {<br />
+  x &lt;- List(1, 2, 3)<br />
+  y &lt;- List(true, false)<br />
+} yield (x, y)<br />
+[/code]</p>
+<p>The result of this expression is the combination in tuples of the first list with the second:</p>
+<p>[code language="scala"]<br />
+List(<br />
+  (1, true),<br />
+  (1, false),<br />
+  (2, true),<br />
+  (2, false),<br />
+  (3, true),<br />
+  (3, false)<br />
+)<br />
+[/code]</p>
+<p>What this for comprehension is really doing is performing the following operations:</p>
+<p>[code language="scala"]<br />
+List(1, 2, 3).flatMap(x =&gt;<br />
+  List(true, false).map( y =&gt; (x, y))<br />
+)<br />
+[/code]</p>
+<p>As can be seen, with <em>for</em> blocks everything becomes much more readable. All that needs to be done is to join several flatMaps to conclude with a map. Let's see another example:</p>
+<p>[code language="scala"]<br />
+for {<br />
+  x &lt;- List(1, 2)<br />
+  y &lt;- List(true, false)<br />
+  z &lt;- List(&quot;a&quot;, &quot;b&quot;)<br />
+} yield (x, y, z)<br />
+[/code]</p>
+<p>which is equivalent to:</p>
+<p>[code language="scala"]<br />
+List(1, 2, 3).flatMap(x =&gt;<br />
+  List(true, false).flatMap( y =&gt;<br />
+    List(&quot;a&quot;, &quot;b&quot;).map(z =&gt; (x, y, z))<br />
+  )<br />
+)<br />
+[/code]</p>
+<p>and the result produced is:</p>
+<p>[code language="scala"]<br />
+List(<br />
+  (1, true, &quot;a&quot;),<br />
+  (1, true, &quot;b&quot;),<br />
+  (1, false, &quot;a&quot;),<br />
+  (1, false, &quot;b&quot;),<br />
+  (2, true, &quot;a&quot;),<br />
+  (2, true, &quot;b&quot;),<br />
+  (2, false, &quot;a&quot;),<br />
+  (2, false, &quot;b&quot;)<br />
+)<br />
+[/code]</p>
+<p>Moreover, we can also apply filters by using embedded if statements:</p>
+<p>[code language="scala"]<br />
+for {<br />
+  x &lt;- List(1, 2, 3, 4, 5, 6, 7)<br />
+  if x &lt; 3<br />
+  y &lt;- List(&quot;a&quot;, &quot;b&quot;)<br />
+} yield (x, y)</p>
+<p>//result: List((1,a), (1,b), (2,a), (2,b))</p>
+<p>[/code]</p>
+<p>whose equivalent is:</p>
+<p>[code language="scala"]<br />
+List(1, 2, 3, 4, 5, 6, 7)<br />
+  .withFilter(_ &lt; 3)<br />
+  .flatMap( x =&gt;<br />
+    List(&quot;a&quot;, &quot;b&quot;).map(<br />
+      y =&gt; (x, y)<br />
+    )<br />
+  )<br />
+[/code]</p>
+<p>It may happen that not only we want to create a new collection, but also we want some operations to be applied to each one of the elements. In such a situation, we will not use the yield block. This will change the translation as we don't want to make changes to a collection and thus, instead of being a map method, it will be the foreach method. This makes perfect sense since, in this case, we only want to perform actions for each generated event and the type of the final result will be <em>Unit</em>.</p>
+<p>[code language="scala"]<br />
+for {<br />
+  x &lt;- List(1, 2, 3)<br />
+  y &lt;- List(true, false)<br />
+} println(s&quot;($x , $y)&quot;) </p>
+<p>List(1, 2, 3).foreach(x =&gt;<br />
+  List(true, false).foreach( y =&gt;<br />
+    println(s&quot;($x , $y)&quot;)<br />
+  )<br />
+)<br />
+[/code]</p>
+<p>After all these examples, we hope that you use the for comprehension to make your code more readable whenever possible. Although we all know that the magic lies within.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/09/35dunb.jpg"><img class="size-medium wp-image-685 aligncenter" src="/assets/35dunb.jpg?w=300" alt="35dunb" width="300" height="225" /></a></p>

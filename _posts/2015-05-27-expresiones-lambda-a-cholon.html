@@ -1,0 +1,98 @@
+---
+layout: post
+title: Expresiones Lambda a cholón
+date: 2015-05-27 17:00:00.000000000 +02:00
+type: post
+published: true
+status: publish
+categories:
+- Castellano
+tags:
+- anonymous
+- beginner
+- lambda
+- scala
+meta:
+  _rest_api_published: '1'
+  _rest_api_client_id: "-1"
+  _thumbnail_id: '400'
+  _publicize_job_id: '11065333364'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/603578460670328833";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+author:
+  login: dvallejonava
+  email: d.vallejo.nava@gmail.com
+  display_name: dvallejonava
+  first_name: ''
+  last_name: ''
+---
+<p>De los creadores de las clases Anónimas llega.....<strong>funciones anónimas</strong>. O como les llaman los amigos: <strong>expresiones lambda</strong>. Las funciones anónimas, como ya vimos en un <a title="Buscando el anonimato. Clases anónimas." href="https://scalerablog.wordpress.com/2015/04/15/buscando-el-anonimato-clases-anonimas/">post anterior</a>, son funciones que no es necesario declarar previamente. Vamos a ver un ejemplo: Una función que devuelva la longitud de un <em>String</em> eliminando los espacios en blanco la podemos definir de la siguiente forma:</p>
+<p>[code language="scala"]<br />
+  def length(s: String): Int = s.replaceAll(&quot; &quot;, &quot;&quot;).length<br />
+[/code]</p>
+<p>Su equivalente en función anónima será la siguiente:</p>
+<p>[code language="scala"]<br />
+  (s: String) =&gt; s.replaceAll(&quot; &quot;, &quot;&quot;).length<br />
+[/code]</p>
+<p>El tipo de esta expresión será: <em>String =&gt; Int</em> </p>
+<p><strong>¿Dónde podemos usar funciones anónimas?</strong> </p>
+<p>Lo más usual es utilizarlo en funciones que, como parámetro, aceptan otras funciones. A este tipo de funciones se les llama <strong>Funciones de Orden Superior</strong> (o <em>Higher Order Function</em>). También son funciones de orden superior aquellas que como resultado devuelven una función. ¿Pues muy bien. Mu rico....¿un ejemplo? Gracias a una imaginación desbordante, vamos a crear una calculadora de números enteros muy simple. Podemos definir una calculadora de la siguiente forma:</p>
+<p>[code language="scala"]<br />
+  object Calculator {</p>
+<p>    def sum(n1: Int, n2: Int): Int = n1 + n2</p>
+<p>    def subtract(n1: Int, n2: Int): Int = n1 - n2</p>
+<p>    def multiplicate(n1: Int, n2: Int): Int = n1 * n2</p>
+<p>    def divide(n1: Int, n2: Int): Int = n1 / n2<br />
+  }<br />
+[/code]</p>
+<p>Mmmmm, guay. Una clase con varios métodos. Funciona. Pero...¿y si probamos a darle un giro más genérico? <a href="https://scalerablog.files.wordpress.com/2015/05/meme-functions.jpg"><img class="  wp-image-400 aligncenter" src="{{ site.baseurl }}/assets/meme-functions.jpg?w=300" alt="meme-functions" width="245" height="214" /></a> Realmente lo que queremos es aplicar una operación binaria. Dicha operación, dado dos enteros, devolverá un nuevo entero. Podemos decir que necesitamos un método como este:</p>
+<p>[code language="scala"]<br />
+  def calculate(n1: Int, n2: Int)(operation:(Int, Int) =&gt; Int) =<br />
+    operation(n1, n2)<br />
+[/code]</p>
+<p>Como se puede ver, estamos pasando realmente una función como parámetro. Estamos utilizando una función anónima. Para hacerlo más legible, podemos crear un nuevo tipo que represente la operación binaria de enteros: <em>(Int, Int) =&gt; Int</em>.</p>
+<p>[code language="scala"]<br />
+  type Operation = (Int, Int) =&gt; Int<br />
+[/code]</p>
+<p>Y lo aplicamos a nuestro método <em>calculate</em>:</p>
+<p>[code language="scala"]<br />
+  def calculate(n1: Int, n2: Int)(operation: Operation) =<br />
+    operation(n1, n2)<br />
+[/code]</p>
+<p>Este método puede ser llamado de varias formas:<br />
+1) La facilita: le inserto una función definida anteriormente:</p>
+<p>[code language="scala"]<br />
+  def addition(n1: Int, n2: Int) = n1 + n2</p>
+<p>calculate(1, 2)(addition) //returns 3<br />
+[/code]</p>
+<p>2) No tengo una función definida. Además, la función es simple y no se volverá a usar en ningún otro punto del código. Pues nada, meto una expresión lambda</p>
+<p>[code language="scala"]<br />
+  calculate(1, 2)((n1: Int, n2: Int) =&gt; n1 + n2) //returns 3<br />
+[/code]</p>
+<p>Como se puede observar, en este caso se utiliza una función anónima para definir la operación que queremos aplicar a los dos enteros. Es una forma ágil y rápida de definir funciones. Pero no se queda aquí. Gracias a la inferencia de tipos, nos podemos saltar marcar el tipo de los parámetros de entrada:</p>
+<p>[code language="scala"]<br />
+  calculate(1, 2)((n1, n2) =&gt; n1 + n2) //returns 3<br />
+[/code]</p>
+<p>Y si aplicamos un poco de sintatix sugar....</p>
+<p>[code language="scala"]<br />
+  calculate(1, 2)(_ + _) //returns 3<br />
+[/code]</p>
+<p><strong>¿Qué ventajas tenemos respecto a la implementación orientada a objetos?</strong></p>
+<ul>
+<li>Nuestro código se reduce de manera significativa:</li>
+</ul>
+<p>[code language="scala"]<br />
+  object Calculator {</p>
+<p>    type Operation = (Int, Int) =&gt; Int</p>
+<p>    def calculate(n1: Int, n2: Int)(operation: Operation) =<br />
+      operation(n1, n2)<br />
+  }<br />
+[/code]</p>
+<ul>
+<li>No estamos atados a utilizar solo las operaciones que hemos definido a fuego en nuestra implementación. Podemos hacer otras operaciones más complejas al vuelo:</li>
+</ul>
+<p>[code language="scala"]<br />
+  calculate(1, 2)((n1, n2) =&gt; (n1 + n2) * (n1 - n2))<br />
+[/code]</p>
+<p>Como siempre pasa en Scala, su mal uso puede provocar problemas algo desagradables. En futuros post veremos el lado oscuro de las expresiones lambda. Mientras tanto viviremos felices.</p>

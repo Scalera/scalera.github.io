@@ -1,0 +1,58 @@
+<p style="text-align:justify;">Hoy toca empezar con una herramienta para realizar API REST: Spray. Para construir dichas API's, Spray define un DSL (Lenguaje Específico de Dominio) con el que definir cuales son las rutas y las reacciones a las llamadas HTTP que recibamos. Existen otras alternativas para realizar este tipo de API's: scalatra, Play, Lift ... Sin embargo, este viene perfecto para luego hablar de su evolución: Akka-HTTP. Pero no vayamos tan rápido, vamos poco a poco.</p>
+<p><img class="  wp-image-1306 aligncenter" src="/assets/computers20graffiti20error20technology20explorer201440x90020wallpaper_www-wallpaperfo-com_98.jpg?w=680" alt="computers20graffiti20error20technology20explorer201440x90020wallpaper_www-wallpaperfo-com_98" width="440" height="266" /></p>
+<p style="text-align:justify;">El objetivo de este POST es hacer una incursión de iniciación. Nos podemos ir contentos si conseguimos realizar un Hello World con Spray. Para ello, lo principal es conocer cuales son los módulos en los que se compone el framework. Aquí van algunos de los principales:</p>
+<ul>
+<li><em><strong>spray-can</strong></em>: servidor HTTP que nos permitirá levantar nuestra API.</li>
+<li><em><strong>spray-routing</strong></em>: DSL de definición de rutas para definir el comportamiento deseado. A diferencia de otros frameworks (como Play), las rutas están definidas en código en vez de en un fichero de texto o de configuración.</li>
+<li><em><strong>spray-http</strong></em>: módulo que se encarga de modelar y manejar el protocolo HTTP.</li>
+<li><em><strong>spray-json</strong></em>: módulo para serialización y deserialización de mensajes en formato JSON. Es reemplazable por otros módulos de serialización a JSON como play-json, jackson...</li>
+<li><em><strong>spray-testkit</strong></em>: pequeño DSL para realizar testing de los endpoints de una manera muy sencilla.</li>
+</ul>
+<p style="text-align:justify;">En este primer ejemplo, por su sencillez, no necesitaremos todos ellos. Ya iremos utilizando otros módulos más adelante. Por ello, lo primero que tenemos que hacer es construir nuestro fichero <em>SBT</em> con las dependencias necesarias. En nuestro caso nos basta con <em>spray-can</em>, <em>spray-routing</em> y <em>akka</em>. Por tanto, añadimos dichas dependencias al fichero build.sbt:</p>
+<p>[code language="scala"]<br />
+val akkaV = &quot;2.3.9&quot;<br />
+val sprayV = &quot;1.3.3&quot;</p>
+<p>libraryDependencies ++= Seq(<br />
+    &quot;io.spray&quot; %% &quot;spray-can&quot; % sprayV,<br />
+    &quot;io.spray&quot; %% &quot;spray-routing&quot; % sprayV,<br />
+    &quot;com.typesafe.akka&quot; %% &quot;akka-actor&quot; % akkaV<br />
+  )<br />
+[/code]</p>
+<p style="text-align:justify;">Una vez que tenemos la configuración lista, toca ponernos a escribir el código Scala. Es importante saber que Spray está construido sobre Akka. Como vamos a ver, mucha de la funcionalidad se basa en utilizar actores.</p>
+<p style="text-align:justify;">En primer lugar vamos a definir nuestra ruta. En dicha ruta simplemente marcaremos que si recibimos un GET responderemos con un Hello World:</p>
+<p>[code language="scala"]<br />
+import spray.routing._<br />
+trait ApiRoute extends HttpService {</p>
+<p> val myApiRoute =<br />
+   get {<br />
+     complete(&quot;Hello World!&quot;)<br />
+   }<br />
+}<br />
+[/code]</p>
+<p>Como se puede ver, es necesario hacer mixin de HttpService. Además, siempre que queramos devolver alguna respuesta será necesario encapsularlo en un método complete. La parte de spray-routing que utilizamos es la directiva get, que define el comportamiento para las peticiones de tipo GET (muy lógico todo).</p>
+<p style="text-align:justify;">Ahora, tenemos que definir un actor que utilice esta ruta. Esto es muy sencillo ya que se basa totalmente en Akka. Lo único raro (o nuevo) es que tendremos que definir su comportamiento basándonos en un método llamado runRoute que define una ruta. ¿Y cuál será dicha ruta? Pues, por supuesto, será la que acabamos de definir en el trait ApiRoute:</p>
+<p>[code language="scala"]<br />
+import akka.actor.Actor<br />
+import spray.routing._</p>
+<p>class ApiActor extends Actor with ApiRoute {</p>
+<p>  def actorRefFactory = context</p>
+<p>  def receive = runRoute(myApiRoute)<br />
+}</p>
+<p>[/code]</p>
+<p style="text-align:justify;">Ahora queda lanzar la API y atarla a un puerto. Lo primero que necesitaremos realizar es crear un ActorSystem. Una vez creado el ActorSystem, creamos un actor de tipo ApiActor (el actor que acabamos definir en el paso anterior). Finalmente le enviamos un mensaje de tipo Bind indicando la IP y el puerto donde se debe conectar:</p>
+<p>[code language="scala"]<br />
+import akka.actor.{ ActorSystem, Props }<br />
+import akka.io.IO<br />
+import akka.util.Timeout<br />
+import akka.pattern.ask</p>
+<p>import spray.can.Http</p>
+<p>import scala.concurrent.duration._</p>
+<p>object Main extends App {</p>
+<p>  implicit val system = ActorSystem(&quot;My-System&quot;)<br />
+  val apiActor = system.actorOf(Props[ApiActor])</p>
+<p>  implicit val timeout = Timeout(3 seconds)</p>
+<p>  IO(Http) ? Http.Bind(apiActor, interface = &quot;localhost&quot;, port = 8080)</p>
+<p>}<br />
+[/code]</p>
+<p style="text-align:justify;">Y ya está. Ahora solo queda arrancar la aplicación, abrir nuestro navegador favorito e ir a localhost:8080 para poder ver un maravilloso a la par que sorprendente "HELLO WORLD!" :)</p>
+<p style="text-align:justify;"><img class=" size-full wp-image-1378 aligncenter" src="/assets/tumblr_mamiy1kp641qcp26yo1_400.gif" alt="tumblr_mamiy1kp641qcp26yo1_400" width="350" height="233" /></p>

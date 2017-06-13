@@ -1,0 +1,110 @@
+---
+layout: post
+title: Hello World en Akka (Parte I)
+date: 2015-04-29 15:00:00.000000000 +02:00
+type: post
+published: true
+status: publish
+categories:
+- Castellano
+tags:
+- akka
+- beginner
+- scala
+meta:
+  _rest_api_published: '1'
+  _rest_api_client_id: "-1"
+  publicize_twitter_user: ScaleraBlog
+  publicize_twitter_url: http://t.co/rt91TTbFvs
+  _wpas_done_10515941: '1'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:3064583607;b:1;}}
+author:
+  login: dvallejonava
+  email: d.vallejo.nava@gmail.com
+  display_name: dvallejonava
+  first_name: ''
+  last_name: ''
+---
+<p>Hoy vamos a cambiar un poco de tercio. Aprovechando el curso de <strong>programación reactiva</strong> que se está dando actualmente en <em>Coursera</em>, vamos a dar el primer paso para empezar a trabajar con <em><strong>Akka</strong></em>.</p>
+<p>Akka es un toolkit del ecosistema Typesafe. Permite construir sistemas reactivos utilizando el <strong>modelo de actores</strong>. Existen dos versiones de Akka, una para Java y otra para Scala. Aquí nos centraremos, obviamente, en la segunda.</p>
+<p><strong>¿Qué es un actor?</strong></p>
+<p>Un <strong>actor</strong> es una entidad a la que se le pueden enviar mensajes. El actor reaccionará a los mensajes que le lleguen realizando acciones. Además, tiene dos peculiaridades:</p>
+<ul>
+<li>No se puede acceder al interior del actor desde fuera de él. Para interactuar con el actor solo se pueden enviar mensajes.</li>
+<li>Los mensajes que lleguen al actor se procesarán de uno en uno</li>
+</ul>
+<p>Para construir un actor en Akka, haciendo un esfuerzo histórico de comprensión, simplemente hay que extender del trait <em>Actor</em>.</p>
+<p>Si queremos tener el actor completamente definido tendremos que concretar su comportamiento. Para ello hay que implementar el método <em><strong>receive</strong></em> del actor. En él definiremos cual será la reacción del actor a los distintos mensajes que le vayan llegando.</p>
+<p>Pero antes de continuar toca dar paso a Íñigo con un briconsejo</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/04/briconsejo.jpg"><img class="  wp-image-240 aligncenter" src="{{ site.baseurl }}/assets/briconsejo.jpg?w=300" alt="briconsejo" width="329" height="180" /></a></p>
+<p><strong>Briconsejo: Funciones parciales</strong></p>
+<p>Las <strong><em>PartialFunction</em></strong> (o funciones parciales), son funciones que solo están definidas para un conjunto limitado de argumentos. Desde el punto de vista matemático, podríamos decir que su dominio está acotado. Pero realmente como se entiende este concepto es viendo un ejemplo sencillo:</p>
+<p>[code language="scala"]<br />
+def getCountry: PartialFunction[String, String] = {<br />
+  case &quot;Madrid&quot; =&gt; &quot;Spain&quot;<br />
+  case &quot;Paris&quot; =&gt; &quot;France&quot;<br />
+  case &quot;Roma&quot; =&gt; &quot;Italy&quot;<br />
+}<br />
+[/code]</p>
+<p>En este caso, la función <em>getCountry</em> solo devolverá el país de las capitales definidas en la función parcial. En caso de utilizar otra capital como parámetro de entrada, la función devolverá un <em>MatchError</em>.</p>
+<p>[code language="scala"]<br />
+getCountry(&quot;Madrid&quot;) //returns &quot;Spain&quot;;<br />
+getCountry(&quot;Berlin&quot;) //throws MatchError<br />
+[/code]</p>
+<p>Además, las funciones parciales tienen un método llamado <em>isDefinedAt</em> que nos permite saber si un parámetro de entrada está contemplado en su cuerpo. En nuestro caso:</p>
+<p>[code language="scala"]<br />
+getCountry.isDefinedAt(&quot;Madrid&quot;) //returns true<br />
+getCountry.isDefinedAt(&quot;Berlin&quot;) //returns false<br />
+[/code]</p>
+<p>Otro truco importante es componer varias funciones parciales para crear una nueva. Para ello usaremos el método orElse:</p>
+<p>[code language="scala"]<br />
+def getCountryEurope: PartialFunction[String, String] = {<br />
+  case &quot;Madrid&quot; =&gt; &quot;Spain&quot;<br />
+  case &quot;Paris&quot; =&gt; &quot;France&quot;<br />
+  case &quot;Roma&quot; =&gt; &quot;Italy&quot;<br />
+}</p>
+<p>def getCountryAmerica: PartialFunction[String, String] = {<br />
+  case &quot;Brasilia&quot; =&gt; &quot;Brazil&quot;<br />
+  case &quot;Buenos Aires&quot; =&gt; &quot;Argentina&quot;<br />
+}</p>
+<p>def getCountry =<br />
+  getCountryEurope orElse getCountryAmerica</p>
+<p>getCountry.isDefinedAt(&quot;Madrid&quot;) //returns true<br />
+getCountry.isDefinedAt(&quot;Brasilia&quot;) //returns true</p>
+<p>[/code]</p>
+<p>Y para finalizar la master class de <em>PartialFunction</em>, es importante conocer el método <em>applyOrElse</em>, con el que podremos evaluar una función parcial con un valor de entrada e incluir una función auxiliar que será utilizada en caso de que el valor de entrada no esté en el dominio. ¿Lo qué? Con un ejemplo se ve mucho mejor:</p>
+<p>[code language="scala"]<br />
+def unhandled(capital: String) = s&quot;$capital is not defined&quot;<br />
+getCountry.applyOrElse(&quot;Foo&quot;, unhandled) //Foo is not defined</p>
+<p>[/code]</p>
+<p><strong>Actor Hello World</strong></p>
+<p>¡Bien! Ahora que sabemos lo que son las funciones parciales, ya podríamos definir nuestro método <em>receive</em> en el actor, que es el que indicará el comportamiento de un actor. Dicho método receive, como habréis podido deducir, realmente es una función parcial.</p>
+<p>[code language="scala"]<br />
+type Receive = PartialFunction[Any, Unit]</p>
+<p>def receive: Receive<br />
+[/code]</p>
+<p>Dicha función parcial espera cualquier tipo como parámetro de entrada y devuelve <em>Unit</em>. Por lo tanto, gracias al tipo de argumento <em>Any</em>, podemos enviar como mensaje a un actor cualquier cosa: un string, un entero, un objeto ...</p>
+<p>[code language="scala"]<br />
+def receive {<br />
+  case num: Int =&gt; println(s&quot;Num $num received&quot;)<br />
+  case words: String =&gt; println(s&quot;String $words received&quot;)<br />
+  case _ =&gt; println(&quot;I've received other thing&quot;)<br />
+}<br />
+[/code]</p>
+<p>Además, es importante saber que cuando llega un mensaje a un actor primero se intenta aplicar a la función parcial que hemos definido en el método receive y, en caso de no estar definido en el dominio, se ejecutará el método unhandled:</p>
+<p>[code language="scala"]<br />
+def unhandled(msg: Any): Unit<br />
+[/code]</p>
+<p>Dicho método, por defecto, imprimirá los mensajes que no han sido manejados en un log. De esta manera, si un mensaje no está contemplado en el método <em>receive</em>, en vez de causar un <strong>MatchError</strong> y hacer que nuestro programa explote por los aires, imprimirá una traza en el log de Akka. Utilizando los conocimientos de nivel supremo que ya tenemos de PartialFuncion podemos adivinar que el comportamiento de un actor para un mensaje llamado <em>msg</em> estará definido de esta forma:</p>
+<p>[code language="scala"]<br />
+receive.applyOrElse(msg, unhandled)<br />
+[/code]</p>
+<p>Solo queda definir el actor, que en nuestro caso, independientemente del mensaje que le llegue, imprimiremos un Hello World bello y apasionado:</p>
+<p>[code language="scala"]<br />
+class HelloWorldActor extends Actor {</p>
+<p>  def receive {<br />
+    case _ =&gt; println(&quot;Hello World!&quot;)<br />
+  }<br />
+}<br />
+[/code]</p>
+<p>¡Voila! En el siguiente post veremos como podemos utilizar este actor y como ponerlo en funcionamiento.</p>

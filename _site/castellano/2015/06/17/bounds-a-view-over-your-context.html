@@ -1,0 +1,65 @@
+<p>¿No te ha pasado alguna vez, cuando estás con los amigos, que sientes la necesidad de expresarte mejor al parametrizar tus métodos y clases?</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/06/i-know-that-feel-1.jpg"><img class=" size-medium wp-image-465 aligncenter" src="/assets/i-know-that-feel-1.jpg?w=300" alt="I-know-that-feel (1)" width="300" height="277" /></a></p>
+<h3>Context bounds</h3>
+<p>Los context bounds permiten definir restricciones sobre la herencia de los parameter types.<br />
+Por ejemplo, supongamos que tenemos la clásica herencia:</p>
+<p>[code language="scala"]<br />
+trait Animal<br />
+trait Cat extends Animal<br />
+trait Dog extends Animal<br />
+[/code]</p>
+<p>Si queremos definir un método que reciba como argumento cualquier animal podríamos definir el método como sigue:</p>
+<p>[code language="scala"]<br />
+def myMethod(animal: Animal): Unit =<br />
+  println(animal)<br />
+[/code]</p>
+<p>Pero usando parameter types, también podríamos hacerlo como sigue:</p>
+<p>[code language="scala"]<br />
+def myMethod[T&lt;:Animal](animal: T): Unit =<br />
+  println(animal)<br />
+[/code]</p>
+<p>Con la notación <strong>&lt;:</strong> forzamos a que el tipo <strong>T</strong> sea un subtipo de <strong>Animal</strong>.<br />
+Ahora bien, ¿qué aporta entonces la segunda notación frente a la primera? abramos un poco la mente...</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/06/post-28553-steve-jobs-mind-blown-gif-hd-t-pvbd.gif"><img class=" size-medium wp-image-466 aligncenter" src="/assets/post-28553-steve-jobs-mind-blown-gif-hd-t-pvbd.gif?w=300" alt="post-28553-Steve-Jobs-mind-blown-gif-HD-T-pVbd" width="300" height="200" /></a></p>
+<p>¿Qué ocurre si en vez de recibir un Animal nuestro método, recibiera un Set[Animal]?</p>
+<p>Pues que no es lo mismo un Set[Animal] que un Set[_&lt;:Animal], por lo que tendríamos que definir nuestro método siguiendo alguna de las siguientes opciones:</p>
+<p>[code language="scala"]<br />
+def myMethod[T&lt;:Animal](animals: Set[T]): Unit =<br />
+  animals.foreach(println)</p>
+<p>def myMethod(animals: Set[_&lt;:Animal]): Unit =<br />
+  animals.foreach(println)<br />
+[/code]</p>
+<p>También podemos definir restricciones para que el tipo recibido sea un supertype de Dog, como por ejemplo:</p>
+<p>[code language="scala"]<br />
+def myType[T&gt;:Dog](animals:Set[T]): Unit =<br />
+  animals.foreach(println)<br />
+myType(Set(new Animal{})) //ok!<br />
+[/code]</p>
+<h3>View bounds</h3>
+<p>Si no necesitamos definir restricciones de herencia, pero queremos que exista un modo de convertir el parameter type a otra cosa, entonces lo que estamos buscando son los view bounds. Su notación es <strong>&lt;%</strong>.<br />
+Por ejemplo:</p>
+<p>[code language="scala"]<br />
+def myMethod[T&lt;%Double](doubleLikes: Set[T]): Unit=<br />
+  douleLikes.foreach(d =&gt; println(d + 2.0))<br />
+[/code]</p>
+<p>Lo que signfica es que nuestro método está parametrizado por un tipo T y que, en el scope actual, debe haber una función de conversión de T a Double. No es sino syntactic sugar para:</p>
+<p>[code language="scala"]<br />
+def myMethod[T](doubleLikes: Set[T])(implicit ev: T =&gt; Double): Unit =<br />
+  douleLikes.foreach(d =&gt; println(ev(d) + 2.0))<br />
+[/code]</p>
+<p>De manera que podríamos invocar nuestro método como sigue:</p>
+<p>[code language="scala"]<br />
+myMethod(Set(1,2,3))//ok<br />
+myMethod(Set(true,false))//fail!<br />
+&lt;console&gt;:9: error: No implicit view available from Boolean =&gt; Double.<br />
+              myMethod(Set(true,false,true))<br />
+               ^<br />
+[/code]</p>
+<p>Si no existe una vista para un tipo concreto, como en este caso para Boolean, nos podemos definir una:</p>
+<p>[code language="scala"]<br />
+implicit def toD(b: Boolean):Double =<br />
+  if (b) 1.0 else 2.0<br />
+myMethod(Set(true,false))//ok<br />
+[/code]</p>
+<p>Y nada más por hoy. Fácil y sencillo :-)</p>
+<p>¡Agur de limón!</p>

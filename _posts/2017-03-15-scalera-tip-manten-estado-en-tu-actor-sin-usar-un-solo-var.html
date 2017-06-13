@@ -1,0 +1,104 @@
+---
+layout: post
+title: 'Scalera tip: Mantén estado en tu actor sin usar un solo VAR'
+date: 2017-03-15 10:00:42.000000000 +01:00
+type: post
+published: true
+status: publish
+categories:
+- Castellano
+tags:
+- actor
+- akka
+- become
+- discard
+- immutable
+- mutable
+- receive
+- state
+- var
+meta:
+  _edit_last: '59615419'
+  geo_public: '0'
+  draftfeedback_requests: a:1:{s:13:"58c19c7871c4c";a:3:{s:3:"key";s:13:"58c19c7871c4c";s:4:"time";s:10:"1489083512";s:7:"user_id";s:8:"59615419";}}
+  _thumbnail_id: '4343'
+  _publicize_job_id: '2883315589'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/841922668282695681";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: jpaniego
+  email: javiersantospaniego@gmail.com
+  display_name: Javier S. Paniego
+  first_name: ''
+  last_name: ''
+---
+<p>Es de todos sabido que usar VARs es algo que, aparte de mal visto, está mal, es el infierno en vida, hace que mueran gatitos y muchas otras perlitas que probablemente ya habréis oído antes y que por poco os ha causado una muerte lenta y dolorosa en el cadalso.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2017/03/8a9.gif"><img src="{{ site.baseurl }}/assets/8a9.gif" alt="" width="245" height="192" class="aligncenter size-full wp-image-4343" /></a></p>
+<p>La esencia en programación funcional es, por tanto, la inmutabilidad: cada vez que muto un elemento, genero uno nuevo.</p>
+<h3>What about Akka actors?</h3>
+<p>Cuando hablamos de actores, podemos definirlos como unidades con estado que procesan de manera secuencial una cola de mensajes, asociando (o no) a cada uno de estos mensajes una cierta lógica computacional.</p>
+<p>Siempre se ha dicho que para mantener dicho estado dentro de la lógica de un actor, no pasaba nada si usabas un var:</p>
+<blockquote><p>
+Es imposible que hayan problemas de concurrencia: solo el propio actor tiene acceso a dicho VAR y procesará un solo mensaje al mismo tiempo.
+</p></blockquote>
+<p>Pero quizás podamos renunciar a esta premisa si buscamos una manera de redefinir el comportamiento del actor en base a un nuevo estado.</p>
+<h2>Mortal approach</h2>
+<p>Siguiendo la filosofía antes descrita, la primera (y más directa) aproximación para mantener el estado en un actor se parecería bastante a lo siguiente:</p>
+<p>[code lang="scala"]<br />
+class Foo extends Actor{<br />
+  var state: Int = 0<br />
+  override def receive = {<br />
+    case Increase =&gt; state += 1<br />
+  }<br />
+}<br />
+[/code]</p>
+<p>Cada vez que llega un mensaje <code>Increase</code>, modificamos el valor de state, sumando 1.<br />
+Hasta aquí nada complicado, ¿no?</p>
+<p><a href="https://scalerablog.files.wordpress.com/2017/03/giphy.gif"><img src="{{ site.baseurl }}/assets/giphy.gif?w=300" alt="" width="300" height="226" class="aligncenter size-medium wp-image-4344" /></a></p>
+<h2>Immutable approach</h2>
+<p>Sin embargo, podríamos definir una función receive que estuviera parametrizada por un cierto estado, de manera que cuando llegue un mensaje, el estado a tener en cuenta sea este parámetro.</p>
+<p>Si se diera la circunstancia de tener que actualizar el valor de dicho estado, bastaría con invocar al método <code>become</code> que modifica el comportamiento del actor. En nuestro caso, dicha modificación del comportamiento consistiría en cambiar el valor del estado.</p>
+<p>Si usamos el mismo ejemplo que antes:</p>
+<p>[code lang="scala"]<br />
+class Foo extends Actor{<br />
+  def receive(state: Int): Receive = {<br />
+    case Increase =&gt;<br />
+      context.become(<br />
+        receive(state + 1),<br />
+        discardOld = true)<br />
+  }<br />
+  override def receive = receive(0)<br />
+}<br />
+[/code]</p>
+<p>vemos que la función que define el <code>receive</code> en base al estado recibe un parámetro denominado <code>state</code>. Cuando llega un mensaje de tipo <code>Increase</code>, lo que hacemos es invocar a <code>become</code> para modificar el comportamiento del actor, pasando como argumento el nuevo estado a tener en cuenta.</p>
+<p>Si queremos mejorar un poco la legibilidad, podríamos incluso abstraer todo actor con estado actualizable:</p>
+<p>[code language="scala"]<br />
+trait SActor[State] extends Actor {<br />
+  val initialState: State<br />
+  def receive(state: State): Receive<br />
+  def update(state: State): Receive =<br />
+    context.become(<br />
+      receive(state),<br />
+      discardold = true)<br />
+  override def receive =<br />
+    receive(initialState)<br />
+}<br />
+[/code]</p>
+<p>de manera que se especifique el estado inicial del actor, una nueva función de <code>receive</code> que queda parametrizada por el nuevo estado a gestionar, y una nueva función de update que se encarga de realizar la llamada a <code>become</code> como antes explicábamos.<br />
+Con todo ello nos queda un nuevo actor <code>Foo</code> mucho más curioso:</p>
+<p>[code language="scala"]<br />
+class Foo extends SActor[Int] {<br />
+  val initialState = 0<br />
+  def receive(state: Int): Receive = {<br />
+    case Increase =&gt; update(state +1)<br />
+  }<br />
+}<br />
+[/code]</p>
+<h2>Potential hazardous issues</h2>
+<p>Nótese que en el ejemplo de antes hemos pasado un segundo argumento: <code>discardOld = true</code>. Este argumento indica si el comportamiento nuevo debe apilarse sobre el anterior o si por el contrario debe sustituirlo por completo.</p>
+<p>Supongamos que usáramos un <code>discardOld = false</code>. Si cada vez que llegase un mensaje de incremento, apilásemos un nuevo comportamiento, podríamos llegar a tener un problema de desbordamiento.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2017/03/giphy-1.gif"><img src="{{ site.baseurl }}/assets/giphy-1.gif" alt="" width="480" height="366" class="aligncenter size-full wp-image-4345" /></a></p>
+<p>Hasta el próximo briconsejo.</p>
+<p>Agur de limón :-)</p>

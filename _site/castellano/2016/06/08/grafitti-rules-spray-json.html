@@ -1,0 +1,40 @@
+<p style="text-align:justify;">Hace ya unos meses hablamos de <a href="https://scalerablog.wordpress.com/2016/01/27/graffiti-rules-hello-word-con-spray/">Spray</a>, un toolkit que nos permitía construir API's REST de una forma sencilla con un DSL bastante completo.</p>
+<p style="text-align:justify;">Uno de los componentes que forman el toolkit es spray-json. Con este modulo podemos serializar y deserializar nuestros objetos a un formato JSON. Hoy vamos a ver como trabajar con él de forma muy rápida y sencilla.</p>
+<p style="text-align:justify;">¿Cómo crear los serializadores de las distintas clases? Pues existen dos opciones en función de cómo esté definida la clase que queramos serializar.</p>
+<p><strong>Opción fácil: </strong>cuando tenemos una case class</p>
+<p style="text-align:justify;">Esto está tirado. Lo único que tenemos que utilizar es el método <em>jsonFormatN</em>() donde N representa el número de argumentos que tiene el método apply de la case class. Veamos un ejemplo:</p>
+<p>[code language="scala"]<br />
+case class Character(name: String, family: String, isDead: Boolean)</p>
+<p>object MyJsonProtocol extends DefaultJsonProtocol {</p>
+<p> implicit val characterFormat = jsonFormat3(Character.apply)</p>
+<p>}<br />
+[/code]</p>
+<p style="text-align:justify;">Como se puede ver, para crear un serializador para la case class <em>Character</em> creamos un valor implícito con la ayuda de jsonFormat3 (ya que tiene 3 atributos). Dicho objeto implícito lo definiremos dentro de un trait que extenderá de DefaultJsonProtocol. En este trait están definidos los serializadores para los tipos básicos de Scala: Int, String, Boolean ... Fácil y sencillo.</p>
+<p style="text-align:justify;"><img class="  wp-image-4111 aligncenter" src="/assets/tumblr_mfuulmem1p1qem4feo1_250.gif" alt="tumblr_mfuulmem1p1qem4feo1_250" width="185" height="185" /></p>
+<p style="text-align:justify;"><strong>Opción menos fácil</strong>: cuando no tenemos una case class o queremos serializar una case class de una forma distinta.</p>
+<p style="text-align:justify;">En este caso, es necesario picarnos a mano como debe ser la serialización y la deserialización del tipo en cuestión. Para ello, es necesario crear un implicit object que extienda de <em>RootJsonFormat</em>[T] donde <em>T</em> es el tipo que se quiere serializar. Dicho trait contiene dos métodos a implementar. Por un lado existe un método <em>write</em>, que convierte un tipo <em>T</em> en un Json, y por otro lado un tipo <em>read</em>, que realiza el proceso inverso. A continuación vemos un ejemplo con el mismo tipo que antes:</p>
+<p>[code language="scala"]<br />
+class Character(val name: String, val family: String, val isDead: Boolean)</p>
+<p>object MyJsonProtocol extends DefaultJsonProtocol {</p>
+<p>  implicit object CharacterJsonFormat extends RootJsonFormat[Character] {</p>
+<p>    def write(c: Character) =<br />
+      JsArray(JsString(c.name), JsString(c.family), JsBoolean(c.isDead))</p>
+<p>    def read(value: JsValue) = value match {<br />
+      case JsArray(Vector(JsString(name), JsString(family), JsBoolean(isDead))) =&gt;<br />
+        new Character(name, family, isDead.toBoolean)<br />
+      case _ =&gt; throw new DeserializationException(&quot;Character expected&quot;)<br />
+    }<br />
+  }<br />
+}<br />
+[/code]</p>
+<p>Como se puede observar, es un poco más tedioso pero no demasiado complicado.</p>
+<p><strong>¿Y cómo lo usamos?</strong> Basta con importar el objeto donde hemos definido los implícitos y realizar llamadas a los métodos <em>toJson</em> o <em>convertTo[T]</em>.</p>
+<p>[code language="scala"]<br />
+import MyJsonProtocol._</p>
+<p>val json = Character(&quot;Jon Snow&quot;, &quot;Stark&quot;, ???).toJson //....You know nothing!!!!<br />
+// Returns {&quot;name&quot;: &quot;Jon Snow&quot;, &quot;family&quot;: &quot;Stark&quot;, &quot;isDead&quot;: ???}<br />
+val jonSnow = json.convertTo[Character]<br />
+[/code]</p>
+<p><img class="alignnone  wp-image-4095 aligncenter" src="/assets/giphy.gif" alt="giphy" width="392" height="193" /></p>
+<p style="text-align:justify;">Además, si usamos la API REST de Spray, la transformación se hará de forma transparente y no será necesario llamar a <em>toJson</em> o <em>convertTo</em> de forma explícita. Pero esto para otro post. La semana que viene, se hará una pequeña mención a esta librería, por lo que no venía mal dar unas pequeñas pinceladas antes :)<br />
+Agur de limón!</p>

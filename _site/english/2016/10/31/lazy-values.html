@@ -1,0 +1,85 @@
+<p>Just in case you lived in a hole for the last ten years and you didn't know: Scala allows managing lazy values. </p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/10/image.png"><img src="/assets/image.png?w=300" alt="image" width="300" height="213" class="aligncenter size-medium wp-image-4293" /></a></p>
+<p>In Scala, we can define a value that won't be evaluated until it is explicitly invoked. For example:</p>
+<p>[code language="scala"]<br />
+lazy val myLazyInt: Int = { println(&quot;hi&quot;); 2 }<br />
+[/code]</p>
+<p>As you can see, using <code>lazy</code> notation, we've defined lazily an integer that stands for the literal 2 and also prints a 'hi' when it's evaluated.<br />
+Apart from violating the biggest functional programming law (referential transparency) due to the insidious <code>println</code>, side effects, dead, destruction, blah blah ...</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/10/anigif_enhanced-1822-1407333641-6.gif"><img src="/assets/anigif_enhanced-1822-1407333641-6.gif" alt="anigif_enhanced-1822-1407333641-6" width="500" height="263" class="aligncenter size-full wp-image-4292" /></a></p>
+<p>notice that, if we execute the code block, the previously mentioned 'println' is not executed. The block is not evaluated until any other expression makes use of our lazy integer value:</p>
+<p>[code language="scala"]<br />
+val result = myLazyInt + 3<br />
+//woa! somebody printed 'hi' and I have a brand new 5 inside 'result'<br />
+[/code]</p>
+<p>Once <code>myLazyInt</code> is evaluated, its value won't be calculated again, no matter how many times it's invoked. Therefore, the mysterious impression won't salute us anymore:</p>
+<p>[code language="scala"]<br />
+lazy val myLazyInt: Int = { println(&quot;hi&quot;); 2 }<br />
+myLazyInt<br />
+//&quot;hi&quot;<br />
+myLazyInt //nothing special happened now ...<br />
+myLazyInt //no matter how many times you invoke it...<br />
+myLazyInt //seriously, let it go...<br />
+[/code]</p>
+<p>Curious. The question that could come up is, if I define a lazy value and I pass it as a method parameter, what happens? Is it evaluated at the very same moment that the method is invoked? Maybe inside the method? That'll depend on the way you define your method's parameters.</p>
+<h2>Call by name vs. call by value</h2>
+<p>When defining a method, people usually define its parameter <strong>'by-value'</strong>, that means, that we expect the parameter to be already evaluated when it is passed to the method:</p>
+<p>[code language="scala"]<br />
+def myMethod(someInteger: Int): Int = {<br />
+  println(&quot;begin&quot;)<br />
+  val result = someInteger + 2<br />
+  println(&quot;end&quot;)<br />
+  result<br />
+}<br />
+[/code]</p>
+<p>If we invoke our method with any integer:</p>
+<p>[code language="scala"]<br />
+val n = 3<br />
+val result = myMethod(n)<br />
+//&quot;begin&quot;<br />
+//&quot;end&quot;<br />
+require(result == 5)<br />
+[/code]</p>
+<p>We just print both traces and it's not big deal. Nothing new so far.<br />
+What happens if we now pass to the method our lazy value? In which exact moment will it print the salutation? Before or after the method traces?<br />
+Let's try:</p>
+<p>[code language="scala"]<br />
+myMethod(myLazyInt)<br />
+//&quot;hi&quot;<br />
+//&quot;begin&quot;<br />
+//&quot;end&quot;<br />
+[/code]</p>
+<p>It printed it out before the method traces, which means that our lazy value was evaluated just before the method was invoked. Why does this happen? Because the way that Scala usually works needs the exact value of <code>someInteger</code> in order to be able to execute <code>myMethod</code><br />
+It's a pity if we want to keep <code>myLazyInt</code> lazy until the very last moment. How do we fix that? We'll pass the argument <strong>'by-name'</strong>, that is, indicating the way the value has to be resolved instead of explicitly passing the value:</p>
+<p>[code language="scala"]<br />
+def myMethod(someInteger: =&gt; Int): Int = {<br />
+  println(&quot;begin&quot;)<br />
+  val result = someInteger + 2<br />
+  println(&quot;end&quot;)<br />
+  result<br />
+}<br />
+[/code]</p>
+<p>This way (<code>someInteger: =&gt; Int</code>) we indicate that our method requires as parameter an expression that, in the end, returns an integer and not an integer itself. If we now execute the method passing our non-yet evaluated lazy value:</p>
+<p>[code language="scala"]<br />
+myMethod(myLazyInt)<br />
+//&quot;begin&quot;<br />
+//&quot;hi&quot;<br />
+//&quot;end&quot;<br />
+[/code]</p>
+<p><em>Voilà</em>! We made it. The 'hi' trace is not printed until the exact value of our lazy guy is required inside the method. </p>
+<h2>Some other ways to express laziness</h2>
+<p>Another way to express a lazy evaluation, which could be extremely useful, is the <code>Function0</code> type:</p>
+<p>[code language="scala"]<br />
+trait Function0[+R]{<br />
+  def apply(): R<br />
+}<br />
+[/code]</p>
+<p>It's just a function that requires zero parameters and return an only output type. It's expressed as follows:</p>
+<p>[code language="scala"]<br />
+val f: () =&gt; Int =<br />
+  () =&gt; 2<br />
+f.apply() //2<br />
+[/code]</p>
+<p>And that's pretty much everything...Once understood in rough outlines how laziness works in Scala, let's move on to more interesting questions. A <code>Lazy</code> value, does it represent something stateful?<br />
+The answer (or more extra questions) will be available in the following post.</p>
+<p>Peace out!</p>

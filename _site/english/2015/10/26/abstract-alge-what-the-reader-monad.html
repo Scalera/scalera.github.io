@@ -1,0 +1,69 @@
+<p>By losing our fear of <a href="https://scalerablog.wordpress.com/2015/10/12/abstract-alge-what-monads/">monads</a>, a whole new world of possibilities has opened up. Today we'll take a look at one specific monad: the Reader monad. This monad will allow us to perform the dependency injection in our application.A few weeks ago we saw how to use <a href="https://scalerablog.wordpress.com/2015/07/13/traditionally-baked-scala-cake/">Cake Pattern</a>. If you didn't like that that much, pay attention :)</p>
+<p>The monad Reader belongs to Scalaz and thus, if we want to use it, we have to import this library in our project.</p>
+<p>[code language="scala"]<br />
+import scalaz.Reader<br />
+[/code]</p>
+<p>The constructor of the Reader monad gets a unary function as input, that is, a function with just one argument. With the monad, we'll be able to work with the unary function in a direct and transparent way, as if it were an instance of the Function1 type.</p>
+<p>[code language="scala"]<br />
+import scalaz.Reader</p>
+<p>val plus100 = Reader((n: Int) =&gt; n + 100)<br />
+plus100(1) //101<br />
+[/code]</p>
+<p>And that's all? Well, no. The good thing about using the Reader monad is that once it is instantiated, we can use the map method to transform the result of the function:</p>
+<p>[code language="scala"]<br />
+import scalaz.Reader</p>
+<p>val plus100 = Reader((n: Int) =&gt; n + 100)<br />
+plus100(1) //101</p>
+<p>val doublePlus100 = plus100.map(_ * 2)<br />
+doublePlus100(1) //202<br />
+[/code]</p>
+<p><strong>And how can this be helpful with dependency injection?</strong></p>
+<p>By using this monad, we'll be able to inject dependencies in a component, same thing that we could do with Cake Pattern. Let's look at a simple example. Since we're talking about the Reader monad, let's use an example based on a library.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/10/6400b4d28d122bfa1876eda6a27d169e.jpg"><img class="size-medium wp-image-776 aligncenter" src="/assets/6400b4d28d122bfa1876eda6a27d169e.jpg?w=300" alt="6400b4d28d122bfa1876eda6a27d169e" width="300" height="186" /></a></p>
+<p>It is required that our library has a repository injected to it. The generic implementation will be the following one:</p>
+<p>[code language="scala"]<br />
+case class Book(isbn: String, name: String)</p>
+<p>trait Repository {<br />
+  def get(isbn: String): Book<br />
+  def getAll: List[Book]<br />
+}<br />
+[/code]</p>
+<p>In order to inject the dependency, the repository will be used as input argument to the unary function in a generic way.</p>
+<p>[code language="scala"]<br />
+trait Library {<br />
+  import scalaz.Reader</p>
+<p>  def getBook(isbn: String) =<br />
+    Reader(<br />
+      (repository: Repository) =&gt; repository.get(isbn)<br />
+    )</p>
+<p>  def getAllBooks =<br />
+    Reader(<br />
+      (repository: Repository) =&gt; repository.getAll<br />
+    )<br />
+}<br />
+[/code]</p>
+<p>Further on, we may want to know some information about the books, for instance, the title. For that, map function will be used, which will allow us to modify the result of the query.</p>
+<p>[code language="scala"]<br />
+object LibraryInfo extends Library {</p>
+<p>  def bookName(isbn: String) =<br />
+    getBook(isbn) map (_.name)</p>
+<p>}<br />
+[/code]</p>
+<p>Eventually, we will use that information, for example, in a REST API:</p>
+<p>[code language="scala"]<br />
+import scalaz.Reader</p>
+<p>class UniversityApp(repository: Repository) extends Library {</p>
+<p>  //GET ~/books/{id}/name<br />
+  def getBookName(isbn: String) =<br />
+    run(LibraryInfo.bookName(isbn))</p>
+<p>  //GET ~/books/<br />
+  def getAll = run(getAllBooks)</p>
+<p>  private def run[A](reader: Reader[Repository, A]): String = {<br />
+    reader(repository).toString<br />
+  }<br />
+}</p>
+<p>object UniversityApp extends UniversityApp(new RepositoryImpl{})<br />
+[/code]</p>
+<p>The most important thing here is the private method <em>run</em>. This method is the one in charge of applying the implemented repository to every Reader monad that we have defined in our program.</p>
+<p>Besides, we use an argument in our application to define the implementation of the repository we want to inject. This way, we can inject a test repository when tests need to be performed, facilitating to a great extent the construction of them.</p>
+<p>That's all folks!</p>

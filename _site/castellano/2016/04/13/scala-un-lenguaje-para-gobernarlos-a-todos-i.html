@@ -1,0 +1,136 @@
+<p><em>Al principio, no teníamos lenguajes de programación, sólo código máquina. Entonces, la <a href="https://en.wikipedia.org/wiki/Automatic_programming">programación automática</a> vino para salvarnos a todos. Proporcionando anillos de poder para controlar a las máquinas: Estos fueron llamados "Lenguajes de programación". Se diversificaron, sirvieron de inspiración para otros nuevos y acabaron constituyendo un rico ecosistema. De entre ellos surgió un nuevo y útil género de lenguajes para ordenadores: Los DSLs.</em></p>
+<h1>DSLs</h1>
+<p>Los lenguajes de propósito específico, <strong><em>D</em></strong><em>omain <strong>S</strong>pecific (computer) <strong>L</strong>anguages</em>, existen desde hace bastante tiempo. La definición académica para este sub-grupo establece que han de estar enfocados en el marco de un dominio concreto de aplicación. Los <strong>DSLs</strong> son pequeños y concisos, esto implica que son de gran ayuda ya que guían a sus usuarios a través del proceso de describir acciones, entidades y relaciones dentro de su dominio de aplicación. Aún más importante es el hecho de que están hechos y diseñados para servir a un único propósito.</p>
+<blockquote><p><em>Si soy un matemático y estoy haciendo un estudio estadístico con mi ordenador ¿Por qué debería preocuparme acerca de la gestión de memoria?</em></p></blockquote>
+<p>No es de sorprender que haya surgido un gran reino de mini-lenguajes que han tomado el poder sobre actividades teles como el aprendizaje automático, la programación científica, el diseño y gestión de hardware, modelado de datos, ...</p>
+<h1>¡Y a mi qué! ¿No era esto un blog sobre Scala?</h1>
+<p>¡Cierto! todo esto puede sonar a antiguas batallitas. Sin embargo, en una actualidad en la que todos parecemos estar obsesionados por la adquisición, almacenamiento y análisis de grandes volúmenes de datos que son, a su vez, de naturaleza muy variable (o lo que es lo mismo, mezclando peras con manzanas); Estamos obligados a enfrentarnos a docenas de formas de tratar estos datos y muchas de estas formas no son más que casos concretos de DSLs: SQL, HiveQL, CQL, bash, grep, awk, R... !Por favor! !Cuando va a acabar esta lista! Probablemente: Nunca. Y eso que estamos obviando lo que está por venir.</p>
+<p>Que maravilla si hubiese una herramienta que nos ayudase, pobres humanos, a construir DSLs, un meta-DSL que, de alguna manera, nos guiase a la hora de desarrollar nuevos DSLs. Esta herramienta existe, y se llama <strong>Scala</strong>.</p>
+<p>Cuando los creadores de este gran (no sólo por sus bondades sino por su extensión) lenguaje de programación le pusieron nombre, no sólo lo hicieron pensando en su capacidad para la re-utilización de código y potencial uso en entornos concurrentes con facilidad para escalar horizontalmente, sino que también tenían en mente su potencial para ser fácilmente expandido. Quizás sea esa la razón de su basta extensión en sintaxis y herramientas. Algunas de las características de Scala en la dirección de la expansibilidad son:</p>
+<ul>
+<li><strong>Notación infija: </strong>Cualquier llamada a un método que recibe un objeto como parámetro puede ser escrita de forma infija. Esto es,<br />
+<em>objA.metodo(objB) </em>puede escribirse como <em>objA metodo objB.<br />
+</em></li>
+<li><strong>No existencia de operadores:</strong> A diferencia de otros lenguajes, carece de operadores como elementos con entidad propia. Todo son métodos cuyas reglas de precedencia y asociatividad están determinadas por el último carácter del nombre del método.Así, cualquier método cuyo nombre no acabe en el caracter `:` asocia de izquierda a derecha: <em>obj1 + obj2 </em>es lo mismo que <em>obj1.+(obj2) </em>en tanto que <em>obj1 +: obj2 </em>es lo mismo que <em>obj2.+:(obj1).<br />
+</em>Algo parecido ocurre con la precedencia ya que existe un orden de importancia de caracteres finales, un ejemplo es la mayor importancia de `<em>*` </em>frente a `<em>+` </em>:<em><br />
+obj1 + obj2 * obj3  </em>es siempre igual a <em>obj1 + (<em>obj2 * obj3</em>).</em>Esta es la lista de importancia (de menor a mayor prioridad):</p>
+<ul>
+<li>Todas las letras del alfabeto, en mayúsculas o minúsculas.</li>
+<li>|</li>
+<li>^</li>
+<li>&amp;</li>
+<li>Los símbolos = y !</li>
+<li>Los símbolos &lt; y &gt;</li>
+<li>:</li>
+<li>Las operaciones aritméticas + y -</li>
+<li>Las operaciones aritméticas *, / y %</li>
+<li>Cualquier otro caracter especial.</li>
+</ul>
+</li>
+<li><strong>Características avanzadas de programación orientada a objetos: </strong><em>object, trait, ...</em></li>
+</ul>
+<p>&nbsp;</p>
+<p>Estas tres características se combinan para proporcionar un entorno completo para el desarrollo de <a href="http://martinfowler.com/bliki/InternalDslStyle.html">DSLs internos</a> en el seno de Scala.</p>
+<h1>Primeros pasos</h1>
+<p>La notación infija sienta las base sobre la que construir nuestros lenguajes embebidos en Scala.</p>
+<p>Partiendo, por ejemplo, del siguiente trait:</p>
+<p>[code language="scala"]<br />
+trait MovingRobot {<br />
+  def moveForward(): MovingRobot = {<br />
+    println(&quot;Robot moved one position forward&quot;)<br />
+    this<br />
+  }<br />
+  def moveBackward(): MovingRobot = {<br />
+    println(&quot;Robot moved one position backward&quot;)<br />
+    this<br />
+  }<br />
+}<br />
+[/code]</p>
+<p>Que puede mezclarse en la declaración de un objeto:</p>
+<p>[code language="scala"]<br />
+object robot extends MovingRobot<br />
+[/code]</p>
+<p>Podemos modelar los movimientos del un robot virtual llamando a los métodos de <em>MovigRobot </em>de una forma tradicional:</p>
+<p>[code language="scala"]<br />
+robot.moveForward.moveBackward<br />
+[/code]<br />
+Pero el uso de la notación infija proporciona da lugar a un código mucho más cercano al lenguaje natural:</p>
+<p>[code language="scala"]<br />
+robot moveForward() moveBackward<br />
+robot moveForward<br />
+robot moveBackward<br />
+[/code]<br />
+Este es el tipo más simple de los DSLs embebidos en Scala y sirve como punta de partida para enfoques más avanzados.</p>
+<h2>Transiciones de estado</h2>
+<p>Sí, simple y también imperativo además de ser de poca utilidad. Los comandos no están cambiando el estado del sistema más allá del efecto lateral que implica la impresión de caracteres por la salida estándar realizada por medio de <em>println:</em></p>
+<p><img class=" size-full wp-image-2227 aligncenter" src="/assets/simpliest_automaton.png" alt="simpliest_automaton" width="336" height="260" /></p>
+<p>Con DSLs de este nivel, existen dos opciones para modelar los efectos de las instrucciones del DSL:</p>
+<ul>
+<li><strong>El enfoque mutable:</strong> Es el más sencillo para aquellos llegados a Scala desde lenguajes imperativos pero, definitivamente, es mucho más arriesgado en lo que a la introducción de bugs respecta. La idea es muy similar a a que hay detrás de tantos builders o acumuladores de Java, por ejemplo, <em><a href="https://docs.oracle.com/javase/7/docs/api/java/lang/StringBuilder.html">StringBuilder</a></em>:El estado del acumulador es la cadena que se está componiendo. Métodos, como <em><strong><a href="https://docs.oracle.com/javase/7/docs/api/java/lang/StringBuilder.html#append(double)">append</a></strong>(double d), </em>devuelven una referencia a la instancia del acumulador cuyo estado se está modificando como consecuencia de la llamada. De esta manera, la misma referencia se devuelve llamada tras llamada ya que es la misma instancia de <em>StringBuilder </em>la que muta. ¿Suena familiar?
+<p><img class=" size-full wp-image-2228 aligncenter" src="/assets/mutable_state.png" alt="mutable_state" width="278" height="160" /></li>
+<li><strong>El enfoque inmutable (o el camino a la sabiduría):</strong>  ¡No se debe cambiar nada! Hay que devolver un nuevo estado con los atributos derivados del estado anterior y la acción realizada. De ahora en adelante, sólo se tratará esta técnica.</li>
+</ul>
+<p>La belleza de la segunda solución radica en que cada acción devuelve un único estado que mantiene una relación 1 a 1 con los estados reales del sistema modelado. Esto significa que las entidades del código que implementa al DSL son un reflejo exacto de los cambios y estados que se desean representar. Además, el estado es inmutable por definición.</p>
+<header class="f"></header>
+<blockquote><header class="f"><a href="http://dle.rae.es/?id=GjqhajH">estado</a><br />
+Del lat. status.Escr. con may. inicial en aceps. 6 y 7.<br />
+1. m. Situación en que se encuentra alguien o algo, y en especial cada uno de sus sucesivos modos de ser o estar.</p>
+<p>(www.rae.es)</p>
+</header>
+</blockquote>
+<p>Explicar el por qué del hecho de que la programación basada en la inmutabilidad es más segura (en lo que la introducción de bugs respecta) que la basada en la mutabilidad de objetos está fuera del alcance de este artículo, cientos de explicaciones están al alcance de buscador. Algunas razones están muy bien resumidas en <a href="http://www.ibm.com/developerworks/java/library/j-jtp02183/index.html">este</a> artículo de IBM.</p>
+<p>Incluso, los creadores de Java, decidieron que la inmutabilidad era mejor, al menos para sus cadenas de texto.</p>
+<p><img class="alignnone size-full wp-image-2229" src="/assets/state_transition.png" alt="state_transition" width="588" height="246" /></p>
+<p>Devolviendo en cada transición un, totalmente nuevo, estado se reduce la lista de responsabilidades del código que implementa dicha transición a sólo una: Generar un nuevo estado. Esto genera diseños mucho más sencillos para el conjunto del DSL. No pueden darse cambios inesperados fuera de llamadas explícitas a los métodos de transición.</p>
+<h2>Al grano de las  transiciones inmutables</h2>
+<p>Siguiendo el extremadamente complejo ejemplo de nuestra API para robots unidimensionales (llegados a este punto, un ávido lector de Scalera probablemente se de cuenta de que el <a href="https://scalerablog.wordpress.com/2016/01/20/scalera-challenge-de-la-tierra-a-la-luna/">anterior reto Scalera</a> incluía un bonito DSL). Este API puede cambiarse para seguir el enfoque funcional arriba descrito:</p>
+<p>[code language="scala"]<br />
+// All states extend `RobotState`<br />
+trait RobotState {<br />
+  def position: Int<br />
+}</p>
+<p>// Transitions which can be mixed with any state for which they<br />
+// make sense.</p>
+<p>trait MovementTransitions {<br />
+  self: RobotState =&gt;</p>
+<p>  def moveForward(nSteps: Int = 1): RobotState with MovementTransitions</p>
+<p>  def moveBackward(nSteps: Int = 1): RobotState with MovementTransitions</p>
+<p>}</p>
+<p>// States<br />
+// In this example, states only differ in the robot position so they all<br />
+// are represented by the same case class.<br />
+case class Robot(position: Int) extends RobotState with MovementTransitions {</p>
+<p>  def moveForward(nSteps: Int = 1) =<br />
+    Robot(position + nSteps)</p>
+<p>  def moveBackward(nSteps: Int = 1) =<br />
+    Robot(position - nSteps)</p>
+<p>}</p>
+<p>// Initial state<br />
+val robot = new Robot(0)<br />
+[/code]</p>
+<p>A continuación, un sencillo ejemplo de uso:</p>
+<p>[code language="scala"]<br />
+robot moveForward(10) moveBackward() position<br />
+[/code]</p>
+<p>Esto es una simplificación extrema que muestra las técnicas básicas detrás de los DSLs embebidos en Scala que puede resumirse en:</p>
+<ul>
+<li>El uso de la notación infija.</li>
+<li>De familias de estados y transiciones entre estos.</li>
+<li>Limitación de las transiciones de forma que sólo pueden producirse desde un estado y resultar en otro completamente nuevo que, podría compartir, la mayoría de los atributos con su predecesor.</li>
+</ul>
+<h1>Un poco de teoría: Máquinas de estado ¿En serio?</h1>
+<p>¿El realmente necesario un modelo de diseño y programación basado en máquinas de estado?  La respuesta es sí, siempre que no quieras acabar dándote un tiro en tu propio pie.</p>
+<p><img class="  wp-image-2230 alignleft" src="/assets/shootfoot.gif" alt="shootfoot" width="263" height="255" />Las máquinas de estados inmutables son sencillas de mantener, entender y expandir.</p>
+<p>Por otro lado, hay que tener en cuenta que los DSLs no son otra cosa que lenguajes formales con gramáticas que tienen su lugar en la <a href="https://es.wikipedia.org/wiki/Jerarqu%C3%ADa_de_Chomsky">clasificación de Chomsky</a>: Habitualmente Gramáticas regulares y gramáticas independientes de contexto.</p>
+<ul>
+<li>¿Qué tipo de máquina es capaz de procesar/reconocer lenguajes basados en gramáticas regulares? Los <a href="https://es.wikipedia.org/wiki/Aut%C3%B3mata_finito">autómatas finitos</a>.</li>
+<li>En el caso de las gramáticas independientes de contexto, son los <a href="https://es.wikipedia.org/wiki/Aut%C3%B3mata_con_pila">autómatas de pila</a> los que pueden reconocer/procesar sus lenguajes. Estos (<span style="color:#ff0000;">¡Ojo! Simplificación</span>) no son más que autómatas finitos que pueden hacer uso de una pila auxiliar dónde colocar y de dónde leer símbolos que pueden determinar el resultado de una transición, junto con el estado anterior y la entrada.</li>
+</ul>
+<p>El modelo de transiciones expuesto en las secciones anteriores parece encajar a la perfección con las máquinas teóricas de estado. Surge una pregunta que es, as su vez, su propia respuesta: ¿Debería un desarrollador invertir su tiempo en buscar nuevas soluciones, poco probadas y que pueden ser inestables o estar cargadas de bugs cuando tiene un modelo tan firme a su alcance?</p>
+<blockquote><p>- Bien, les sugiero caballeros que inventen una forma de encajar una clavija cuadrada en un agujero redondo.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/03/gene_krantz.png" rel="attachment wp-att-2292"><img class="aligncenter size-full wp-image-2292" src="/assets/gene_krantz.png" alt="gene_krantz" width="700" height="376" /></a></p>
+<p>- Pero, señor, ¡Si nos sobran clavijas redondas!</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/03/engineer.png" rel="attachment wp-att-2293"><img class="aligncenter size-full wp-image-2293" src="/assets/engineer.png" alt="engineer" width="700" height="316" /></a></p></blockquote>
+<h1>En el siguiente episodio...</h1>
+<p>Desarrollo práctico de un DSL útil, paso a paso. Sin historias de guerra, teoría y sin ninguna de esas cosas "tan aburridas". Sólo...</p>
+<p><img class=" size-full wp-image-2294 aligncenter" src="/assets/letsdoit.jpg" alt="letsdoit" width="400" height="400" /></p>

@@ -1,0 +1,128 @@
+---
+layout: post
+title: Testing en Scala (I)
+date: 2015-07-01 17:00:44.000000000 +02:00
+type: post
+published: true
+status: publish
+categories:
+- Castellano
+tags:
+- beginner
+- flatspec
+- matchers
+- must
+- props
+- scala
+- scalatest
+- should
+- spec
+- test
+meta:
+  _edit_last: '59615419'
+  geo_public: '0'
+  _publicize_job_id: '12218403879'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/616260760658841600";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: jpaniego
+  email: javiersantospaniego@gmail.com
+  display_name: Javier S. Paniego
+  first_name: ''
+  last_name: ''
+---
+<p>Uno de los elementos de los que no hemos hablado hasta ahora, y que sin embargo resulta de los más importantes en el día a día, son los frameworks de testing en Scala.</p>
+<p>Aunque la integración con la JVM permite el uso de frameworks de testing basados en Java, como puede ser <a href="http://junit.org/" target="_blank">JUnit</a>, nosotros destacamos dos, basados en Scala: Scalatest y Scalacheck.</p>
+<p>Veréis que no hay que ser ningún experto para poder hacer uso de ellos:</p>
+<p><img class="aligncenter" src="{{ site.baseurl }}/assets/4f3508f3e3.gif" alt="" width="219" height="210" /></p>
+<p>En este post nos centraremos en el primero de ellos.</p>
+<h2>ScalaTest</h2>
+<p>Versátil framework de testing que permite testear tanto código en Java como en Scala. Notable además por su integración con herramientas como JUnit, TestNG, Ant, Maven, sbt, ScalaCheck, JMock, EasyMock, Mockito, ScalaMock, Selenium (automatización de pruebas con el browser), ...</p>
+<p>Te recomendamos los siguientes pasos para empezar a usar ScalaTest:</p>
+<h3>0. Crea tu deslumbrante clase de dominio.</h3>
+<p>[code language="scala"]<br />
+case class Foo(n: Int){<br />
+  def +(m: Int): Foo = Foo(n+m)<br />
+  def -(m: Int): Foo = Foo(n-m)<br />
+}<br />
+[/code]</p>
+<h3>1. Añade la dependencia de Scalatest a tu proyecto SBT.</h3>
+<p>[code language="scala"]<br />
+libraryDependencies += &quot;org.scalatest&quot; %% &quot;scalatest&quot; % &quot;2.2.4&quot; % &quot;test&quot;<br />
+[/code]</p>
+<p>...o el equivalente en Maven:</p>
+<p>[code language="scala"]<br />
+&lt;dependency&gt;<br />
+  &lt;groupId&gt;org.scalatest&lt;/groupId&gt;<br />
+  &lt;artifactId&gt;scalatest_2.11&lt;/artifactId&gt;<br />
+  &lt;version&gt;2.2.4&lt;/version&gt;<br />
+  &lt;scope&gt;test&lt;/scope&gt;<br />
+&lt;/dependency&gt;<br />
+[/code]</p>
+<h3>2. Elige tu estilo de testing favorito...y crea una base class para testing.</h3>
+<p>Scalatest ofrece distintos <a href="http://www.scalatest.org/user_guide/selecting_a_style" target="_blank">estilos de testing</a>: tests basados en propiedades (PropSpec), basado en lenguaje más descriptivo, y por tanto más restrictivo (WordSpec), sencillas (FunSpec), ...<br />
+Para este ejemplo seleccionaremos un estilo de testing bastante legible como puede ser FlatSpec.<br />
+Es recomendable definir una <b>base class</b> que aglutine todos los traits que vamos a usar para nuestros tests, de manera que podamos reutilizar dicha base class sin tener que repetir código:</p>
+<p>[code language="scala"]<br />
+abstract class MyTestClass(<br />
+  entityToTest: String) extends FlatSpec<br />
+  with Matchers {</p>
+<p>  behavior of entityToTest</p>
+<p>}<br />
+[/code]</p>
+<p>La línea</p>
+<p>[code language="scala"]behavior of entityToTest[/code]</p>
+<p>establece el nombre del comportamiento que estamos definiendo en nuestra clase de test. Sobretodo, se debe a una cuestión de pretty-printing.</p>
+<p>Si además extendemos del trait <b>Matchers</b>, podremos expresar aserciones a cumplir como:</p>
+<p>[code language="scala"]<br />
+val n = 2<br />
+n should equal(1+1)<br />
+n should be(3-1)<br />
+n must be(0+2)<br />
+//...<br />
+[/code]</p>
+<h3>3. Define el test para tu clase de dominio.</h3>
+<p>Iremos definiendo los casos de prueba como sigue:</p>
+<p>[code language="scala"]<br />
+class FooTest extends MyTestClass(&quot;A Foo&quot;) {</p>
+<p>  it should &quot;add some value to its attribute N&quot; in {<br />
+    val myFoo = Foo(0)<br />
+    (myFoo + 2) should equal(Foo(2))<br />
+    val anotherFoo = Foo(5)<br />
+    (anotherFoo + 3) should equal(Foo(8))<br />
+  }</p>
+<p>  it should &quot;substract some value to N&quot; in {<br />
+    val myFoo = Foo(3)<br />
+    (myFoo - 2) should equal(Foo(1))<br />
+    (Foo(0) - 5) should equal(Foo(-5))<br />
+  }</p>
+<p>}<br />
+[/code]</p>
+<p>Fijaros que las definiciones de los casos de prueba son suficientemente descriptivas y aportan una gran facilidad para comprender el comportamiento de <b>Foo</b> solo con leerlas.</p>
+<h3>4. Lanza el test</h3>
+<p>Desde SBT:</p>
+<p>[code language="scala"]<br />
+test<br />
+[/code]</p>
+<p>El output deberá mostrar algo similar a:</p>
+<p>[code]<br />
+Discovery starting.<br />
+Discovery completed in 34 milliseconds.<br />
+Run starting. Expected test count is: 2<br />
+FooTest:<br />
+A Foo<br />
+- should add some value to its attribute N<br />
+- should substract some value to N<br />
+Run completed in 61 milliseconds.<br />
+Total number of tests run: 2<br />
+Suites: completed 1, aborted 0<br />
+Tests: succeeded 2, failed 0, canceled 0, ignored 0, pending 0<br />
+All tests passed.<br />
+[/code]</p>
+<h3>5. Farda ante tus amigos</h3>
+<p><a href="https://scalerablog.files.wordpress.com/2015/07/b784c8abf46a00e87ee8365535645ba0.gif"><img class="aligncenter size-medium wp-image-514" src="{{ site.baseurl }}/assets/b784c8abf46a00e87ee8365535645ba0.gif?w=300" alt="b784c8abf46a00e87ee8365535645ba0" width="300" height="225" /></a></p>
+<p>[code language="scala"]<br />
+thisPost.isAwesome should be(true)<br />
+[/code]</p>

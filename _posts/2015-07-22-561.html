@@ -1,0 +1,99 @@
+---
+layout: post
+title: Type classes en Scala
+date: 2015-07-22 17:00:00.000000000 +02:00
+type: post
+published: true
+status: publish
+categories:
+- Castellano
+tags:
+- advanced
+- monoid
+- scala
+- type-classes
+meta:
+  _rest_api_client_id: "-1"
+  _rest_api_published: '1'
+  _publicize_job_id: '12977085239'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/623870394714329088";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: dvallejonava
+  email: d.vallejo.nava@gmail.com
+  display_name: dvallejonava
+  first_name: ''
+  last_name: ''
+---
+<p>Después de unas cuantos meses con el blog ya hemos podido saber donde podemos usar <a href="https://scalerablog.wordpress.com/2015/04/01/herencia-multiple-jugando-a-ser-dios/">traits</a>, para qué sirven los <a href="https://scalerablog.wordpress.com/2015/05/20/implicito-lisa-o-ilicito/">implícitos</a> o qué narices son eso de los<a href="https://scalerablog.wordpress.com/2015/06/03/tipos-existenciales-a-que-huelen-las-nubes/"> tipos genéricos</a>. Hoy vamos a utilizar un poco de todo para explicar las <em><strong>type classes</strong></em>.</p>
+<p>Las <em><strong>type classes</strong></em>, a pesar del nombre, no provienen del paradigma orientado a objetos, si no de la programación funcional. Utilizando esta técnica vamos a poder agregar funcionalidad de forma ad-hoc a los tipos que deseemos. Tanto tipos primitivos del lenguaje como tipos que hayamos creado nosotros mismos.</p>
+<p><strong>¿Cómo se construyen type classes en Scala?</strong></p>
+<p>Para ilustrar la explicación vamos a usar un pequeño ejemplo.<br />
+En primer lugar, lo que tenemos que hacer es crear un trait con la funcionalidad que queremos añadir a los tipos. Como queremos que sea posible utilizarlo para varios tipos distintos, el trait estará parametrizado con el tipo genérico <em>T</em>.</p>
+<p>[code language="scala"]<br />
+trait Addable[T] {<br />
+  def +(a: T, b: T): T<br />
+}<br />
+[/code]</p>
+<p>Ahora que ya tenemos el trait definido, vamos a definir objetos implícitos que hereden de dicho trait. Tendremos que crear un objeto por cada tipo que queramos que tenga dicha funcionalidad. Además, en cada objeto tendremos que implementar como se deben sumar los elementos de ese tipo específico.</p>
+<p>[code language="scala"]<br />
+object Addables {<br />
+  implicit object AddableLikeInt extends Addable[Int] {<br />
+    def +(a: Int, b: Int): Int = a + b<br />
+  }</p>
+<p>  implicit object AddableLikeString extends Addable[String] {<br />
+    def +(a: String, b: String): String = a + b<br />
+  }</p>
+<p>  implicit object AddableLikeBoolean extends Addable[Boolean] {<br />
+    def +(a: Boolean, b: Boolean): Boolean = a &amp;&amp; b<br />
+  }<br />
+}<br />
+[/code]</p>
+<p>Como podemos ver, en este caso estamos definiendo el método <em>+</em> para los tipos <em>Int</em>, <em>String</em> y <em>Boolean</em>. Ahora ya podemos sumar estos tipos.</p>
+<p><strong>Mmmm...¿y cómo se usan?</strong></p>
+<p>Ya tenemos las <em>type classes</em> definidas para tres tipos primitivos. Para darles uso vamos a utilizar un método <em>plus</em> que sume dos elementos del mismo tipo.</p>
+<p>[code language="scala"]<br />
+def plus[T](a1: T, a2: T)(implicit ev: Addable[T]): T = ev.+(a1, a2)<br />
+[/code]</p>
+<p>Para obligar a que el tipo de los elementos que queremos sumar sea <em>Addable </em>vamos a utilizar en la signatura del método un valor implícito de tipo<em> Addable[T]</em>. De esta forma, el método buscara en el scope si existe un objeto que extienda del tipo <em>Addable[T]</em> cuyo <em>T</em> sea el tipo de los valores que queremos sumar. A este valor implícito se le suele denominar <em><strong>evidencia</strong></em>.<br />
+Ahora vamos a probarlo:</p>
+<p>[code language="scala"]<br />
+import Addables._  </p>
+<p>plus(true, false) //false<br />
+[/code]</p>
+<blockquote><p>Como recordatorio, comentar que podemos hacer uso de syntactic sugar y usar los Context Bound para marcar las evidencias:</p>
+<pre>def plus[T:Addable](a1: T, a2: T)</pre>
+</blockquote>
+<p>¡Genial! Pero, ¿qué ocurre si queremos sumar algún tipo que no habíamos definido anteriormente? Pues que nos va a dar un error indicando que no se encuentra en el scope un implícito con el tipo definido:</p>
+<p>[code language="scala"]<br />
+plus(1.0, 2.0) // error: could not find implicit value for parameter ev: Addable[Double]<br />
+[/code]</p>
+<p>Solucionarlo es muy fácil. Basta con crear otro implicit object con el tipo deseado. En este caso con el tipo <em>Double</em>:</p>
+<p>[code language="scala"]<br />
+implicit object AddableLikeDouble extends Addable[Double] {<br />
+  def +(a: Double, b: Double): Double = a + b<br />
+}</p>
+<p>plus(1.0, 2.0) //3.0<br />
+[/code]</p>
+<p>Ahora ya podemos sumar dos valores de tipo <em>Double</em>. Y lo mismo ocurre para tipos definidos por nosotros mismos:</p>
+<p>[code language="scala"]<br />
+case class Group(name: String, people: Set[String])</p>
+<p>implicit object AddableLikeGroup extends Addable[Group] {<br />
+  def +(a: Group, b: Group): Group =<br />
+    Group(<br />
+      name = a.name + &quot; &amp; &quot; + b.name,<br />
+      people = a.people | b.people<br />
+    )<br />
+}<br />
+[/code]</p>
+<p>Ahora ya puedo sumar <em>Groups</em>:</p>
+<p>[code language="scala"]<br />
+plus(Group(&quot;A&quot;, Set(&quot;Peter&quot;)), Group(&quot;B&quot;, Set(&quot;John, Chris&quot;)))<br />
+//Group(&quot;A &amp; B&quot;, Set(&quot;Peter&quot;, &quot;John&quot;, &quot;Chris&quot;))<br />
+[/code]</p>
+<p><strong>Bonus</strong></p>
+<p>Como hemos podido ver, las type class nos permiten extender funcionalidad de una forma muy sencilla y elegante. Nos sirve tanto para trabajar con tipos primitivos, como con tipos propios. Además, controlando el scope de los objetos implícitos, tenemos el control sobre cuando queremos que un tipo específico extienda una determinada funcionalidad.</p>
+<p>Esta técnica nos viene perfecto para meternos en profundidad con materia más compleja en futuros post. Lo que hemos visto hoy es el primer paso para entender los <strong><em>monoids</em></strong>, una estructura algebraica que podemos encontrar en librerías funcionales como <em><a href="https://github.com/scalaz/scalaz">Scalaz</a></em> o <em><a href="https://github.com/non/cats">Cats</a></em>. Pero por el momento os dejo con la miel en los labios :)</p>
+<p>Feliz verano!</p>

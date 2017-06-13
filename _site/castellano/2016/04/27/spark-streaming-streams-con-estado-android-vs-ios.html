@@ -1,0 +1,73 @@
+<p>Si os acordais del post en el que hablabamos sobre como <a href="https://scalerablog.wordpress.com/2016/04/06/spark-streaming-twitter-analytics-al-gusto/" target="_blank">conectar Spark Streaming con Twitter</a>, dijimos que el límite para hacer analíticas lo ponía vuestra imaginación. </p>
+<p>En este post vamos a proponer algún ejemplo que nos sirva a su vez para ilustrar la idea de mantener un estado en base a la alimentación del stream que definimos. En cristiano, vamos a ver cómo de popular es un topic de twitter frente a otro: Android vs IOS.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/04/appleandroid.jpg" rel="attachment wp-att-2642"><img src="/assets/appleandroid.jpg?w=700" alt="appleandroid" width="700" height="280" class="aligncenter size-large wp-image-2642" /></a></p>
+<h2>Stateful</h2>
+<p>La idea básica es tener una entidad S cuyo estado se alimenta en base a los batches con elementos de tipo V que procesa el stream.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/04/stateful-stream.png" rel="attachment wp-att-2634"><img src="/assets/stateful-stream.png?w=700" alt="stateful stream" width="700" height="370" class="aligncenter size-large wp-image-2634" /></a></p>
+<p>La manera en que dicho estado se actualiza para un instante discreto <strong>Tn</strong> es aplicando una función definida por el usuario que toma como argumentos el estado que había en el instante <strong>Tn-1</strong> y el conjunto de valores que trae el batch recibido por el stream en <strong>Tn</strong>:</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/04/updatestate-function-2.jpg" rel="attachment wp-att-2309"><img src="/assets/updatestate-function-2.jpg" alt="updateState function (2)" width="700" height="200" class="aligncenter size-full wp-image-2309" /></a></p>
+<p>Que en una notación más familiar para el scalero de a pie sería</p>
+<p>[code language="scala"]<br />
+type StateUpdate[S] =<br />
+  (Option[S],Seq[V]) =&gt; Option[S]<br />
+[/code]</p>
+<p>¿Por qué <code>Option[S]</code>? Por una razón principal: inicialmente, cuando arrancamos el stream, no disponemos de ningún estado <code>S</code>, de manera que la función no podía ser <code>(S,Seq[V]) =&gt; S</code>.</p>
+<h2>¿Y todo esto en la práctica?</h2>
+<p>La API de Spark para funciones de DStreams sobre pares (<code>PairDStreamFunctions</code>) provee el siguiente método para ello:</p>
+<p>[code language="scala"]<br />
+def updateStateByKey[S]<br />
+  (updateFunc: (Seq[V], Option[S]) ⇒ Option[S])<br />
+  (implicit arg0: ClassTag[S]): DStream[(K, S)]<br />
+[/code]</p>
+<p>De manera que para un <code>DStream</code> en el que podamos discriminar los elementos por una función que nos provea una clave (veremos un ejemplo más adelante), podremos aplicar este método, obteniendo un estado <code>S</code> (en la mayoría de los casos se podrá corresponder con una agregación) por cada clave.</p>
+<p>El método se encuentra sobrecargado, de manera que se puede especificar un particionador disinto del <code>HashPartitioner</code>, indicar un número de particiones particular o bien pasar un estado inicial <code>RDD[(K,S)]</code> (recordad que, de otra manera, inicialmente nuestro estado para todas las claves <code>K</code> tiene que ser <code>None</code>). </p>
+<h2> El ejemplo </h2>
+<p>Supongamos que tenemos intención de medir la rivalidad entre Android e IOS y queremos saber de quién se está hablando más en Twitter (en este ejemplo no distinguiremos entre si las menciones son positivas o negativas).</p>
+<p>Utilizando el mismo proyecto que propusimos para el <a href="https://scalerablog.wordpress.com/2016/04/06/spark-streaming-twitter-analytics-al-gusto/" target="_blank">anterior ejemplo de Spark + Twitter</a>, modificaremos el fichero <code>Boot.scala</code> para que tenga el <a href="https://gist.github.com/JSantosP/38883bf8efbb15b6f4b1eec972c64b1d" target="_blank">contenido del siguiente gist</a>.</p>
+<p>En primer lugar, tenemos que habilitar el directorio de checkpointing y los filtros de los tweets que nos interesan:</p>
+<p>[code language="scala"]<br />
+  //  Set checkpoint dir</p>
+<p>  ssc.checkpoint(&quot;/tmp&quot;)</p>
+<p>  //  Add filters ...</p>
+<p>  val Android = &quot;android&quot;<br />
+  val IOS = &quot;ios&quot;</p>
+<p>  filter(<br />
+    Android,<br />
+    IOS<br />
+  )<br />
+[/code]</p>
+<p>A continuación agruparemos nuestros tweets en base a si estos contienen el filtro Android o IOS (en caso de que el tweet contenga ambos, se contabilizará en ambas claves). El resultado obtenido es otro <code>DStream</code> pero que contiene pares de clave-valor (filtro-tweet):</p>
+<p>[code language="scala"]<br />
+val groupedTweets = stream.flatMap{content =&gt;<br />
+  List(Android, IOS).flatMap(key =&gt;<br />
+    if (content.getText.contains(key))<br />
+      Option(key -&gt; content)<br />
+    else None)<br />
+  }<br />
+[/code]</p>
+<p>Una vez agrupados los tweets, creamos un nuevo DStream a partir de este, usando la función que definimos al principio del post <code>updateStateByKey</code>, de manera que el estado <code>S</code> del que hablábamos sería la suma de tweets para cada palabra clave: </p>
+<p>[code language="scala"]<br />
+val aggregatedTweets: DStream[(String,Long)] =<br />
+  groupedTweets.updateStateByKey{<br />
+    (newTweets, previousState) =&gt;<br />
+      val newTweetsAmount = newTweets.size.toLong<br />
+      previousState.fold(<br />
+        Some(newTweetsAmount))(previousSize =&gt;<br />
+        Some(previousSize + newTweetsAmount))<br />
+  }<br />
+[/code]</p>
+<p>La única parte 'complicada' de entender del fragmento de código podría ser el <code>fold</code>, pero es sencillo ya que en realidad indica que, en caso de tener una cantidad anterior (estado previo) sumamos la nueva cantidad a la anterior. En caso contrario, dejamos la nueva.</p>
+<p>Aparte de esto, terminamos de hacer funcionar el snippet imprimiendo estas cantidades por pantalla y comenzando la escucha del stream:</p>
+<p>[code language="scala"]<br />
+//  And add actions to perform (like printing the aggregatedTweets) ...</p>
+<p>aggregatedTweets.foreachRDD{ results =&gt;<br />
+  results.foreach{<br />
+    case (team, amount) =&gt;<br />
+      logger.info(s&quot;&gt;&gt;&gt; $team : $amount&quot;)<br />
+  }<br />
+}</p>
+<p>// ... and begin listening</p>
+<p>listen()<br />
+[/code]</p>
+<p>¿Se te ocurre otra forma de hacer el stream más interesante? ¿jugar con la geolocalización de los tweets en un mapa de calor, por ejemplo? ;-)</p>
+<p>¡Agur de limón!</p>

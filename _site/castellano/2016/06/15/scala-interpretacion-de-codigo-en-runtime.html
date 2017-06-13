@@ -1,0 +1,217 @@
+<p>En el post de hoy vamos a ver cómo generar código de Scala al vuelo: en tiempo de runtime. Hemos de ser cautos de no confundirlo con las macros de Scala, las cuales generan código en tiempo de compilación. Estas últimas hacen uso del sistema de tipos de Scala, lo cual es infinitamente más seguro que generar código en tiempo de ejecución.  </p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/06/house-of-cards-but-why.gif"><img src="/assets/house-of-cards-but-why.gif" alt="House-of-cards-but-why" width="500" height="200" class="aligncenter size-full wp-image-4155" /></a></p>
+<p>¿Cúando es útil hacer uso de este mecanismo entonces? Trataremos de arrojar luz siguiendo un ejemplo muy sencillo, abstrayéndonos de la verdadera implementación, la cual podéis encontrar en <a href="https://github.com/Scalera/runtime-reflect-handson" target="_blank">el Github de Scalera</a></p>
+<h2>El problema: "el" serializador</h2>
+<p>Supongamos un caso (no tan descabellado) en el que queramos comunicar dos servicios vía un bus de eventos (nos abstraeremos de la implementación: podría ser una cola de mensajes tipo Kafka, un stream de Akka, ...). </p>
+<p>El punto de partida es el siguiente: </p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/06/sender-receiver-schema.png"><img src="/assets/sender-receiver-schema.png" alt="Sender-receiver-schema" width="612" height="367" class="aligncenter size-full wp-image-4148" /></a></p>
+<p>El productor sabe enviar y el consumidor tiene asociado un callback para cuando llegue un mensaje:</p>
+<p>[code language="scala"]<br />
+trait Producer{<br />
+  def produce(message: Any): Try[Unit]<br />
+}<br />
+trait Consumer{<br />
+  val consume: Any =&gt; Unit<br />
+}<br />
+[/code]</p>
+<p>Tanto el servicio productor como el consumidor conocen los tipos de mensajes que pueden llegar, en nuestro ejemplo serán estos:</p>
+<p>[code language="scala"]<br />
+case class Foo(att1: Int, att2: String)<br />
+case class Bar(att1: String)<br />
+[/code]</p>
+<p>Si el servidor quiere enviar un mensaje usando el bus de eventos, deberá serializarlo de alguna forma (JSON, array de bytes, XML, ...) para que, al llegar al otro extremo, el consumidor realice el proceso inverso (deserialización) y obtenga el mensaje original.</p>
+<p>...hasta aquí nada extraño.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/06/whydoeseverythinghavetobesocomplicated.gif"><img src="/assets/whydoeseverythinghavetobesocomplicated.gif" alt="Whydoeseverythinghavetobesocomplicated" width="500" height="269" class="aligncenter size-full wp-image-4151" /></a></p>
+<p>Si tenemos un serializador para JSONs ...</p>
+<p>[code language="scala"]<br />
+trait JsonSer[T] {<br />
+  def serialize(t: T): String<br />
+  def deserialize(json: String): T<br />
+}<br />
+[/code]</p>
+<p>y serializamos nuestro mensaje...</p>
+<p>[code language="scala"]<br />
+implicit val fooSerializer: JsonSer[Foo] = ???<br />
+val foo: Foo = ???<br />
+producer.send(implicitly[JsonSer[Foo]].serialize(foo))<br />
+[/code]</p>
+<p>¿Cómo sabemos qué deserializador usar cuando el consumidor reciba el mensaje?</p>
+<h2>Opción 1: Probar con todos hasta que uno encaje</h2>
+<p>En nuestro consumidor tendríamos:</p>
+<p>[code language="scala"]<br />
+lazy val consumer = new Consumer {<br />
+  override val consume: Any =&gt; Unit = {<br />
+    case message: String =&gt;<br />
+      Seq(barSerializer, fooSerializer).flatMap { ser =&gt;<br />
+        Try(ser.deserialize(message)).toOption<br />
+      }.headOption.fold(ifEmpty = println(&quot;Couldn't deserialize&quot;)) {<br />
+        case bar: Bar =&gt; println(&quot;it's a bar!&quot;)<br />
+        case foo: Foo =&gt; println(&quot;it's a foo!&quot;)<br />
+        case _ =&gt; println(&quot;it's ... something!&quot;)<br />
+      }<br />
+  }<br />
+}<br />
+[/code]</p>
+<p>Un poco burdo, ¿no? Si el serializador correcto es el último de 100, estaríamos probando y fallando con 99 antes de dar con el correcto (¡qué desperdicio de CPU!).</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/06/4d8.gif"><img src="/assets/4d8.gif" alt="4d8" width="473" height="261" class="aligncenter size-full wp-image-4152" /></a></p>
+<p>Además, también podría darse el caso de que hubiera un deserializador para otro tipo, pero que encaja y es capaz de deserializar parcial o erróneamente el mensaje. </p>
+<h2>Opción 2: Añadir el tipo al mensaje</h2>
+<p>Podríamos añadir una capa por encima al mensaje e indicar el tipo de mensaje que es. Así, al recibirlo, podríamos determinar el tipo de serializador que necesitamos usar.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/06/messagewrapper.png"><img src="/assets/messagewrapper.png?w=300" alt="MessageWrapper" width="300" height="220" class="aligncenter size-medium wp-image-4149" /></a></p>
+<p>Para escribir el tipo, nos apoyaremos en los <code>TypeTag</code> de Scala, obteniendo información sobre el tipo de mensaje contenido T.</p>
+<p>[code language="scala"]</p>
+<p>//Wrapper for the message (and its serializer)</p>
+<p>import scala.reflect.runtime.universe.{TypeTag, typeTag}</p>
+<p>case class Message[T: TypeTag](content: T){<br />
+  val messageType: Message.Type = typeTag[T].tpe.toString<br />
+}<br />
+object Message {</p>
+<p>  type Type = String</p>
+<p>  def typeFrom(msg: String): Message.Type = ???</p>
+<p>  implicit def messageSer[T:TypeTag:JsonSer]: JsonSer[Message[T]] = ???</p>
+<p>}</p>
+<p>//We'll make use of it for sending</p>
+<p>producer.produce(messageSer[Foo].serialize(Message(foo)))</p>
+<p>//And we redefine the consumer</p>
+<p>lazy val consumer = new Consumer {<br />
+    override val consume: Any =&gt; Unit = {<br />
+      case message: String =&gt;<br />
+        Message.typeFrom(message) match {</p>
+<p>          case &quot;org.scalera.reflect.runtime.Bar&quot; =&gt;<br />
+            println(&quot;it's a bar!&quot;)<br />
+            val value = messageSer[Bar].deserialize(message).content<br />
+            println(value.att1)</p>
+<p>          case &quot;org.scalera.reflect.runtime.Foo&quot; =&gt;<br />
+            val value = messageSer[Foo].deserialize(message).content<br />
+            println(&quot;it's a foo!&quot;)<br />
+            println(value.att2)</p>
+<p>          case _ =&gt;<br />
+            println(&quot;it's ... something!&quot;)<br />
+        }<br />
+    }<br />
+  }<br />
+[/code]</p>
+<p>Cómo podéis ver, ya no tenemos que ir probando con todos los serializadores posibles hasta que demos con uno que funcione; sino que, a partir del tipo de mensaje (extraido del envoltorio de tipo Message que hemos añadido), somos capaces de usar el deserializador adecuado.</p>
+<p>Pero también es cierto, que tenemos que añadir un case por cada string que representa el tipo. ¿No sería mejor poder deserializar (como sea) y que el <strong>case</strong> solo esté definido sobre los objetos ya deserializados (como antes pero sin probar a lo loco con mil serializadores)? Algo de este estilo:</p>
+<p>[code language="scala"]<br />
+lazy val consumer = new Consumer {<br />
+  override val consume: Any =&gt; Unit = { msg =&gt;<br />
+    genericDeserialize(msg) match {<br />
+      case f: Foo =&gt;<br />
+      case b: Bar =&gt;<br />
+      case _ =&gt;<br />
+    }<br />
+  }<br />
+}<br />
+[/code]</p>
+<h2>Opción 2-guay: Serializadores 'under the hood'</h2>
+<p>Para conseguir algo parecido, debemos de centrarnos en ese método <code>genericDeserialize</code>: ¿qué signatura debería tener? Inicialmente algo del siguiente estilo:</p>
+<p>[code language="scala"]<br />
+def genericDeserialize(msg: String): Any<br />
+[/code]</p>
+<p>¿Un <code>Any</code>? ¿En serio? Amigos, en tiempo de runtime, no tenemos ni idea del tipo que nos puede llegar. Solo sabemos que, a partir de un String, vamos a obtener un 'algo'. El <code>match</code> que se aplica sobre dicho Any nos permitirá pasar de algo totamente abstracto a tipos más concretos.</p>
+<p>Es en este punto, donde entra en juego la librería de reflect y el compilador de scala.</p>
+<h3>reflect.Toolbox</h3>
+<p>La api de <code>Toolbox</code> permite parsear cadenas de texto y obtener el AST (abstract syntax tree) resultante. Del mismo modo, a partir del AST es capaz de evaluar la expresión devolviendo una instancia de un tipo determinado.</p>
+<p>Para poder instanciar un Toolbox y usar referencias a tipos, es preciso añadir como dependencias a nuestro proyecto las librerías de <code>scala-compiler</code> y <code>scala-reflect</code>:</p>
+<p>[code language="scala"]<br />
+libraryDependencies ++= Seq(<br />
+  &quot;org.scala-lang&quot; % &quot;scala-compiler&quot; % &quot;2.11.8&quot;,<br />
+  &quot;org.scala-lang&quot; % &quot;scala-reflect&quot; % &quot;2.11.8&quot;)<br />
+[/code]</p>
+<p>Si por ejemplo quisiéramos parsear la operación <code>"2".toInt + 4</code>,</p>
+<p>[code language="scala"]<br />
+import scala.tools.reflect.ToolBox<br />
+import scala.reflect.runtime.{universe =&gt; ru}<br />
+import ru._</p>
+<p>//  Scala compiler tool box<br />
+val tb = ru.runtimeMirror(<br />
+  this.getClass.getClassLoader).mkToolBox()</p>
+<p>println(ru.showRaw(tb.parse(&quot;&quot;&quot;&quot;2&quot;.toInt + 4&quot;&quot;&quot;)))<br />
+[/code]</p>
+<p>nos devolverá el árbol sintáctico generado como un string (usando <code>showRaw</code>):</p>
+<p>[code language="scala"]<br />
+Apply(Select(Select(Literal(Constant(&quot;2&quot;)), TermName(&quot;toInt&quot;)), TermName(&quot;$plus&quot;)), List(Literal(Constant(4))))<br />
+[/code]</p>
+<p>Si a partir de la expresión parseada, usamos el toolbox para evaluarla,</p>
+<p>[code language="scala"]<br />
+println(tb.eval(tb.parse(&quot;&quot;&quot;&quot;2&quot;.toInt + 4&quot;&quot;&quot;)))<br />
+[/code]</p>
+<p>obtendremos un Any que representa el valor resultante de la suma:</p>
+<p>[code]<br />
+6<br />
+[/code]</p>
+<h3>"El" serializador</h3>
+<p>Una vez visto el funcionamiento general, aplicamos el mismo principio a nuestro serializador, de manera que la expresión que vamos a intentar interpretar es algo similar a:</p>
+<p>[code language="scala"]<br />
+{<br />
+  import scala.reflect._;<br />
+  import spray.json._;<br />
+  import org.scalera.reflect.runtime._;<br />
+  import MySprayJsonImplicits._;<br />
+  import MyJsonSerImplicits._;</p>
+<p>  implicitly[JsonSer[Message[$messageType]]]<br />
+}<br />
+[/code]</p>
+<p>donde <code>MySprayJsonImplicits</code> y <code>MyJsonSerImplicits</code> representan los objetos que contienen tanto los implícitos de Spray para JsonFormat que hemos definido, como los implícitos de la type class JsonSer que hemos definido nosotros.</p>
+<p><code>$messageType</code> representa el tipo concreto a deserializar que habremos obtenido previamente usando el TypeTag (como hemos visto antes).</p>
+<p>Si lo adaptamos a nuestro código obtendremos algo similar a:</p>
+<p>[code language="scala"]<br />
+object GenSer {</p>
+<p>  import scala.tools.reflect.ToolBox<br />
+  import scala.reflect.runtime.{universe =&gt; ru}<br />
+  import ru._</p>
+<p>  //  Scala compiler tool box<br />
+  private val tb = ru.runtimeMirror(this.getClass.getClassLoader).mkToolBox()</p>
+<p>  def genericDeserialize(msg: String)(serContainers: Seq[AnyRef]): Any = {</p>
+<p>    val messageType = Message.typeFrom(msg)</p>
+<p>    val serContainersImport = serContainers.map(container =&gt;<br />
+      &quot;import &quot; + container.toString.split(&quot;\\$&quot;).head + &quot;._&quot;).mkString(&quot;;\n&quot;)</p>
+<p>    val expr =<br />
+      s&quot;&quot;&quot;<br />
+         |{<br />
+         |  import scala.reflect._;<br />
+         |  import spray.json._;<br />
+         |  import org.scalera.reflect.runtime._;<br />
+         |  $serContainersImport;<br />
+         |<br />
+         |  implicitly[JsonSer[Message[$messageType]]]<br />
+         |}<br />
+        &quot;&quot;&quot;.stripMargin</p>
+<p>    tb.eval(tb.parse(expr))<br />
+      .asInstanceOf[JsonSer[Message[Any]]]<br />
+      .deserialize(msg).content<br />
+  }</p>
+<p>}<br />
+[/code]</p>
+<p>Si os fijáis, hemos permitido en la notación del método de deserialización genérica, que se le pase una secuencia de objetos a importar, de manera que no se explicita qué objeto es el que contiene los implícitos de Spray y qué otro contiene los de nuestro <code>JsonSer</code>.</p>
+<p>[code language="scala"]<br />
+val serContainersImport = serContainers.map(container =&gt;<br />
+  &quot;import &quot; + container.toString.split(&quot;\\$&quot;).head + &quot;._&quot;).mkString(&quot;;\n&quot;)<br />
+[/code]</p>
+<p>También cabe destacar que, al deserializar, obtenemos un Message[Any]; por lo que posteriormente hay que obtener el campo 'content' que representa el valor plano de tipo Any que representa el mensaje deserializado.</p>
+<h2>El resultado</h2>
+<p>Ahora sí, podemos usar nuestra función para deserializar de manera genérica y dejar el código de nuestro consumidor de manera 'reshulona':</p>
+<p>[code language="scala"]<br />
+lazy val consumer = new Consumer {<br />
+  override val consume: Any =&gt; Unit = {<br />
+    case msg: String =&gt;<br />
+      genericDeserialize(msg)(Seq(case3,Message)) match {<br />
+        case bar: Bar =&gt; println(&quot;it's a bar!&quot;)<br />
+        case foo: Foo =&gt; println(&quot;it's a foo!&quot;)<br />
+        case _ =&gt; println(&quot;it's ... something!&quot;)<br />
+      }<br />
+  }<br />
+}<br />
+[/code]</p>
+<h2>Conclusiones</h2>
+<p>Poder interpretar código en tiempo de runtime da bastante juego cuando queremos interpretar tipos en base a String's. Ahora bien, interpretar código en runtime se pasa por el forro el sistema de tipos que tanta seguridad aporta en Scala, por lo que son herramientas a usar con algo de cuidado.</p>
+<p>También es algo costoso en tiempo la evaluación de estas expresiones. Os recomendaría que usarais una cache de tipos. Algo tan sencillo como un mapa:</p>
+<p>[code language="scala"]<br />
+type TypeName = String<br />
+var cache: Map[TypeName, JsonSer[Message[_]]]<br />
+[/code]</p>
+<p>Y al ejecutar el método, comprobar si existe ya un JsonSer almacenado en el mapa. De ser así, usamos ese y en caso contrario, lo creamos, lo almacenamos en la caché y lo devolvemos como resultado.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/06/post-28553-steve-jobs-mind-blown-gif-hd-t-pvbd.gif"><img src="/assets/post-28553-steve-jobs-mind-blown-gif-hd-t-pvbd.gif" alt="post-28553-Steve-Jobs-mind-blown-gif-HD-T-pVbd" width="350" height="233" class="aligncenter size-full wp-image-466" /></a></p>
+<p>Easy peasy...<br />
+¡Agur de limón!</p>

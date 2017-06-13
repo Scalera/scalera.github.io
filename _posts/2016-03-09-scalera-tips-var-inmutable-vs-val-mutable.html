@@ -1,0 +1,81 @@
+---
+layout: post
+title: 'Scalera tips : var inmutable vs. val mutable'
+date: 2016-03-09 12:00:29.000000000 +01:00
+type: post
+published: true
+status: publish
+categories:
+- Castellano
+tags:
+- immutable
+- mutable
+- tip
+- val
+- var
+meta:
+  _edit_last: '59615419'
+  geo_public: '0'
+  _publicize_job_id: '20580954572'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/707506453951619073";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: jpaniego
+  email: javiersantospaniego@gmail.com
+  display_name: Javier S. Paniego
+  first_name: ''
+  last_name: ''
+---
+<p>Supongamos que queremos definir una clase que tiene estado (una lista, por ejemplo).<br />
+Si siguiéramos el paradigma funcional puro, cada vez que modificáramos el estado de nuestra instancia, esta debería devolver una instancia nueva modificada:</p>
+<p>[code language="scala"]<br />
+class Foo(val state: List[Int]) {</p>
+<p>  def mutate(n: Int): Foo =<br />
+    new Foo(state :+ n)</p>
+<p>}</p>
+<p>val initialFoo = new Foo(List())<br />
+assert(initialFoo.state==List())</p>
+<p>val mutatedFoo = initialFoo.mutate(1)<br />
+assert(initialFoo.state==List())<br />
+assert(mutatedFoo.state==List(1))<br />
+[/code]</p>
+<p>...si te paras a pensarlo, es el comportamiento del método <code>copy</code> de una <code>case class</code>.</p>
+<p>Pero pongámonos en el caso en que debemos integrarnos con una aplicación legacy y no podemos gestionar los cambios sobre nuestro <code>Foo</code> generando una nueva instancia.</p>
+<p>En ese caso, el estado lo determina la lista interna, y no la instancia misma de <code>Foo</code>.</p>
+<p>Una primera aproximación podría ser utilizar un <code>val</code> de tipo lista mutable (es threadsafe):</p>
+<p>[code language="scala"]<br />
+import scala.collection.mutable<br />
+class Foo {</p>
+<p>  private val _state: mutable.ListBuffer[Int] =<br />
+    ListBuffer()</p>
+<p>  def mutate(n: Int): Unit =<br />
+    _state += n</p>
+<p>  def state: mutable.ListBuffer[Int] =<br />
+    _state</p>
+<p>}<br />
+[/code]</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/03/austinpowers.png" rel="attachment wp-att-1676"><img src="{{ site.baseurl }}/assets/austinpowers.png?w=300" alt="austinpowers" width="300" height="249" class="aligncenter size-medium wp-image-1676" /></a></p>
+<p>Y en la otra mano tendríamos la opción de usar un <code>var</code> inmutable (no es thread-safe):</p>
+<p>[code language="scala"]<br />
+class Foo {</p>
+<p>  private var _state: List[Int] =<br />
+    List()</p>
+<p>  def mutate(n: Int): Unit =<br />
+    synchronized(_state :+= n)</p>
+<p>  def state: List[Int] =<br />
+    synchronized(_state)</p>
+<p>}<br />
+[/code]</p>
+<p>Fijaros que hemos tenido que hacer un <code>synchronize</code> para proteger el estado frente a accesos concurrentes.</p>
+<h2>¿Qué es mejor?</h2>
+<p>Si bien es cierto que la segunda opción genera mayor boilerplate, ocurre que con la primera podría darse el siguiente caso:</p>
+<p>[code language="scala"]<br />
+val foo = new Foo<br />
+assert(foo.state==mutable.ListBuffer())<br />
+val retrievedState = foo.state += 2<br />
+assert(foo.state==ListBuffer()) //ERROR!<br />
+[/code]</p>
+<p>Al devolver la lista, hemos roto el principio de <a href="http://www.cas.mcmaster.ca/~kahl/reftrans.html" target="_blank">transparencia referencial</a> y perdemos el control de acceso sobre la lista.</p>
+<p>Es probable que dependa del caso de uso de cada uno, pero en general, el enfoque funcional anima a generar nuevas copias de manera que se evitan potenciales efectos de lado.</p>

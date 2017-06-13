@@ -1,0 +1,129 @@
+---
+layout: post
+title: "¿Implícito, Lisa, o ilícito?"
+date: 2015-05-20 17:00:00.000000000 +02:00
+type: post
+published: true
+status: publish
+categories:
+- Castellano
+tags:
+- ambiguity
+- class
+- identity
+- implicit
+- implode
+- medium
+- neutral
+- satan
+- scala
+meta:
+  _edit_last: '59615419'
+  geo_public: '0'
+  publicize_twitter_user: ScaleraBlog
+  publicize_twitter_url: http://t.co/jyrozPc2Et
+  _wpas_done_10515941: '1'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:3064583607;b:1;}}
+author:
+  login: jpaniego
+  email: javiersantospaniego@gmail.com
+  display_name: Javier S. Paniego
+  first_name: ''
+  last_name: ''
+---
+<p>Uno de los mayores temores de un iniciado a Scala es el uso de implícitos: no gustan, se evitan, dan miedo, se envían a Satán.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/05/satan.jpg"><img class="  wp-image-316 aligncenter" src="{{ site.baseurl }}/assets/satan.jpg?w=300" alt="satan" width="175" height="131" /></a></p>
+<p>Y es una pena que disponiendo de tan poderosa herramienta, por una cuestión de pánico escénico, se le relegue a un segundo plano, o no se use. Los implícitos pueden resultar una solución elegante para determinadas circunstancias que citaremos posteriormente.</p>
+<p>Para comprender mejor a la criatura, establezcamos un marco teórico.</p>
+<h3>Valores implícitos</h3>
+<p>Imaginemos que estamos definiendo la función 'identidad' sobre las operaciones de los números enteros (Dado un entero y una operación, devolver el mismo número entero). En base al tipo de operación, el valor por el cual hay que operar (suma, multiplicación,...) es distinto. Por ejemplo, para la adición empleamos el 0 (<em><strong>0 + n = n</strong></em>) y para la multiplicación usamos 1 (<em><strong>1 * n = n</strong></em>). Para evitar pasar este elemento neutro de manera explícita podríamos hacer uso de los implícitos como sigue.</p>
+<p>Primero nos declaramos un número entero implícito que representará nuestro elemento neutro para la suma:</p>
+<p>[code language="scala"]<br />
+implicit val addNeutralElement: Int = 0<br />
+[/code]</p>
+<p>Y ahora declaramos la operación identidad en la suma:</p>
+<p>[code language="scala"]<br />
+def addIdentity(n: Int)(implicit neutral: Int): Int =<br />
+  n + neutral<br />
+[/code]</p>
+<p>Fijaros bien que los parámetros implícitos en el método se declaran en otro grupo de argumentos y precedidos de la palabra reservada '<em><strong>implicit</strong></em>'.<br />
+Otra observación a tener en cuenta es que lo importante no es el nombre del argumento en el método, sino el tipo: el compilador buscará en el ámbito del método, un valor implícito de tipo entero</p>
+<p>Este mismo principio también aplica a métodos:</p>
+<p>[code language="scala"]<br />
+implicit def generateAddIdentity():Int = 0<br />
+[/code]</p>
+<p>...y objetos...</p>
+<p>[code language="scala"]<br />
+abstract class NeutralElement(n: Int)<br />
+implicit case object AddNeutralElement extends NeutralElement(0)<br />
+[/code]</p>
+<h3>Implicit ambiguity / Scopes</h3>
+<p>Supongamos ahora que queremos definir la función identidad para la multiplicación. En el mismo ámbito podríamos definir otro valor implícito para el elemento neutro en la multiplicación:</p>
+<p>[code language="scala"]<br />
+implicit val addNeutralElement: Int = 0<br />
+implicit val productNeutralElement: Int = 1<br />
+def addIdentity(n: Int)(implicit neutral: Int): Int =<br />
+  n + neutral<br />
+def productIdentity(n: Int)(implicit neutral: Int): Int =<br />
+  n * neutral<br />
+[/code]</p>
+<p>Si tratamos de ejecutar cualquiera de los dos métodos...<strong>Woops</strong>! El compilador chilla algo ininteligible:</p>
+<p>[code]<br />
+scala&gt; addIdentity(2)<br />
+&lt;console&gt;:13: error: ambiguous implicit values:<br />
+ both value addNeutralElement of type =&gt; Int<br />
+ and value productNeutralElement of type =&gt; Int<br />
+ match expected type Int<br />
+              addIdentity(2)<br />
+                         ^<br />
+[/code]</p>
+<p>Lo que viene a querer decir es que no sabe cual de los dos valores implícitos debe tomar, es decir, existe ambigüedad de implícitos. Para evitar esto, se definen ámbitos que suelen venir dados por objetos. Algo del siguiente estilo:</p>
+<p>[code language="scala"]<br />
+object AddStuff {<br />
+  implicit val addNeutralElement: Int = 0<br />
+  def addIdentity(n: Int)(implicit neutral: Int): Int =<br />
+    n + neutral<br />
+}</p>
+<p>//in your snippet...</p>
+<p>{<br />
+  import AddStuff._<br />
+  addIdentity(2)<br />
+}<br />
+[/code]</p>
+<p>Ya se que esto pide a gritos una type-class, pero no robemos el minuto de fama a los implícitos...</p>
+<h3>Implicit classes</h3>
+<p>También podemos declarar clases implícitas en Scala. La función principal de esta herramienta es la de extender funcionalidad de determinadas clases. Por ejemplo, supongamos que estamos usando un framework de un tercero, y una de sus clases tiene la siguiente pinta:</p>
+<p>[code language="scala"]<br />
+class ThirdParties {<br />
+  def method1(): Int = ???<br />
+  def method2(n:Int): Boolean = ???<br />
+}<br />
+[/code]</p>
+<p>Como no podemos modificar el código fuente de este framework, pero queremos añadir nuevos métodos a la clase 'ThirdParties' podemos definir una clase implícita como sigue:</p>
+<p>[code language="scala"]<br />
+implicit class ExtraThirdParties(tp: ThirdParties){<br />
+  def method3(n: Int): Boolean =<br />
+    !tp.method2(n)<br />
+  def method4(): Int = ???<br />
+  def method5(): Int =<br />
+    tp.method1() * 2<br />
+}<br />
+[/code]</p>
+<p>De esta manera, cuando escribamos un valo de tipo 'ThirdParties' seguido de un método que no pertenece a su clase, el compilador buscará clases y/o métodos implícitos que encajen en dicha signatura. Así podremos usar, tanto los métodos definidos originalmente por la clase 'ThirdParties', como los métodos complementarios que acabamos de definir en la clase implícita:</p>
+<p>[code language="scala"]<br />
+val myTp = new ThirdParties<br />
+myTp.method1()<br />
+myTp.method2(5)<br />
+myTp.method3(2)<br />
+myTp.method4()<br />
+myTp.method5()<br />
+[/code]</p>
+<h3>Casos de uso</h3>
+<p>La pregunta del millón entonces es, ¿en qué casos podemos aplicar esta poderosa navaja suiza?</p>
+<p>* Establecer contextos de ejecución<br />
+* Aportar información adicional sobre un parameter type (type classes)<br />
+* Generar DSLs<br />
+* Ampliar funcionalidad de una clase (implicit classes)</p>
+<p>Dado que poner ejemplos de todos ellos sería muy extenso, veremos algunos de estos casos prácticos en futuros posts.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/05/giphy.gif"><img class=" size-full wp-image-320 aligncenter" src="{{ site.baseurl }}/assets/giphy.gif" alt="giphy" width="245" height="180" /></a></p>
+<p>¡Agur de limón! :-)</p>

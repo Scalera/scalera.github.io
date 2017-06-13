@@ -1,0 +1,68 @@
+<p>It's pretty well known that using VARs is, apart from unethical, the evil itself, some kind of hell, it make kitties die and many other stuff you might probably heard before and that could eventually be the cause of a painfull slowly dead.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2017/03/8a9.gif"><img src="/assets/8a9.gif" alt="" width="245" height="192" class="aligncenter size-full wp-image-4343" /></a></p>
+<p>The essence of functional programming is therefore the immutability: every time I mutate an element, I actually generate a new one.</p>
+<h3>What about Akka actors?</h3>
+<p>When we talk about actors, we can define them as stateful computation units that sequentially process a message queue by reacting(or not) to each of these messages.</p>
+<p>It's always been said that, in order to keep state within some actor's logic, it was ok to use VARs:</p>
+<blockquote><p>
+It's impossible that concurrency problems happen: it's the actor itself and nobody else who access that var and will only process one message at a time.
+</p></blockquote>
+<p>But maybe, we could renounce to this premise if we look for some way to redefine the actor's behavior based on a new state.</p>
+<h2>Mortal approach</h2>
+<p>If we follow the previously described philosophy, the very first (and more straight forward) approach for keeping some actor's state would be pretty similar to the following:</p>
+<p>[code lang="scala"]<br />
+class Foo extends Actor{<br />
+  var state: Int = 0<br />
+  override def receive = {<br />
+    case Increase =&gt; state += 1<br />
+  }<br />
+}<br />
+[/code]</p>
+<p>Every time an <code>Increase</code> arrives, we modify the state value by adding 1.<br />
+So easy so far, right?</p>
+<p><a href="https://scalerablog.files.wordpress.com/2017/03/giphy.gif"><img src="/assets/giphy.gif?w=300" alt="" width="300" height="226" class="aligncenter size-medium wp-image-4344" /></a></p>
+<h2>Immutable approach</h2>
+<p>Nevertheless, we could define a <code>receive</code> function parameterized by certain state, so when a message arrives, this parameter is the state to take into account.</p>
+<p>If the circumstances to mutate the state took place, we would just invoke the <code>become</code> method that would modify the actor's behavior. In our case, that behavior mutation would consist on changing the state value.</p>
+<p>If we use the previously defined example:</p>
+<p>[code lang="scala"]<br />
+class Foo extends Actor{<br />
+  def receive(state: Int): Receive = {<br />
+    case Increase =&gt;<br />
+      context.become(<br />
+        receive(state + 1),<br />
+        discardOld = true)<br />
+  }<br />
+  override def receive = receive(0)<br />
+}<br />
+[/code]</p>
+<p>we can notice that the function defined by <code>receive</code> is parameterized by some <code>state</code> argument. When some <code>Increase</code> message arrives, what we perform is an invocation to <code>become</code> for modifying the actor's behavior, passing as an argument the new state to handle.</p>
+<p>If we wanted some extra legibility, we could even get abstract from every updatabe-state actor:</p>
+<p>[code language="scala"]<br />
+trait SActor[State] extends Actor {<br />
+  val initialState: State<br />
+  def receive(state: State): Receive<br />
+  def update(state: State): Receive =<br />
+    context.become(<br />
+      receive(state),<br />
+      discardold = true)<br />
+  override def receive =<br />
+    receive(initialState)<br />
+}<br />
+[/code]</p>
+<p>this way, we just have to define the initial state of some actor, a new parameterized <code>receive</code> function and a new update function that takes care of performing the proper <code>become</code> call as explained before.<br />
+With all these in mind, we now have some cuter brand new <code>Foo</code> actor:</p>
+<p>[code language="scala"]<br />
+class Foo extends SActor[Int] {<br />
+  val initialState = 0<br />
+  def receive(state: Int): Receive = {<br />
+    case Increase =&gt; update(state +1)<br />
+  }<br />
+}<br />
+[/code]</p>
+<h2>Potential hazardous issues</h2>
+<p>Please, do notice that in the featuring example, we've used a second argument for <code>become</code>: <code>discardOld = true</code>. This argument settles whether the new behavior should be stashed on the top of the older one, or 'au contraire' it should completely substitute the previous behavior.</p>
+<p>Let's suppose we used <code>discardOld = false</code>. If every single time a new <code>Increase</code> message arrived we had to stash a new behavior, we could obtain a wonderful overflow issue.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2017/03/giphy-1.gif"><img src="/assets/giphy-1.gif" alt="" width="480" height="366" class="aligncenter size-full wp-image-4345" /></a></p>
+<p>See you in the next tip.</p>
+<p>Peace out :-)</p>

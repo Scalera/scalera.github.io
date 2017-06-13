@@ -1,0 +1,84 @@
+---
+layout: post
+title: A small tour through ScalaRx (Part II)
+date: 2016-03-07 12:00:41.000000000 +01:00
+type: post
+published: true
+status: publish
+categories:
+- English
+tags:
+- beginner
+- reactive
+- rx
+meta:
+  _rest_api_published: '1'
+  _rest_api_client_id: "-1"
+  _publicize_job_id: '20513178894'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/706784777467072512";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: dvallejonava
+  email: d.vallejo.nava@gmail.com
+  display_name: dvallejonava
+  first_name: ''
+  last_name: ''
+---
+<p>A fortnight ago, we took a look at some of the functionalities that <a href="https://github.com/lihaoyi/scala.rx" target="_blank">ScalaRx</a> library provides us with. Today, we are going to end this small tour by getting on with Observables and all the advantages they offer.</p>
+<h3>Previously on Scalera...</h3>
+<p>In the previous <a href="https://scalerablog.wordpress.com/2016/02/22/a-small-tour-through-scalarx-part-i/" target="_blank">post</a> we saw how reactive variables work.  We learned how to declare them, modify them and create <b><i>Rx </i></b>structures that were modified when the reactive variables underwent a change.</p>
+<p>The main idea of the post was that the objective of the ScalaRx library was to interpret reactive variables and their use as a flow that propagates changes whenever there is an update in any of the reactive variables. We can think of it as a butterfly effect.</p>
+<p>Now, let's see how we can make use of such changes with the <b><i>Observable</i></b> type.</p>
+<p><img class="CToWUd a6T" src="{{ site.baseurl }}/assets/giphy.gif" alt="giphy" width="302" height="238" /></p>
+<h3>The Observable type</h3>
+<p>By means of the <b><i>Observable</i></b> type, we will be able to perform certain actions when a reactive variable changes its value. For that purpose, we can create observations both of a <b><i>Var</i></b> and of <i><b>Rx </b></i>blocks. There are two constructors: <i>trigger </i>and <i>foreach</i>. With the first of them, we won't have a reference to the new value. In order to get it, we would have to use a call to .<i>now</i>. On the other hand, with <i>foreach</i> we will have a reference to the new flow-propagated value.</p>
+<p>Let's create a pair of <b>Observables</b> which show on screen the new value. For that purpose, we will use the two versions of a constructor:</p>
+<p>[code language="scala"]<br />
+import rx._<br />
+val reactiveVar = Var(&quot;Hello World&quot;)<br />
+val o1 = reactiveVar.trigger {<br />
+  println(reactiveVar.now)<br />
+}<br />
+val o2 = reactiveVar.foreach { newValue =&gt;<br />
+  println(newValue)<br />
+}<br />
+[/code]</p>
+<p>This example, once executed, will show on screen two "Hello World" given that the observables also act in the initialization of the reactive variable. If we want to miss the first change of the reactive variable, we can use triggerLater.</p>
+<p>[code language="scala"]<br />
+import rx._<br />
+val reactiveVar = Var(&quot;Hello World&quot;)<br />
+val o1 = reactiveVar.triggerLater {<br />
+  println(reactiveVar.now)<br />
+}<br />
+[/code]</p>
+<p>Finally, if we want to eliminate an Observable, we can use the <i>kill </i>instruction.</p>
+<p>[code language="scala"]<br />
+import rx._<br />
+val reactiveVar = Var(&quot;Hello World&quot;)<br />
+val o1 = reactiveVar.triggerLater {<br />
+ println(reactiveVar.now)<br />
+}<br />
+o1.kill()<br />
+[/code]</p>
+<p>By doing this, there won't be any further reactions to changes in the reactive variable.</p>
+<h3>Conclusions</h3>
+<p>After these two posts, we can say that ScalaRx is based on data flows with several elements. As ScalaRx documentation rightly states, those elements can be seen as:</p>
+<ul>
+<li><strong><em>Var</em></strong>: root flow nodes that will provoke an avalanche with their changes.</li>
+<li><strong><em>Rx</em></strong>: intermediate flow nodes that will react to changes.</li>
+<li><strong><em>Observables</em></strong>: leaf flow nodes that will react to changes without propagating the flow further.</li>
+</ul>
+<p>We can make use of this abstraction to create different types of applications or tools. For instance, we could have some dynamic configuration parameters (Var), being used by other variables (Rx) so that, if changes occur to any of them, a series of actions will be performed in order to be able to adapt to the new configuration:</p>
+<p>[code language="scala"]<br />
+import rx._<br />
+val host = Var(etcdHost)<br />
+val port = Var(etcdPort)<br />
+val databaseUri = Rx {host() + &quot;:&quot; + port()}<br />
+val obsDatabaseUri = databaseUri.triggerLater {<br />
+  connection.resetWith(&lt;wbr&gt;databaseUri.now())<br />
+}<br />
+[/code]</p>
+<p>This can be a common pattern to adapt to dynamic configuration parameters coming from ETCD or Consul, for instance.</p>
+<p>And this is just an example. Obviously, we can do many more complex things with the flow started by changes in reactive variables. But we'll leave that to future posts. Peace out!</p>

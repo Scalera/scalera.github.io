@@ -1,0 +1,94 @@
+---
+layout: post
+title: 'Shapeless: Introducción y HLists (Parte 1)'
+date: 2015-11-18 17:00:18.000000000 +01:00
+type: post
+published: true
+status: publish
+categories:
+- Castellano
+tags:
+- generic
+- heterogeneous
+- hlist
+- list
+- Miles
+- Sabin
+- shapeless
+- syntax
+- type
+meta:
+  _edit_last: '81583895'
+  geo_public: '0'
+  _rest_api_published: '1'
+  _rest_api_client_id: "-1"
+  _publicize_job_id: '16976299083'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/666994360479711232";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+  _wpas_skip_10515941: '1'
+author:
+  login: javifdev
+  email: javierfs.89@gmail.com
+  display_name: javifdev
+  first_name: ''
+  last_name: ''
+---
+<p>Mis buenos amigos de Scalera me preguntaron si quería escribir un post para el blog, y me hicieron una oferta que no pude rechazar, <em>"Te invitamos a una cerveza"</em> dijeron... ¡y aquí estoy! No puedo decir que no a <del>una buena cerveza</del> un buen amigo. Este es el primer post que escribo relacionado con Scala, así que tened paciencia conmigo.</p>
+<h2>¿Qué es Shapeless?</h2>
+<p>Shapeless es una librería creada por Miles Sabin, cuyo propósito es mejorar la programación genérica en Scala.</p>
+<p><img class=" wp-image-881 aligncenter" src="{{ site.baseurl }}/assets/post3_sp.jpg" alt="post3_sp" width="288" height="352" /></p>
+<p>Para conseguirlo utiliza una serie de macros y técnicas avanzadas a nivel del sistema de tipos, que muchos simplemente llaman whitchcraft (brujería), que llevan al lenguaje al límite. Hay muchos temas que tratar cuando hablamos de Shapeless, pero en esta primera parte nos vamos a centrar en los principios básicos, la estructura más popular... sí, estás en lo cierto, ¡estoy hablando de las <code>HList</code>s!</p>
+<h2>HLists</h2>
+<p>Esta es probablemente la característica más famosa de Shapeless, y el mejor punto de partida (en mi opinión) para empezar, así que comencemos introduciendo qué es una <code>HList</code>.</p>
+<p>El nombre <code>HList</code> proviene de <em>Heterogeneous List</em> (listas heterogeneas), en otras palabras, una lista con elementos que pueden ser de distinto tipo. Eso es todo, el concepto es muy simple, pero las consecuencias son muy interesantes. Esto nos permite tener una lista formada por un <code>String</code> y un <code>Int</code> por ejemplo. Puede que estes pensando ahora mismo... <em>Ya puedo hacer eso con una lista normal y corriente</em>. Bueno, vamos a ver si es verdad:</p>
+<p>[code language="scala"]<br />
+scala&gt; List(&quot;scalera&quot;, 3)<br />
+res0: List[Any] = List(scalera, 3)<br />
+[/code]</p>
+<p>Aunque pueda parecer que esta lista tiene dos elementos de distinto tipo, la verdad es que desde el punto de vista del sistema de tipos estos dos elementos son del mismo tipo, <code>Any</code>. No se puede hacer nada útil con esta lista, si quisieras hacerlo tendrías que hacer algún que otro casting, con los peligros que eso conlleva...</p>
+<p>¿Cómo solucionan este problema las <code>HList</code>? Pues muy sencillo, una <code>HList</code> guarda el tipo de todos y cada uno de los elementos que la componen. De esta manera sabemos que tipo tiene el primer elemento, el segundo, etc. Vamos a probar con el ejemplo anterior, esta vez utilizando una <code>HList</code>.</p>
+<p>La sintaxis para crear una <code>HList</code> es la misma que para crear una <code>List</code>, sólo cambiaremos el nombre del constructor:</p>
+<p>[code language="scala"]<br />
+scala&gt; HList(&quot;scalera&quot;, 3)<br />
+res0: shapeless.::[String,shapeless.::[Int,shapeless.HNil]] = scalera :: 3 :: HNil<br />
+[/code]</p>
+<p>El tipo de retorno es un poco confuso, pero podemos utilizar notación infija para simplificarlo, el tipo de retorno quedaría <code>String :: Int :: HNil</code>. Como puedes ver, tenemos todos los tipos guardados, ¡No perdemos ninguna información! Es más, ¡Podemos saber estáticamente el tamaño de la lista!</p>
+<p>Así pues, podemos decir que las <code>HList</code>s son más potentes con las <code>List</code>s estandar de Scala, y aquí hay un ejemplo para probarlo:</p>
+<p>[code language="scala"]<br />
+val list: List[Any] = &quot;John Doe&quot; :: 26 :: Nil<br />
+val hlist: String :: Int :: HNil = &quot;John Doe&quot; :: 26 :: HNil<br />
+list.head.toUpperCase // error: value toUpperCase is not a member of Any<br />
+hlist.head.toUpperCase // success: &quot;JOHN DOE&quot;<br />
+[/code]</p>
+<p>Como habrás podido ver, se pueden utilizar distintas sintaxis para construir una <code>HList</code>, al igual que para construir <code>List</code>s:</p>
+<p>[code language="scala"]<br />
+HList(&quot;scalera&quot;, 3) &lt;===&gt; &quot;scalera&quot; :: 3 :: HNil<br />
+List(1, 2, 3) &lt;===&gt; 1 :: 2 :: 3 :: Nil<br />
+[/code]</p>
+<p>Además, puedes comprobar que muchos de los metodos definidos para <code>List</code>s se pueden utilizar también para <code>HList</code>s.</p>
+<p>[code language="scala"]<br />
+val hlist = 1 :: &quot;two&quot; :: 3 :: &quot;four&quot; :: HNil<br />
+hlist.head // 1<br />
+hlist.tail // &quot;two&quot; :: 3 :: &quot;four&quot; :: HNil<br />
+hlist take 2 // 1 :: &quot;two&quot; :: HNil<br />
+[/code]</p>
+<p>Hasta ahora hemos visto que <code>HList</code> tiene similaridades con <code>List</code>, siendo la primera más potente, pero a parte de <code>List</code>, hay otras estructuras en Scala que son más parecidas a <code>HList</code>. Estas estructuras son las tuplas y las case classes.</p>
+<p>Estas tres estructuras (hlists, tuplas y case classes) tienen la misma forma, puden guardar la misma información, y se puede ir de una a la otra sin perdida de información. Veamos un ejemplo:</p>
+<p>[code language="scala"]<br />
+case class User(name: String, age: Int)</p>
+<p>type UserTuple = (String, Int)<br />
+type UserHList = String :: Int :: HNil</p>
+<p>val user: User = User(&quot;John Doe&quot;, 26)<br />
+val userTuple: UserTuple = (&quot;John Doe&quot;, 26)<br />
+val userHList: UserHList = &quot;John Doe&quot; :: 26 :: HNil</p>
+<p>def fromUserToUserHList(user: User): UserHList = ???<br />
+def fromUserHListToUser(userHList: UserHList): User = ???</p>
+<p>//...<br />
+[/code]</p>
+<p>Sería bastante directo implementar estas funciones, y te animo a que lo intentes. Es un buen ejercicio para tomar contacto con las <code>HList</code>s.</p>
+<h3>¿Por qué querría usar HList entonces?</h3>
+<p>Si una <code>HList</code> es muy parecida a una case class o una tupla, ¿Por qué son importantes? ¿Qué puedes hacer con una <code>HList</code> que no puedas hacer con una case class o una tupla? Pues bien, la gran diferencia es que <code>HList</code> es una abstracción más potente, abstrae sobre la aridad de las tuplas por ejemplo. No puedes escribir una función sobre tuplas, por que <code>Tuple2</code> y <code>Tuple3</code> no están relacionadas, sin embargo, puedes crear una función sobre <code>HList</code> y ejecutarla con <code>HList</code>s de tamaño arbitrario. Aunque esto queda fuera del ámbito de este post.</p>
+<h2>Conclusiones</h2>
+<p>Hemos visto que <code>HList</code> es una abstracción muy potente que nos brinda las ventajas de las listas y las tuplas al mismo tiempo. Sin embargo, esto es solo la punta del iceberg, ya que su verdadero potencial sale a relucir cuando las combinamos con otra typeclass de Shapeless, <code>Generic</code>. Pero esto lo dejaremos para otro post...</p>

@@ -1,0 +1,35 @@
+<p>Hoy ha llegado el día. Hoy veremos unas pinceladas de las famosas <strong>mónadas</strong>.<br />
+Una mónada, al igual que un monoide, parece un concepto sacado de lo más profundo del infierno. Parece imposible de entender. Pero nada más lejos de la realidad. Vamos a intentar poner un poco de luz sobre este concepto.</p>
+<p>Existen numerosas definiciones de lo que es una mónada. Alguna más complicada, alguna más sencilla.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/10/44b0bd758f8ee5c81362923f0d5c8e017c9ddf623925e60c29a4c015b89fbb45.jpg"><img class="size-medium wp-image-712 aligncenter" src="/assets/44b0bd758f8ee5c81362923f0d5c8e017c9ddf623925e60c29a4c015b89fbb45.jpg?w=300" alt="44b0bd758f8ee5c81362923f0d5c8e017c9ddf623925e60c29a4c015b89fbb45" width="300" height="198" /></a></p>
+<p>Pero como nos gustan las definiciones sencillas, en este primer contacto con las mónadas vamos a decir que son estructuras algebraicas que tienen un <strong>constructor</strong> y un método <strong><em>flatMap</em></strong> que, como vimos en <a href="https://scalerablog.wordpress.com/2015/04/22/traversable-ops-map-flatten-flatmap/">anteriores posts</a>, es la concatenación de un método <em>map</em> y un <em>flatten</em>.</p>
+<p><strong>¿Qué necesitamos para crear una mónada?</strong></p>
+<p>Como acabamos de comentar, básicamente necesitamos dos métodos: un constructor (comúnmente llamado <em>apply</em>) y un método <em>flatMap</em>.</p>
+<p>Además, existen unas leyes monádicas que hay que cumplir. Dichas leyes exigen una serie de relaciones entre las funciones anteriormente mencionadas. Pero, para bien o para mal, no vamos a analizarlas en este post para no hacerlo muy denso.</p>
+<p><strong>Ejemplo: El tipo Option</strong></p>
+<p>El tipo <em>Option</em>, como ya hemos dicho en varios post, es una mónada.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/10/bdu68sacyaafkkr.jpg"><img class="alignnone size-medium wp-image-714" src="/assets/bdu68sacyaafkkr.jpg?w=300" alt="Bdu68sACYAAfkkr" width="300" height="211" /></a></p>
+<p>Vamos a introducirnos en las tripas de Scala para ver como está definida:</p>
+<p>[code language="scala"]<br />
+def apply[A](x: A): Option[A] =<br />
+  if (x == null) None else Some(x)</p>
+<p>def flatMap[B](f: A =&gt; Option[B]): Option[B] =<br />
+  if (isEmpty) None else f(this.get)<br />
+[/code]</p>
+<p>Como se puede ver, el tipo <em>Option</em> tiene un constructor (<em>apply</em>) y un método <em>flatMap</em>. Gracias a estos dos métodos (y a que se cumplen las leyes monádicas), podemos decir que el tipo <em>Option</em> es una mónada.</p>
+<p>Sin embargo, en la librería básica de Scala, no está definido directamente el tipo <em>Monad</em>. Pero para eso está Scalaz. Vamos a ver como define Scalaz el tipo <em>Option</em> como mónada:</p>
+<p>[code language="scala"]<br />
+def point[A](a: =&gt; A) = Some(a)</p>
+<p>def bind[A, B](fa: Option[A])(f: A =&gt; Option[B]) =<br />
+  fa flatMap f<br />
+[/code]</p>
+<p>Como se puede ver, en Scalaz, el método <em>flatMap</em> es llamado <strong><em>bind</em></strong>. A su vez, el método <strong><em>point</em></strong> llama a un constructor, por lo que realmente se llama al método <em>apply</em>. Por tanto, si definimos estos dos métodos para nuestros tipos propios (y además cumplen las leyes monádicas), podemos definir nuestras propias mónadas.</p>
+<p>Y debido a que tiene definida una función <em>flatMap</em> y un método <em>apply</em> (o lo que es lo mismo, un método bind y un método point), podemos utilizar <strong><em>for comprehension</em></strong> para hacer nuestro código más legible, <a href="https://scalerablog.wordpress.com/2015/09/23/for-comprehension-y-la-importancia-de-la-belleza/">como vimos hace dos semanas</a>:</p>
+<p>[code language="scala"]<br />
+for {<br />
+  x &lt;- Some(1)<br />
+  y &lt;- Some(2)<br />
+} yield x + y //Some(3)<br />
+[/code]</p>
+<p><strong>Conclusión</strong></p>
+<p>Las mónadas son mucho más de lo que hemos contado en este post. Es todo un mundo por explorar. Además de las ya mencionadas leyes monádicas, existen distintos tipos de mónadas ya definidas, como la mónada Reader. Además, el uso de mónadas está orientado a evitar los efectos de lado, un tema bastante importante en el ámbito de la programación funcional pura. Pero todo a su tiempo :)</p>

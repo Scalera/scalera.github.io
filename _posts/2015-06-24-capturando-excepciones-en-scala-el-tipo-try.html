@@ -1,0 +1,90 @@
+---
+layout: post
+title: 'Capturando excepciones en Scala: el tipo Try'
+date: 2015-06-24 17:00:00.000000000 +02:00
+type: post
+published: true
+status: publish
+categories:
+- Castellano
+tags:
+- beginner
+- monad
+- scala
+- try
+meta:
+  _rest_api_published: '1'
+  _rest_api_client_id: "-1"
+  _publicize_job_id: '11992722600'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/613726280756756480";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+  _edit_last: '59615419'
+  geo_public: '0'
+  _wpas_skip_10515941: '1'
+author:
+  login: dvallejonava
+  email: d.vallejo.nava@gmail.com
+  display_name: dvallejonava
+  first_name: ''
+  last_name: ''
+---
+<p>Es bastante típico llamar a algunas funciones que pueden lanzar excepciones. Por ejemplo, cuando hacemos una llamada a un servicio web, puede que exista un error de conexión que lance una excepción.</p>
+<p>En un primer momento, lo que se nos ocurre es utilizar un <strong>bloque try-catch</strong> para poder capturar el error en caso de que la función explote:</p>
+<p>[code language="scala"]<br />
+try {<br />
+  val userInfo = myWebServer.getUserInfo(&quot;Royston&quot;)<br />
+  userInfo.email<br />
+} catch {<br />
+  case e: ConnectionException =&gt; // do something<br />
+  case e: BadRequestException =&gt; // do something<br />
+  case _ =&gt; //do something<br />
+}<br />
+[/code]</p>
+<p>Esto está muy bien porque, si salta alguna excepción, podremos capturarla y hacer algo con ella. Sin embargo, utilizar el bloque try no es un enfoque muy funcional. No nos proporciona muchas opciones de transformación y tampoco nos permite dejar que la acción a realizar en caso de que salte alguna excepción se pueda decidir en un momento posterior.</p>
+<p><strong>Tipo <em>Try</em> al rescate</strong></p>
+<p>El tipo <em><strong>Try</strong></em> es un tipo que dada una acción a realizar puede devolver bien un <em><strong>Success</strong></em> con el resultado de dicha acción, o bien una excepción producida al intentar ejecutarla encapsulada en un <strong><em>Failure</em></strong>.</p>
+<p>[code language="scala"]<br />
+import scala.util.{ Try, Success, Failure }</p>
+<p>Try(myWebServer.getUserInfo(&quot;Royston&quot;)) match {<br />
+  case Success(userInfo) =&gt;<br />
+    userInfo.email<br />
+  case Failure(exception: ConnectionException) =&gt;<br />
+    //do something<br />
+  case Failure(exception: BadRequestException) =&gt;<br />
+    //do something<br />
+  case Failure(exception) =&gt;<br />
+    //do something<br />
+}<br />
+[/code]</p>
+<p>Como se puede observar, utilizando el <strong>pattern matching</strong>, podemos definir que hacer en función del resultado de evaluar la acción. Ahora, por ejemplo, podemos utilizar este tipo en la signatura de una función:</p>
+<p>[code language="scala"]<br />
+def getUserInfo(username: String): Try[String] =<br />
+  Try(myWebServer.getUserInfo(&quot;Royston&quot;))<br />
+[/code]</p>
+<p>De esta forma podemos dejar que otra parte del código decida que hacer con el resultado de la función.</p>
+<p>Otra ventaja frente a usar un bloque de código try-catch, es que podemos utilizar los métodos que nos ofrece la api del tipo <em>Try</em>. Estos métodos nos permitiran evaular o modificar el valor contenido en el <em>Try</em>. Por ejemplo, podemos usar el método <em>map</em>:</p>
+<p>[code language="scala"]<br />
+def encrypt(value: String): String =<br />
+  value.map(_.toInt).mkString(&quot;-&quot;)</p>
+<p>getUserInfo(&quot;Royston&quot;).map(_.email).map(_.encrypt)<br />
+[/code]</p>
+<p>En el anterior código lo que estamos haciendo es codificar el email en caso de que se obtenga satisfactoriamente. En caso de que se produzca alguna excepción, no se realizará ninguna transformación. El comportamiento es idéntico al que vimos cuando se aplicaba al <a href="https://scalerablog.wordpress.com/2015/03/16/usar-nulls-no-es-una-option/">tipo Option</a>.</p>
+<p>Además, debido a que contiene un método <em>flatmap</em> podemos utilizarlo en<strong> for comprehension</strong> y combinar varias instancias del tipo <em>Try</em>.</p>
+<p>[code language="scala"]<br />
+def getEmail(username: String): Try[String] =<br />
+  getUserInfo(username).map(_.email)</p>
+<p>def getAge(username: String): Try[Int] =<br />
+  getUserInfo(username).map(_.age)</p>
+<p>for {<br />
+  email &lt;- getEmail(&quot;Royston&quot;)<br />
+  age &lt;- getAge(&quot;Royston&quot;)<br />
+  if age &gt; 18<br />
+} yield s&quot;User with $email is not under 18&quot;<br />
+[/code]</p>
+<p>En este caso, si alguna de las llamadas falla, o el usuario es menor de edad, el flujo de ejecución parará, y no se realizará ninguna transformación En caso contrario, el <em>Try</em> se transformará.</p>
+<p><strong>Mónadas, mónadas everywhere</strong></p>
+<p>No estaría bien acabar este post sin que nos explote un poco la cabeza. Hemos podido ver que usando el tipo <em>Try</em> podemos conseguir que nuestro programa sea más funcional. Gracias a que <del>es una mónada</del> cumple algunas de las leyes monádicas (ein?) podemos combinarlos entre ellos para que nuestros programas sean más expresivos.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/06/56248419.jpg"><img class="  wp-image-490 aligncenter" src="{{ site.baseurl }}/assets/56248419.jpg?w=300" alt="56248419" width="199" height="199" /></a></p>
+<p>Pero bueno, no hay que asustarse demasiado. Más adelante ahondaremos  en las mónadas y otras abstracciones funcionales y veremos que no es tan complicado.</p>

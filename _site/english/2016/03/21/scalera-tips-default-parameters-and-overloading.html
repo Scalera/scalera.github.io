@@ -1,0 +1,50 @@
+<div dir="ltr">
+<p>It's time today for a short post which hopefully will help some of you in discovering a new world. Today we are talking about the problems that may arise due to overloading when we have default parameters.</p>
+<p>Let's start defining the basic concepts:</p>
+<p>- Overloading: ...really?<br />
+- Default parameters: in Scala, it is possible to define default parameters in methods. These parameters can be obviated in the method call. With an example:</p>
+<p>[code language="scala"]<br />
+def getUri(host: String = &quot;localhost&quot;, port: Int = 8080): String =<br />
+&quot;$host:$port&quot;</p>
+<p>getUri(&quot;127.0.0.1&quot;, 8081) //&quot;127.0.0.1:8081&quot;<br />
+getUri(port = 8081) //&quot;localhost:8081&quot;<br />
+getUri(&quot;127.0.0.1&quot;) //&quot;127.0.0.1:8080&quot;<br />
+getUri() //&quot;localhost:8080&quot;<br />
+[/code]</p>
+<h3>Great... and what's the problem with it?</h3>
+<p>Let's create the following trait:</p>
+<p>[code language="scala"]<br />
+trait A {<br />
+  def a(a: Int, p: Boolean = false)<br />
+  def a(b: Boolean = false)<br />
+}<br />
+[/code]</p>
+<p>We now compile and...</p>
+<p><img class="CToWUd a6T" src="/assets/giphy2.gif" alt="giphy2" width="318" height="160" /></p>
+<blockquote><p>error: in trait A, multiple overloaded alternatives of method a define default arguments.</p></blockquote>
+<p>However, if we take away the default parameter in the first function:</p>
+<p>[code language="scala"]<br />
+trait A {<br />
+  def a(a: Int, p: Boolean)<br />
+  def a(b: Boolean = false)<br />
+}<br />
+[/code]</p>
+<p>and we compile .....</p>
+<p><img class="CToWUd" src="/assets/giphy1.gif" alt="giphy1" width="160" height="160" /></p>
+<p>everything works.</p>
+<h3>What's the reason for all this mess?</h3>
+<p>The problem is that the compiler uses default parameters to generate the names of some auxiliary functions that will help in dealing with the methods with default values (we shouldn't forget that we are still in the JVM). Let's see the example that is shown in the <a href="http://docs.scala-lang.org/sips/completed/named-and-default-arguments.html" target="_blank">documentation</a>:</p>
+<p>[code language="scala"]<br />
+def f(a: Int = 1, b: String)<br />
+// generates a method: def f$default$1 = 1<br />
+f(b = &quot;3&quot;)<br />
+// transformed to: f(b = &quot;3&quot;, a = f$default$1)<br />
+[/code]</p>
+<p>As can be observed, a new function is generated and the call to the original method is overloaded by making use of this function.</p>
+<p>After this, we can say that in our messy example, the two auxiliary functions that are created will have this name:</p>
+<blockquote><p>def a$default$1 = false</p></blockquote>
+<p>and this is why a name conflict will arise.</p>
+<p>In the second case, given that there is no default parameter in the first method, only one new function will be generated and thus, no conflict will appear.</p>
+<p>And this is how our post ends :)</p>
+</div>
+<div class="yj6qo ajU"></div>

@@ -1,0 +1,50 @@
+<p>A few weeks ago, we talked about lambda expressions. We learnt how to use them and some of the advantages they offer.</p>
+<p>But, as the old saying goes, all that glitters is not gold. Last April, Jamie Allen came to our <a title="Meetup Scala Madrid" href="http://www.meetup.com/Scala-Programming-Madrid/" target="_blank">Scala meetup in Madrid</a> and spoke about the dark sideof lambda expressions: <a title="What you need to know about lambdas" href="http://t.co/iSyabvfeYO" target="_blank">"What you need to know about lambdas"</a>. In this post we’ll give you an overview of that talk and support the fact that lambda expressions are not to be taken lightly.</p>
+<p><strong>First problem: Not reusable.</strong></p>
+<p>As a name is not being given to the function, we won’t be able to use it anywhere else in the code.</p>
+<p><strong>Second problem: Cannot be tested in isolation.</strong></p>
+<p>Provided that it is an ad-hoc function, implemented and embedded at some specific point, it cannot be tested in a separate way.</p>
+<p><strong>Third problem: Maintainance.</strong></p>
+<p>In general, it is not good practice to use excessive complicated and nested lambda expressions. With them, our code becomes somewhat obscured and thus, difficult to follow and maintain.</p>
+<p>[code language="scala"]<br />
+List(1, 2, 0, 3, 4).flatMap(<br />
+  x =&gt; (1 to x).filter(<br />
+    _ % 2 == 0<br />
+  ).map( _ * 2 )<br />
+)</p>
+<p>//List(4, 4, 4, 8)</p>
+<p>[/code]</p>
+<p><strong>Fourth problem: error messages.</strong></p>
+<p>This problem varies depending on the programming language used. In some cases, error messages will be manageable and in many others, you may feel the desire to slice your wrists off. In our case, in Scala, when there’s an error in an anonymous function we’ll get an error like this:</p>
+<p>[code language="scala"]<br />
+List(1, 2, 0, 3, 4).map(1 / _)</p>
+<p>java.lang.ArithmeticException: / by zero<br />
+at $anonfun$1.apply$mcII$sp(&lt;console&gt;:8)<br />
+at $anonfun$1.apply(&lt;console&gt;:8)<br />
+at $anonfun$1.apply(&lt;console&gt;:8)<br />
+at scala.collection.TraversableLike$$anonfun$map$1.apply(TraversableLike.scala:244)<br />
+at scala.collection.TraversableLike$$anonfun$map$1.apply(TraversableLike.scala:244)<br />
+at scala.collection.immutable.List.foreach(List.scala:318)<br />
+...<br />
+[/code]</p>
+<p>Given that no name was given to the function, the system will throw the error in a $$anonfun. A bit of a WTF, isn’t it?</p>
+<p><strong>Fifth problem: Hard time debugging.</strong></p>
+<p>Actually, this is not a particular problem of lambda expressions but of the way the code is expressed when using them. If several lambda expressions are written in the same line and there’s an error in any of them, we won’t be able to know which one is causing trouble. That’s why it is highly convenient to separate them in several lines.</p>
+<p>The expression</p>
+<p>[code language="scala"]<br />
+List(1, 2, 0, 3, 4).map(_ + 1).filter(_ % 2 == 0).map(_ * 2)<br />
+[/code]</p>
+<p>would be better written this way:</p>
+<p>[code language="scala"]<br />
+List(1, 2, 0, 3, 4).map(_ + 1)<br />
+  .filter(_ % 2 == 0)<br />
+  .map(_ * 2)<br />
+[/code]</p>
+<p><strong>Sixth problem: they can encapsulate variables with state</strong></p>
+<p>Lambda expressions can access the whole state of their scope. Therefore, they might have access to some mutable value and lead to different results in different execution contexts. Something that we definitely don’t want in functional programming.</p>
+<p><strong>Seventh problem … </strong></p>
+<p>Their problems can be enclosed into just six statements and lead to inconsistent post titles…</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/05/desk_flip.jpg"><img class="  wp-image-419 aligncenter" src="/assets/desk_flip.jpg?w=300" alt="desk_flip" width="189" height="171" /></a></p>
+<p><strong>Conclusion</strong></p>
+<p>As we have seen, the use of lambda expressions may give rise to a few headaches. That’s why it is recommended to only use those ones which are less complex. In case we want to do something more sophisticated or intricate, the best thing to do is to define a method in order to test and debug it without any trouble. Besides, special precautions shall be taken not to use scope variables that may change its value. We should not deviate from our functional perspective.</p>
+<p>I heartily recommend you to take a look at the <a title="What you need to know about lambdas" href="http://autentia.com/2015/04/23/entrevistamos-a-jamie-allen-en-su-paso-por-espana/" target="_blank">talk</a> . Many more details were treated in it (this post is just a brief overview) and it might help us to work with lambda expressions in a better way.</p>

@@ -1,0 +1,55 @@
+<h2>What's Nothing, my precious?</h2>
+<p>Nothing es un tipo un poco especial dentro de la jerarquía de clases de Scala.</p>
+<p>Para empezar <strong>no es instanciable</strong>: no podemos generar una instancia de ninguna manera.</p>
+<p>Raro,¿no? Esto se explica un poco mejor con la segunda particularidad: <strong>es un tipo que extiende de tooooodas las clases</strong>. ¿También las definidas por el usuario? También.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/05/scala-hierarchy.png"><img class="alignnone  wp-image-294" src="/assets/scala-hierarchy.png?w=300" alt="scala-hierarchy" width="624" height="385" /></a></p>
+<p>Entonces, ¿para qué sirve? El ejemplo más claro es <em><strong>None</strong></em>. Si <em><strong>Option[T]</strong></em> no fuese covariante, para cada <em><strong>T</strong></em>, habría que definir un <em><strong>None[T]</strong></em>. Y por tanto tendríamos que <strong><em>None[Int]</em></strong> sería distinto de <em><strong>None[String]</strong></em>...¡imaginaos el lío!</p>
+<p>Pero dado que <em><strong>Option[+T]</strong></em> es covariante<strong>*</strong>, y <em><strong>Nothing</strong></em> es un subtipo de cualquier clase, no es necesario declarar un <em><strong>None</strong></em> para cada <em><strong>T</strong></em> que contuviera la lista, sino que hay un único <em><strong>None</strong></em> con la siguiente signatura:</p>
+<p>[code language="scala"]<br />
+object None extends Option[Nothing]<br />
+  //...with Product with Serializable<br />
+[/code]</p>
+<p>Lo mismo ocurre para <em><strong>Nil</strong></em>.</p>
+<h2>Inferencia de tipos</h2>
+<p>Cuando definimos métodos o valores en Scala, al principio y siendo puristas, definimos el tipo de los mismos:</p>
+<p>[code language="scala"]<br />
+val myVal: String = &quot;hi&quot;<br />
+def myMethod(n: String): Boolean =<br />
+  (n % 2 == 0)<br />
+[/code]</p>
+<p>Pero es bastante frecuente que, tras el paso del tiempo y habiendo tirado muchas líneas de código, empecemos a olvidar añadir el tipo que devuelven estas expresiones:</p>
+<p>[code language="scala"]<br />
+val myVal = &quot;hi&quot;<br />
+def myMethod(n: String) =<br />
+  (n % 2 == 0)<br />
+[/code]</p>
+<p>No ocurre nada, el compilador se encarga de inferir los tipos devueltos...siempre que tenga pistas suficientes para averiguarlo. Es entonces cuando surge la amenaza del coco "Nothing"</p>
+<h2>Nothing's coming</h2>
+<p>Imaginemos que tenemos un método genérico del siguiente tipo:</p>
+<p>[code language="scala"]<br />
+def getFirstElement[T](list: List[T]): Option[T] =<br />
+  list.headOption<br />
+[/code]</p>
+<p>Lo que hace el método es devolver el primer elemento de una lista (si lo tuviera). ¿Dónde puede empezar a complicarse todo?</p>
+<p>Supongamos que queremos probar el método con una lista vacía. Nuestra experiencia nos indica que la mejor forma de hacerlo es empleando el método apply de List sin ningún argumento: List().<br />
+Sin embargo, si le pasamos este argumento a nuestro método:</p>
+<p>[code language="scala"]<br />
+val first = getFirstElement(List())<br />
+[/code]</p>
+<p>veremos que nos devuelve:</p>
+<p>[code language="scala"]<br />
+first: Option[Nothing] = None<br />
+[/code]</p>
+<p>No seamos malos con el compilador, reconozcamos que no le hemos dado facilidad alguna para inferir el tipo correcto. Una forma muy sencilla para hacerlo sería usando el método empty del objeto List:</p>
+<p>[code language="scala"]<br />
+val first = getFirstElement(List.empty[Int])<br />
+first: Option[Int] = None<br />
+[/code]</p>
+<p>aunque también podría inferirse añadiendo el parameter type en la invocación del método</p>
+<p>[code language="scala"]<br />
+val first = getFirstElement[Int](List())<br />
+first: Option[Int] = None<br />
+[/code]</p>
+<p>¡Y listo! Y ahora que lo pienso, el post quedó un poco soso sin memes...</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/05/60965939.jpg"><img class=" size-full wp-image-293 aligncenter" src="/assets/60965939.jpg" alt="60965939" width="250" height="250" /></a></p>
+<p style="text-align:left;"><strong>*</strong> <em>Covarianza</em>: Se dice que <strong>C[T]</strong> es covariante en <strong>T</strong>, si dado un <strong>V&lt;:T</strong>, <strong>C[V]&lt;:C[T]</strong> . Este tema se verá más en profundidad en futuros (que no lejanos) posts :-)</p>

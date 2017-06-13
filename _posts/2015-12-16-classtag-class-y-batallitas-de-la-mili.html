@@ -1,0 +1,168 @@
+---
+layout: post
+title: ClassTag, Class y batallitas de la mili...
+date: 2015-12-16 13:30:55.000000000 +01:00
+type: post
+published: true
+status: publish
+categories:
+- Castellano
+tags:
+- class
+- classtag
+- evidence
+- implicit
+- reflect
+- runtime
+- scala
+- type
+- typetag
+meta:
+  _edit_last: '59615419'
+  geo_public: '0'
+  _publicize_job_id: '17848553624'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/677088543374712832";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: jpaniego
+  email: javiersantospaniego@gmail.com
+  display_name: Javier S. Paniego
+  first_name: ''
+  last_name: ''
+---
+<p>En ocasiones, al trabajar en Scala, surge la necesidad de trabajar con meta-información sobre los tipos. Si bien las macros pueden parecer algo lejano y demasiado tedioso (ya hablaremos de ellas), muchas veces nos basta con poder obtener algo de información sobre las clases de runtime.</p>
+<h2>ClassTag</h2>
+<p>Se trata de un 'envoltorio' que añade Scala sobre las clases de runtime de <code>java.lang.Class</code>.</p>
+<p>Para trabajar con ClassTag debemos importar:</p>
+<p>[code language="scala"]<br />
+import scala.reflect.{ClassTag,classTag}<br />
+[/code]</p>
+<p>Mientras que el primer valor que se importa es la clase, el segundo es un método para obtener implícitamente el <code>ClassTag</code> de un cierto tipo. Por ejemplo:</p>
+<p>[code language="scala"]<br />
+scala&gt; classTag[Int]<br />
+res0: scala.reflect.ClassTag[Int] = Int<br />
+[/code]</p>
+<p>En realidad no es más que syntax sugar para lo siguiente:</p>
+<p>[code language="scala"]<br />
+def classTag[T:ClassTag]: ClassTag[T] =<br />
+  implicitly[ClassTag[T]]</p>
+<p>scala&gt; classTag[Int]<br />
+res0: scala.reflect.ClassTag[Int] = Int<br />
+[/code]</p>
+<p>Disponen de métodos (ahora deprecados por la verificación de tipos mediante TypeTag) como <code>&lt;:&lt;</code> ó <code>=:=</code> que permiten comprobar en tiempo de compilación los bounds de un tipo.<br />
+Por ejemplo:</p>
+<p>[code language="scala"]<br />
+def myMethod[T,U](t: T,u: U)(implicit ev: &lt;:&lt;[T,U]):Unit =<br />
+  println(t,u)<br />
+[/code]</p>
+<p>permite restringir la relación entre los tipos T y U:</p>
+<p>[code language="scala"]<br />
+scala&gt; myMethod(new Animal,new Car)<br />
+&lt;console&gt;:11: error: Cannot prove that Animal &lt;:&lt; Car. myMethod(new Animal,new Car) ^ scala&gt; myMethod(new Cat,new Animal)<br />
+($line15.$read$$iw$$iw$Cat@350aac89,$line14.$read$$iw$$iw$Animal@1c5920df)<br />
+[/code]</p>
+<h3>¿Y mis tipos?</h3>
+<p>Uno de los problemas al trabajar con <code>ClassTag</code> es la pérdida de información sobre los tipos que pueden parametrizar tu clase. Por ejemplo, si preguntamos por el <code>ClassTag</code> de <code>List[Int]</code> obtendremos que:</p>
+<p>[code language="scala"]<br />
+scala&gt; println(scala.reflect.classTag[List[Int]])<br />
+scala.collection.immutable.List<br />
+[/code]</p>
+<p>Como podéis ver, se pierde la información sobre el tipo <code>Int</code> que parametriza la lista. Este proceso de borrado de información de tipos en runtime es conocido como <em>type erasure</em>.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/12/62517760.jpg" rel="attachment wp-att-1179"><img class="aligncenter size-medium wp-image-1179" src="{{ site.baseurl }}/assets/62517760.jpg?w=300" alt="62517760" width="300" height="225" /></a></p>
+<p>No obstante, en caso de necesitar información estática sobre el tipo, podemos hacer uso de los <code>TypeTag</code> (los cuales introduciremos en futuros posts, cuando hablemos de macros).</p>
+<p>[code language="scala"]<br />
+scala&gt; import scala.reflect.runtime.universe._<br />
+import scala.reflect.runtime.universe._</p>
+<p>scala&gt; val tt = typeTag[List[Int]]<br />
+tt: reflect.runtime.universe.TypeTag[List[Int]] = TypeTag[scala.List[Int]]<br />
+[/code]</p>
+<h2>Problemas frecuentes</h2>
+<h3>¿Cómo obtener la <code>Class</code> de un tipo <code>T</code>?</h3>
+<p>[code language="scala"]<br />
+scala&gt; classOf[Int]<br />
+res0: Class[Int] = int<br />
+[/code]</p>
+<h3>Tengo un <code>Class</code>, pero necesito un <code>ClassTag</code></h3>
+<p>Tan sencillo como</p>
+<p>[code language="scala"]<br />
+scala&gt; val clazz = classOf[Int]<br />
+clazz: Class[Int] = int</p>
+<p>scala&gt; val ctag = ClassTag(clazz)<br />
+ctag: scala.reflect.ClassTag[Nothing] = Int</p>
+<p>scala&gt; val ctag = scala.reflect.ClassTag[Int](clazz)<br />
+ctag: scala.reflect.ClassTag[Int] = Int<br />
+[/code]</p>
+<p>Fijaos que salvo que indiquemos el tipo de manera explícita, el constructor de <code>ClassTag</code> inferirá el tipo más genérico posible (en este caso <code>Nothing</code>).</p>
+<h3>¿T es un subtipo de U?</h3>
+<p>Hemos visto antes, que en tiempo de compilación, podemos usar <code>&lt;:&lt;</code> y similares para restringir los tipos pero, ¿qué ocurre en tiempo de runtime?</p>
+<p>Podemos hacer uso del método <code>isAssignableFrom</code> de la case <code>Class</code> que nos indica si una clase es la misma (o superclase) comparado con otra:</p>
+<p>[code language="scala"]<br />
+object A{<br />
+  def apply[T:ClassTag] = new {<br />
+    def isA[U:ClassTag]: Boolean =<br />
+      classTag[T].runtimeClass.isAssignableFrom(classTag[U].runtimeClass)<br />
+  }<br />
+}<br />
+[/code]</p>
+<p>Podríamos probar este snippet con:</p>
+<p>[code language="scala"]<br />
+scala&gt; A[Int].isA[String]<br />
+res0: Boolean = false</p>
+<p>scala&gt; A[String].isA[String]<br />
+res1: Boolean = true<br />
+[/code]</p>
+<h3>Detectar el tipo a partir de un Any</h3>
+<p>Este tip surge por una duda que me planteó un compañero acerca de si existía una manera de, teniendo la siguiente función:</p>
+<p>[code language="scala"]<br />
+def isA[T](t: Any): Boolean = ???<br />
+[/code]</p>
+<p>comprobar si el valor <code>t</code> era de tipo <code>T</code>.<br />
+El primer paso obvio para comprobarlo sería algo como:</p>
+<p>[code language="scala"]<br />
+scala&gt; def isA[T](t: Any): Boolean = t.isInstanceOf[T]<br />
+&lt;console&gt;:7: warning: abstract type T is unchecked since it is eliminated by erasure<br />
+       def isA[T](t: Any): Boolean = t.isInstanceOf[T]<br />
+                                                   ^<br />
+isA: [T](t: Any)Boolean<br />
+[/code]</p>
+<p>El compilador está avisando (y el que avisa no es traidor) que no tenemos información sobre T en tiempo de runtime, que se está perdiendo. ¿Qué ocurre si le pasamos distintos tipos? Se los zampa:</p>
+<p>[code language="scala"]<br />
+scala&gt; isA[Int](&quot;&quot;)<br />
+res2: Boolean = true</p>
+<p>scala&gt; isA[Int](3)<br />
+res3: Boolean = true<br />
+[/code]</p>
+<p>En este caso dijimos "bueno, ¿porque no tratamos de comprobar si las clases son asignables entre sí, obteniendo información del <code>ClassTag</code>"?<br />
+Pues ocurría que,</p>
+<p>[code language="scala"]<br />
+scala&gt; val x: Any = 3<br />
+x: Any = 3</p>
+<p>scala&gt; x.getClass<br />
+res2: Class[_] = class java.lang.Integer</p>
+<p>scala&gt; classOf[Int].isAssignableFrom(classOf[Int])<br />
+res3: Boolean = true</p>
+<p>scala&gt; classOf[Int].isAssignableFrom(classOf[java.lang.Integer])<br />
+res4: Boolean = false<br />
+[/code]</p>
+<p>La clase de <code>x</code> es <code>java.lang.Integer</code>, que no es asignable por parte de <code>Int</code> (lo mismo ocurría con variedad de tipos primitivos).</p>
+<h4>Al final...</h4>
+<p>Finalmente nos dimos cuenta de que <code>ClassTag</code> tiene un maravilloso método <code>unapply</code> que permite extraer un valor tipado si este pertenece a la clase del <code>ClassTag</code>. Justo lo que necesitábamos:</p>
+<p>[code language="scala"]<br />
+def isA[T:ClassTag](t: Any): Boolean =<br />
+  classTag[T].unapply(t).isDefined<br />
+[/code]</p>
+<p>al probarlo en la REPL comprobamos con alegría que:</p>
+<p>[code language="scala"]<br />
+scala&gt; val x: Any = 3<br />
+x: Any = 3</p>
+<p>scala&gt; isA[String](x)<br />
+res5: Boolean = false</p>
+<p>scala&gt; isA[Int](x)<br />
+res6: Boolean = true<br />
+[/code]</p>
+<h2>Conclusiones</h2>
+<p>No es habitual tener que lidiar con estos temas salvo que se estén construyendo sistemas lo suficientemente genéricos. No obstante, nunca está de más echar un vistazo al lado oscuro...</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/12/137134463824621.png" rel="attachment wp-att-1182"><img src="{{ site.baseurl }}/assets/137134463824621.png?w=300" alt="137134463824621" width="300" height="209" class="aligncenter size-medium wp-image-1182" /></a></p>
+<p>¡Agur de limón!</p>

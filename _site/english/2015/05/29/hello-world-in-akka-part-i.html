@@ -1,0 +1,83 @@
+<p>Today we are going on a different matter. Since the <strong>reactive programming course</strong> is currently being given in <strong>Coursera</strong>, we are taking the first steps to start working with <strong>Akka</strong>.</p>
+<p>Akka is a toolkit developed by the Typesafe ecosystem. It allows the implementation of reactive systems on an <strong>actor-based model</strong>. There are two versions of Akka, one for Java and one for Scala. We will focus, obviously, on the second.</p>
+<p><strong>What's an actor?</strong></p>
+<p>An <strong>actor</strong> in an entity to which messages can be sent. The actor will react to the received messages by performing an action. Besides, it has two main characteristics:</p>
+<ul>
+<li>The inside of the actor can’t be accessed from outside. The interaction with the actor can only be achieved by sending messages to it.</li>
+<li>Messages that arrive to the actor will be processed one at a time.</li>
+</ul>
+<p>To create an actor in Akka - please make an extra comprehension effort - the only thing that is required is extending the trait <em>Actor</em>.</p>
+<p>If we want the actor to be fully defined, its behaviour needs to be specified. In order to do so, the <strong><em>receive</em></strong> method of the actor needs to be implemented. This method will define the reaction of the actor to the different messages that it might receive.</p>
+<p>But before going on with actors, tool time!</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/05/timallen.jpg"><img class="  wp-image-447 aligncenter" src="/assets/timallen.jpg?w=288" alt="timallen" width="223" height="232" /></a></p>
+<p><strong>Tool time: Partial functions</strong></p>
+<p><strong><em>Partial functions</em></strong> are functions that are only defined for a limited set of arguments. From a mathematical point of view, we could say that its domain is bounded. This concept may become clearer with a simple example:</p>
+<p>[code language="scala"]<br />
+def getCountry: PartialFunction[String, String] = {<br />
+  case &quot;Madrid&quot; =&gt; &quot;Spain&quot;<br />
+  case &quot;Paris&quot; =&gt; &quot;France&quot;<br />
+  case &quot;Roma&quot; =&gt; &quot;Italy&quot;<br />
+}<br />
+[/code]</p>
+<p>In this case, the <em>getCountry</em> function will return the country only for the capital cities defined in the partial function. If any other capital city is used as input to this function, it will throw a <em>MatchError</em>.</p>
+<p>[code language="scala"]<br />
+getCountry(&quot;Madrid&quot;) //returns &quot;Spain&quot;;<br />
+getCountry(&quot;Berlin&quot;) //throws MatchError<br />
+[/code]</p>
+<p>Moreover, partial functions have a method called <em>isDefinedAt</em>, which allows us to know if a certain input parameter is considered in its body. In our example:</p>
+<p>[code language="scala"]<br />
+getCountry.isDefinedAt(&quot;Madrid&quot;) //returns true<br />
+getCountry.isDefinedAt(&quot;Berlin&quot;) //returns false<br />
+[/code]</p>
+<p>Another important trick is that partial functions can be combined to create a new one. To do so, orElse method is used.</p>
+<p>[code language="scala"]<br />
+def getCountryEurope: PartialFunction[String, String] = {<br />
+  case &quot;Madrid&quot; =&gt; &quot;Spain&quot;<br />
+  case &quot;Paris&quot; =&gt; &quot;France&quot;<br />
+  case &quot;Roma&quot; =&gt; &quot;Italy&quot;<br />
+}</p>
+<p>def getCountryAmerica: PartialFunction[String, String] = {<br />
+  case &quot;Brasilia&quot; =&gt; &quot;Brazil&quot;<br />
+  case &quot;Buenos Aires&quot; =&gt; &quot;Argentina&quot;<br />
+}</p>
+<p>def getCountry =<br />
+  getCountryEurope orElse getCountryAmerica</p>
+<p>getCountry.isDefinedAt(&quot;Madrid&quot;) //returns true<br />
+getCountry.isDefinedAt(&quot;Brasilia&quot;) //returns true</p>
+<p>[/code]</p>
+<p>To end up with the <em>PartialFunction</em> masterclass, it is important to know the method <em>applyOrElse</em>, with which we can evaluate a partial function with an input value but also define an auxiliary function to use in case the input value does not belong to the domain. Sorry, what? Again, an example might save us:</p>
+<p>[code language="scala"]<br />
+def unhandled(capital: String) = s&quot;$capital is not defined&quot;<br />
+getCountry.applyOrElse(&quot;Foo&quot;, unhandled) //Foo is not defined</p>
+<p>[/code]</p>
+<p><strong>Hello World Actor</strong></p>
+<p>Good! Now we know what partial functions are, we can implement the <em>receive</em> method of the actor, which will define the actor’s behaviour. That receive method, as you all might have guessed, is a partial function actually.</p>
+<p>[code language="scala"]<br />
+type Receive = PartialFunction[Any, Unit]</p>
+<p>def receive: Receive<br />
+[/code]</p>
+<p>This partial function expects any type as input parameter and returns Unit. Therefore, thanks to the argument type <em>Any</em>, anything can be sent as a message to the actor: a string, an integer, an object...</p>
+<p>[code language="scala"]<br />
+def receive {<br />
+  case num: Int =&gt; println(s&quot;Num $num received&quot;)<br />
+  case words: String =&gt; println(s&quot;String $words received&quot;)<br />
+  case _ =&gt; println(&quot;I've received other thing&quot;)<br />
+}<br />
+[/code]</p>
+<p>In addition, we must know that when a message arrives to an actor, at first the partial function defined at the receive method tries to be applied and, in case the message is not defined in the domain, the unhandled method is executed:</p>
+<p>[code language="scala"]<br />
+def unhandled(msg: Any): Unit<br />
+[/code]</p>
+<p>By default, this method will print the unhandled messages in a log. This way, if a message cannot be handled by <em>receive</em> method, instead of causing a <strong>MatchError</strong> and blowing up our program, a debug message will be printed in Akka’s log. Using our high-level knowledge in partial functions, we can guess that the behaviour of an actor for a given message called <em>msg</em> will be defined as follows:</p>
+<p>[code language="scala"]<br />
+receive.applyOrElse(msg, unhandled)<br />
+[/code]</p>
+<p>All that remains is to define the actor that, in our case, no matter what the received message is, will print a lovely and passionate Hello World:</p>
+<p>[code language="scala"]<br />
+class HelloWorldActor extends Actor {</p>
+<p>  def receive {<br />
+    case _ =&gt; println(&quot;Hello World!&quot;)<br />
+  }<br />
+}<br />
+[/code]</p>
+<p>Voila! The next post will teach us how we can use this actor and put it into operation.</p>

@@ -1,0 +1,131 @@
+<p>I have no idea of frontend development. I assume it. I'm one of those backend cavemen that <del>refuse</del> can't get out of their backend cave. However, <a href="http://www.scala-js.org/" target="_blank">ScalaJs</a> people have developed something that helps getting people like me closer to the frontend world.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/12/izcunxh.gif" rel="attachment wp-att-944"><img class="aligncenter size-medium wp-image-944" src="/assets/izcunxh.gif?w=300" alt="iZcUNxH" width="300" height="168" /></a></p>
+<h2>ScalaJs: what's that?</h2>
+<p>ScalaJs is a library that allows translating Scala code to Javascript. As simple as that. Besides, toward to frontend developers, it is easily integrated with the top JS libraries like AngularJS or React.<br />
+What can it offer then, appart from what JS does? Coding frontend using a strongly typed language.<br />
+<a href="https://scalerablog.files.wordpress.com/2015/12/49775773.jpg" rel="attachment wp-att-945"><img class="aligncenter size-medium wp-image-945" src="/assets/49775773.jpg?w=300" alt="49775773" width="300" height="262" /></a><br />
+Thanks this, I actually know what my expression returns (forget about <code>null</code>, <code>NaN</code> and magical results).<br />
+Even that it's true that the ScalaJS optimizer generated a lot of boilerplate at the beginning, it has improved a lot the way it generates JS code.</p>
+<h2>My first ScalaJs project</h2>
+<p>From Scalera, we've <del>hired a monkey</del> tested ourselves the library and wanted to shate the main keys for introducing you to your first ScalaJs mini-project, based on canvas. You can find <a href="https://github.com/lihaoyi/workbench-example-app" target="_blank">here</a> the example project which we have used as template.</p>
+<h3>Setting up the SBT project</h3>
+<p>Once created the basic scaffolding,</p>
+<p>[code language="xml"]<br />
+scalajs-example/<br />
+  project/<br />
+    build.sbt<br />
+  src/main/<br />
+    resources/<br />
+    scala/scalera/scalajs/example<br />
+  build.sbt<br />
+[/code]</p>
+<p>We'll have to add two plugins to our project (at <code>project/build.sbt</code>):</p>
+<ul>
+<li><a href="http://www.scala-js.org/doc/sbt-plugin.html" target="_blank">sbt-scalajs</a> : It allows us invoking, directly from SBT, the optimization task that will generate the JS file from the Scala sources.</li>
+<li><a href="https://github.com/lihaoyi/workbench" target="_blank">workbench</a> : Developed by <a href="https://github.com/lihaoyi" target="_blank">Li Haoyi</a> , it's a plugin that manages to deploy your ScalaJS project locally in a pretty simple way. Just executing SBT, it launches a web server at localhost where you can find your application deployed :-)</li>
+</ul>
+<p>Our file should like this:</p>
+<p>[code language="scala"]<br />
+resolvers += &quot;spray repo&quot; at &quot;http://repo.spray.io&quot;<br />
+resolvers += &quot;Typesafe repository&quot; at &quot;http://repo.typesafe.com/typesafe/releases/&quot;<br />
+addSbtPlugin(&quot;org.scala-js&quot; % &quot;sbt-scalajs&quot; % &quot;0.6.1&quot;)<br />
+addSbtPlugin(&quot;com.lihaoyi&quot; % &quot;workbench&quot; % &quot;0.2.3&quot;)<br />
+[/code]</p>
+<p>Some workbench plugin users have detected the need of adding those resolver due to certain <a href="https://github.com/lihaoyi/workbench/issues/8" target="_blank">issue</a>.</p>
+<h3>Defining the <code>build.sbt</code> file</h3>
+<p>Appart from providing the project name, organization and so...</p>
+<p>[code language="scala"]<br />
+import com.lihaoyi.workbench.Plugin._<br />
+enablePlugins(ScalaJSPlugin)<br />
+workbenchSettings</p>
+<p>organization := &quot;scalera&quot;<br />
+version := &quot;1.0&quot;<br />
+scalaVersion := &quot;2.11.2&quot;<br />
+name := &quot;scalajs-example&quot;</p>
+<p>libraryDependencies ++= Seq(<br />
+  &quot;org.scala-js&quot; %%% &quot;scalajs-dom&quot; % &quot;0.8.0&quot;,<br />
+  &quot;com.lihaoyi&quot; %%% &quot;scalatags&quot; % &quot;0.5.3&quot;)</p>
+<p>bootSnippet := &quot;scalera.scalajs.example.Boot().main(document.getElementById('canvas'));&quot;<br />
+updateBrowsers &lt;&lt;= updateBrowsers.triggeredBy(fastOptJS in Compile)<br />
+[/code]</p>
+<p>it's necessary to enable the sbt-scalajs plugin and import <code>workbench</code> settings. Afterwards, we'll add at the libraryDependencies each of the needed (<code>scalajs-dom</code> for easily performing changes over the dom; and <code>scalatags</code> that provides a simple DSL for writting XML/HTML tags).</p>
+<p>In addition, we'll add a couple of extra things:</p>
+<ul>
+<li><code>bootSnippet</code> : The snippet that points to the application main.</li>
+<li><code>updateBrowser</code> : At this line we're trying to say that a (partial) web browser reset shall be performed every time the <code>fastOptJS</code> task is called.</li>
+</ul>
+<h3>Adding some Scala code</h3>
+<p>We've already created the SBT project that will conform the frame of our app. Let's add then some Scala logic by adding the file <code>src/main/scalera/scalajs/example/Boot.scala</code>:</p>
+<p>[code language="scala"]<br />
+package scalera.scalajs.example</p>
+<p>import scala.scalajs.js.annotation.JSExport</p>
+<p>import org.scalajs.dom<br />
+import org.scalajs.dom.html</p>
+<p>@JSExport<br />
+object Boot {</p>
+<p>  @JSExport<br />
+  def main(canvas: html.Canvas): Unit = {</p>
+<p>    println(&quot;Hello world!&quot;)</p>
+<p>    val ctx = canvas.getContext(&quot;2d&quot;)<br />
+      .asInstanceOf[dom.CanvasRenderingContext2D]</p>
+<p>    val width = ctx.canvas.width</p>
+<p>    val height = ctx.canvas.height</p>
+<p>    def run: Unit = {<br />
+      ctx.clearRect(0, 0, width, height)<br />
+      ctx.fillStyle = &quot;black&quot;<br />
+      ctx.fillRect(0, 0, width, height)<br />
+    }</p>
+<p>    dom.setInterval(() =&gt; run, 1000)</p>
+<p>  }<br />
+}<br />
+[/code]</p>
+<p>Appart from some imports, what really attracts our attention in this snippet is:</p>
+<ul>
+<li>The <code>@JSExport</code>s. They're used for indicating ScalaJs which elements must be exported to Javascript, so they can be accessed somewhere else (any other JS script or even the HTML).</li>
+<li>The <code>println("Hello world!")</code>. The million dollar question is, where will it be printed? In the browser's console, <em>amigos</em>.</li>
+<li>The <code>ctx</code> context represents the canvas selection that we're going to use.</li>
+<li>The <code>run</code> method cleans the canvas surface, select the 'black' fill style, and paints a rectangle on the canvas surface.</li>
+<li><code>dom.setInterval(() =&gt; run, 1000)</code> : It causes the <code>run</code> method execution every second.</li>
+</ul>
+<p>We're almost done...</p>
+<h3>Some HTML hurts no one...</h3>
+<p>Ok, how do we visualize the awesome application we have just created? We'll have to create an <code>index.html</code> file, as simple to be able to invoke our <code>main</code> method.</p>
+<p>Let's create such file at <code>src/main/resources</code> with the following content:</p>
+<p>[code language="html"]<br />
+&lt;!DOCTYPE html&gt;<br />
+&lt;html&gt;<br />
+&lt;head&gt;<br />
+ &lt;title&gt;Scalera Scalajs-example&lt;/title&gt;<br />
+ &lt;meta http-equiv=&quot;Content-Type&quot; content=&quot;text/html; charset=UTF-8&quot;/&gt;<br />
+&lt;/head&gt;<br />
+&lt;body style=&quot;margin: 0px&quot;&gt;</p>
+<p>&lt;div&gt;<br />
+ &lt;canvas style=&quot;display: block;padding:0;margin:auto;width=800&quot; id=&quot;canvas&quot; width=&quot;800&quot; height=&quot;600&quot;/&gt;<br />
+&lt;/div&gt;</p>
+<p>&lt;script type=&quot;text/javascript&quot; src=&quot;../scalera-scalajs-example-fastopt.js&quot;&gt;&lt;/script&gt;<br />
+&lt;script type=&quot;text/javascript&quot; src=&quot;/workbench.js&quot;&gt;&lt;/script&gt;<br />
+&lt;script&gt;<br />
+ scalera.scalajs.example.Boot().main(document.getElementById('canvas'));<br />
+&lt;/script&gt;<br />
+&lt;/body&gt;<br />
+&lt;/html&gt;<br />
+[/code]</p>
+<p>As you can see, the only thing that the HTML does is declaring a canvas and import 3 scripts:</p>
+<ul>
+<li><code>../scalera-scalajs-example-fastopt.js</code> : The JS file generated from our Scala sources.</li>
+<li><code>/workbench.js</code> : script that loads the <code>workbench</code> plugin.</li>
+<li>An anonymous script that loads the Boot object (exported to JS by using the <code>@JSExport</code> tag) and executes the main method providing the canvas that we previously declared.</li>
+</ul>
+<h3>Demo</h3>
+<p>To prove that our project works, it will be enough to execute <code>sbt</code> over the project's root folder, and the workbench plugin will take care of launching the web server.</p>
+<p>We'll be able to access  <code>http://localhost:12345/target/scala-2.11/classes/index.html</code> url and will see, at first place, that there's a wonderful black rectangle that fulfils all the canvas; and, on the other hand, if we open the browser console, we'll see printed our rocking <strong>Hello world!</strong>.</p>
+<h2>Ok, what about cons?</h2>
+<p>Despite of the amazing look of our example project, we've found some difficulties when coding it. And we have to mention them (just to avoid the feeling of tricking you):</p>
+<ul>
+<li>Using Scala dependencies: ScalaJs cannot use classes/objects of dependencies that don't have a ScalaJs project nature as well. It's quite limiting but it makes sense if you think about the idea of ScalaJs being able to export to JS all involved Scala source code with a <code>@JSExport</code> tag.</li>
+<li>Testing : ¿ScalaJS and Scalatest together? Hard to believe. But take a look at <a href="https://github.com/lihaoyi/utest" target="_blank">uTest</a> ...</li>
+</ul>
+<h2>Conclusion</h2>
+<p>ScalaJs rocks. We don't mean that it's better than natively JS development, but it helps indeed that total frontend heathens get closer to this world that provides a lot of possibilities.</p>
+<p>At future posts, we'll see some examples about how to use <code>CanvasRenderingContext2D</code> or about how <code>@JSExport</code> tags work.</p>
+<p>Peace out! :-)</p>

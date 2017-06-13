@@ -1,0 +1,73 @@
+---
+layout: post
+title: Vals and Vars *
+date: 2015-05-29 10:06:39.000000000 +02:00
+type: post
+published: true
+status: publish
+categories:
+- English
+tags:
+- beginner
+- object
+- scala
+- stateful
+- val
+- var
+meta:
+  _edit_last: '59615419'
+  geo_public: '0'
+  _publicize_job_id: '11123757964'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/604197594525376512";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: jpaniego
+  email: javiersantospaniego@gmail.com
+  display_name: Javier S. Paniego
+  first_name: ''
+  last_name: ''
+---
+<h2>Immutable vs mutable</h2>
+<p>One of the first lessons that the functional world gives away is that the values we declare (<strong>val</strong>) are immutable, i.e., they can only be given a value once and cannot be modified afterwards (we’ll see later that this statement has its nuances). Henceforth, if we declared:</p>
+<p>[code language="scala"]<br />
+val myNumber: Int = 2<br />
+myNumber = 3 //Compile-time error<br />
+[/code]</p>
+<p>We wouldn’t be able to change its value. This may seem odd at first, but variables (<strong>var</strong>), commonly used in other programming languages such as Java, are completely discouraged in Scala.</p>
+<p>[code language="scala"]<br />
+var myNumber: Int = 2<br />
+myNumber = 3<br />
+println(myNumber) //Prints out '3'<br />
+[/code]</p>
+<p>What’s the point in this? If we understand that any pure function is not allowed to maintain any state, then it seems obvious that variables can have no place in them. On the other hand, you might think: ‘Yeah, but the world is not functional: as an example, I/O is essential to configure the execution of a program’... You’re absolutely right. That’s why it is recommended that, if variables need to be used, checks are carried out to see if this is absolutely necessary and if so, they should be placed at the nearest point to the application entry.<br />
+For anything else, there’s <em>masterVal</em></p>
+<h1>Nounces: Stateful objects.</h1>
+<p>We said earlier that if a variable is defined as val, its value cannot be modified. We also said that some nounces could be applied to this statement. Let’s assume that we have the following piece of code:</p>
+<p>[code language="scala"]<br />
+class Foo {<br />
+  private var initialized: boolean = false<br />
+  def initialize(): Unit = {<br />
+    initialized = true<br />
+  }<br />
+  def isInitialized(): Boolean = initialized<br />
+}<br />
+[/code]</p>
+<p>If we do now instantiate a Foo-type object</p>
+<p>[code language="scala"]<br />
+val immutableFoo = new Foo<br />
+immutableFoo.isInitialized() // false<br />
+immutableFoo = new Foo //Compile-time error<br />
+[/code]</p>
+<p>If we try to reassign its value, we’ll get a compile-time error (nothing new for now). But if we call its initialize method...</p>
+<p>[code language="scala"]<br />
+immutableFoo.isInitialzed() // false<br />
+immutableFoo.initialize()<br />
+immutableFoo.isInitialized() // true<br />
+[/code]</p>
+<p>...we will have modified its internal state. So, our Foo has become in what’s called a ‘Stateful object’: an object with state. Scala tries to refuse this behaviour but we should not forget that this is the normal thing to do in Java code. Given that one of the facilities of Scala is the integration with Java, the use of Java libraries and frameworks is common practice. Our recommendation is that this pattern is avoided in Scala implementations, but we have to be aware of its likely use in other tools that we might be integrating in our project.</p>
+<h1>The best of both worlds...</h1>
+<p>One of the main virtues of Scala (scalaz people would kill us for saying this) is the existence of var.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/03/kqsqldv.gif"><img class="alignnone  wp-image-140 aligncenter" src="{{ site.baseurl }}/assets/kqsqldv.gif?w=300" alt="KqsQlDV" width="215" height="124" /></a></p>
+<p>But had you not said before that <strong>var=<del>crap</del></strong>? True. But it is precisely the fact that these kinds of expressions are not forbidden what eases the transition to Scala from other languages such as Java. A transition that might be less traumatic if, at first, the same old constructions are built but with Scala’s syntax for then, further on, adopting a proper functional style.</p>

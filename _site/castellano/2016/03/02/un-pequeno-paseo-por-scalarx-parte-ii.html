@@ -1,0 +1,56 @@
+<p style="text-align:justify;">Hace quince días <a href="https://scalerablog.wordpress.com/2016/02/17/un-pequeno-paseo-por-scalarx/">estuvimos viendo</a> muy por encima alguna de las funcionalidades que nos ofrecía la librería <a href="https://github.com/lihaoyi/scala.rx">ScalaRx</a>. Hoy vamos a acabar ese pequeño paseo dando un poco de caña a los Observables y todas las ventajas que nos ofrecen.</p>
+<h3>Anteriormente en Scalera ...</h3>
+<p style="text-align:justify;">En el <a href="https://scalerablog.wordpress.com/2016/02/17/un-pequeno-paseo-por-scalarx/">post</a> anterior  vimos como funcionaban las variables reactivas. Aprendimos como declararlas, como modificarlas y como crear estructuras <em><strong>Rx</strong></em> que fueran modificadas cuando las variables reactivas experimentaran un cambio.</p>
+<p style="text-align:justify;">La idea principal del post indicaba que el objetivo de la librería ScalaRx era interpretar las variables reactivas y su utilización como un flujo que propaga cambios cuando se produce alguna actualización en alguna de las variables reactivas. Podemos verlo como un efecto mariposa.</p>
+<p style="text-align:justify;">Ahora vamos a ver como podemos aprovecharnos de dichos cambios con el tipo <em><strong>Observable</strong></em>.</p>
+<p><img class="  wp-image-1707 aligncenter" src="/assets/giphy.gif" alt="giphy" width="302" height="238" /></p>
+<h3>El tipo Observable</h3>
+<p style="text-align:justify;">Mediante el tipo <em><strong>Observable</strong></em> podremos realizar determinadas acciones cuando una variable reactiva cambie de valor. Para ello podemos crear observaciones tanto de un <em><strong>Var</strong></em> como de bloques <strong><em>Rx.</em></strong> Existen dos constructores: mediante <em>trigger </em>o mediante <em>foreach</em>. Con el primero de ellos no tendremos una referencia al nuevo valor. Para obtenerlo debemos usar la llamada a <em>.now</em>. Por otro lado, con <em>foreach</em> tendremos una referencia al nuevo valor propagado en el flujo.</p>
+<p style="text-align:justify;">Vamos a crear un par de <strong><em>Observables</em></strong> que devuelvan por pantalla el nuevo valor. Para ello utilizaremos las dos versiones del constructor:</p>
+<p>[code language="scala"]<br />
+import rx._<br />
+val reactiveVar = Var(&quot;Hello World&quot;)<br />
+val o1 = reactiveVar.trigger {<br />
+  println(reactiveVar.now)<br />
+}<br />
+val o2 = reactiveVar.foreach { newValue =&gt;<br />
+  println(newValue)<br />
+}<br />
+[/code]</p>
+<p>En este ejemplo, nada más ejecutarlo, mostrará por pantalla dos "Hello World" debido a que los observables actúan también en la inicialización de la variable reactiva. Si queremos saltarnos el primer cambio en la variable reactiva podemos usar triggerLater.</p>
+<p>[code language="scala"]<br />
+import rx._<br />
+val reactiveVar = Var(&quot;Hello World&quot;)<br />
+val o1 = reactiveVar.triggerLater {<br />
+  println(reactiveVar.now)<br />
+}<br />
+[/code]</p>
+<p>Por último, si queremos eliminar un Observable, podemos utilizar la instrucción <em>kill</em>.</p>
+<p>[code language="scala"]<br />
+import rx._<br />
+val reactiveVar = Var(&quot;Hello World&quot;)<br />
+val o1 = reactiveVar.triggerLater {<br />
+ println(reactiveVar.now)<br />
+}<br />
+o1.kill()<br />
+[/code]</p>
+<p>De esta manera, no se volverá a reaccionar a los cambios de la variable reactiva.</p>
+<h3>Conclusiones</h3>
+<p>Después de estos dos post, podemos comentar que ScalaRx se basa en flujos de datos en los que existen varios elementos. Como bien se comenta en la documentación de ScalaRx, dichos elementos se pueden ver como:</p>
+<ul>
+<li><strong><em>Var</em></strong>: inician los flujos y provocan una avalancha con sus cambios</li>
+<li><strong><em>Rx</em></strong>: nodos intermedios del flujo que reaccionaran a los cambios</li>
+<li><strong><em>Observables</em></strong>: nodos hoja del flujo que reaccionarán a los cambios sin propagar el flujo.</li>
+</ul>
+<p>Podemos aprovecharnos de esta abstracción para crear distintos tipos de aplicaciones o herramientas. Por ejemplo, podríamos tener unos parámetros de configuración dinámicos (Var), que sean utilizados en otras variables (Rx) y que, si se producen cambios en ellos, necesitamos realizar una serie de acciones para adaptarnos a la nueva configuración:</p>
+<p>[code language="scala"]<br />
+import rx._<br />
+val host = Var(etcdHost)<br />
+val port = Var(etcdPort)<br />
+val databaseUri = Rx {host() + &quot;:&quot; + port()}<br />
+val obsDatabaseUri = databaseUri.triggerLater {<br />
+  connection.resetWith(databaseUri.now())<br />
+}<br />
+[/code]</p>
+<p>Este puede ser un patrón típico para adaptarnos a parámetros de configuración dinámica provenientes, por ejemplo, de ETCD o Consul.</p>
+<p>Este es solo un ejemplo. Obviamente, podemos realizar cosas mucho más complejas con el flujo provocado por cambios en variables reactivas. Pero eso tocará verlo en futuros post. Agur de limón!</p>

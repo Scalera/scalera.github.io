@@ -1,0 +1,58 @@
+<p>Has ever happened to you that you have a collection and you want to split it into two parts: one that satisfies certain assertion and the other one that doesn't? In that case, do you resort to use a filter and a filterNot? Don't worry, in this <del>teleshopping ad</del> post, we'll see some not-so-popular but common methods for splitting collections.</p>
+<h2>takeWhile</h2>
+<p>For a <code>Traversable[A]</code> collection, we have the following method:</p>
+<p>[code language="scala"]<br />
+def takeWhile(p: A =&gt; Boolean): Traversable[A]<br />
+[/code]</p>
+<p>It gets as parameter the condition that has to be checked by the first N elements to be collected from current collection. <em>Don't worry</em>, an example illustrates it better:</p>
+<p>[code language="scala"]<br />
+val numbers = List(2, 4, 5, 6, 7)<br />
+val firstEven = numbers.takeWhile(_ % 2 == 0)<br />
+//List(2, 4)<br />
+[/code]</p>
+<p>As you can see, the list you get is the result of getting the first elements in the collection while the given assertion is checked.</p>
+<h2>dropWhile</h2>
+<p>Like his elder brother, <code>dropWhile</code> receives as parameter a function, but its behavior is based on removing all elements from the beginning until the given condition is not checked.</p>
+<p>E.g.:</p>
+<p>[code language="scala"]<br />
+val names = List(&quot;Julio&quot;, &quot;Jose&quot;, &quot;Alberto&quot;, &quot;Javier&quot;)<br />
+val survivors = names.dropWhile(_.startsWith(&quot;J&quot;))<br />
+//List(&quot;Alberto&quot;,&quot;Javier&quot;)<br />
+[/code]</p>
+<p>Even though there are some other elements in the list that check the condition, method <code>dropWhile</code> only drop the first N elements as long as they all check the condition. At the very first moment the assertion is not validated, the method stop removing elements.</p>
+<h2>span</h2>
+<p>But as we were talking at the introduction, what happens if I want to apply one of this functions without loosing the remaining elements in the collection? In that case, <code>span</code> is your friend.</p>
+<p>Its signature is:</p>
+<p>[code language="scala"]<br />
+def span(p: A =&gt; Boolean): (Traversable[A], Traversable[A])<br />
+[/code]</p>
+<p>And the way it works, just to picture it, is returning, for a <code>t</code> collection and a constraint(function) <code>f</code>, <code>(t takeWhile f, t dropWhile f)</code>, but quoting  <a href="http://www.scala-lang.org/api/current/index.html#scala.collection.Traversable">Scala api</a>) "possibly[sic] more efficient than".</p>
+<p>Examples, examples everywhere...</p>
+<p>[code language="scala"]<br />
+case class Event(timeStamp: Long)</p>
+<p>val events: Stream[Event] = ???</p>
+<p>val systemCrashTimestamp: Long = ???</p>
+<p>val (eventsBeforeCrash,eventsAfterCrash) =<br />
+  events.span(_.timeStamp &lt;= systemCrashTimeStamp)<br />
+[/code]</p>
+<p>In this example, we're modeling possible events that may happen to a system. By reading some <code>Stream</code>, we access all events that occurred to the system to monitorize. On the other hand, we're notified that some fatal-terrible error take place in the system (<code>systemCrashTimeStamp</code>).</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/10/942.jpg"><img class="aligncenter size-medium wp-image-754" src="/assets/942.jpg?w=222" alt="942" width="222" height="300" /></a></p>
+<p>For splitting events that took place before the death-fatal-error, from the other that happened later; we can use <code>span</code> (<em>et voilà!</em>)</p>
+<h2>partition</h2>
+<p>Ok then, if you looked closer before with <code>takeWhile</code> and <code>dropWhile</code> examples, a lil' problem could be inferred: if you split collections this way, takeWhile only took first elements that checked the condition, but not all of them.</p>
+<p>A first logical approach (that you may have used at some point), is to write something like this:</p>
+<p>[code language="scala"]<br />
+val numbers = List(2, 3, 4, 5, 6, 7)</p>
+<p>val isEven: Int =&gt; Boolean = _ % 2 == 0</p>
+<p>val even = numbers.filter(isEven)</p>
+<p>val odd = numbers.filterNot(isEven)<br />
+[/code]</p>
+<p>Not bad. But like method <code>span</code>, we can think about <code>partition</code> like a method that, given a collection called <code>t</code> and a function <code>f</code>, behaves as follows: <code>(t filter f, t filterNot f)</code>; making implementation much easier (and <em>"possibly[sic] more efficient than"</em>):</p>
+<p>[code language="scala"]<br />
+val numbers = List(2, 3, 4, 5, 6, 7)</p>
+<p>val isEven: Int =&gt; Boolean = _ % 2 == 0</p>
+<p>val (even, odd) = numbers.partition(isEven)<br />
+[/code]</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/10/2395690.jpg"><img class="aligncenter size-medium wp-image-757" src="/assets/2395690.jpg?w=300" alt="2395690" width="300" height="300" /></a></p>
+<p>Until next tip.<br />
+Peace out!</p>

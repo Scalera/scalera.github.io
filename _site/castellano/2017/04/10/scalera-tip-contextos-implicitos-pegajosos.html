@@ -1,0 +1,80 @@
+<p>El otro día (para la gente normal: hace cosa de 1 mes) vi que el gran Viktor Klang twiteaba acerca de como quitar las molestas evidencias implícitas en definiciones de métodos. Y me pareció tan elegantes algunas de las cosas que leí, que me vi en la obligación de compartir algunas ideas al hilo de dichos consejos con aquellos de vosotros que no le sigáis aun en Twitter (<a href="https://twitter.com/viktorklang" target="_blank">@viktorklang</a>).</p>
+<p><a href="https://scalerablog.files.wordpress.com/2017/04/giphy.gif"><img src="/assets/giphy.gif" alt="" width="400" height="225" class="aligncenter size-full wp-image-4362" /></a></p>
+<h2>La situación</h2>
+<p>Imaginad el típico método polimórfico en el cual necesitamos un execution context para ejecutar un futuro:</p>
+<p>[code language="scala"]<br />
+import scala.concurrent.{ExecutionContext, Future}</p>
+<p>def myMethod[T]<br />
+  (element: T)<br />
+  (implicit ev: ExecutionContext): Future[Boolean] = ???<br />
+[/code]</p>
+<p>Es tan típico como feo, el tener que repetir la coletilla de <code>(implicit ev: ExecutionContext)</code> en 10 métodos seguidos...</p>
+<h2>Jugando con type alias</h2>
+<p>La idea feliz que se propone es definir un type alias del siguiente tipo:</p>
+<p>[code language="scala"]<br />
+type EC[_] = ExecutionContext<br />
+[/code]</p>
+<p>De esta forma, re-definiríamos la cabecera de nuestro método como sigue:</p>
+<p>[code language="scala"]<br />
+def myMethod[T:EC](element: T): Future[Boolean] = ???<br />
+myMethod(&quot;hi&quot;)<br />
+[/code]</p>
+<p>¿Bello o no?</p>
+<p><a href="https://scalerablog.files.wordpress.com/2017/04/giphy-1.gif"><img src="/assets/giphy-1.gif" alt="" width="320" height="240" class="aligncenter size-full wp-image-4365" /></a></p>
+<h2>Otras posibilidades</h2>
+<h3>Métodos no polifórmicos</h3>
+<p>En el caso en que nuestro método no esté parametrizado, tendríamos que añadir algo de boilerplate (añadiendo un wildcard para el tipo que parametriza el método), pero en esencia debería seguir funcionando el mismo principio:</p>
+<p>[code language="scala"]<br />
+def myMethod[_:EC](element: Int): Future[Boolean] = ???<br />
+myMethod(2)<br />
+[/code]</p>
+<h3>Múltiples contextos implícitos</h3>
+<p>En el no-tan-descabellado caso en el que necesitáramos varios parámetros implícitos de distintos tipos, necesitaríamos definir tantos type alias como tipos distintos de parámetros requiriésemos:</p>
+<p>[code language="scala"]<br />
+type EC[_] = ExecutionContext<br />
+type MongoDB[_] = MongoDBDatabase</p>
+<p>def myMethod[_:EC:MongoDB](element: Int): Future[Boolean] = ???<br />
+[/code]</p>
+<h2>Pero, ¿y si...?</h2>
+<h3>Múltiples parámetros implícitos del mismo tipo</h3>
+<p>En el caso de que tengamos múltiples parámetros implícitos del mismo tipo, </p>
+<p>[code language="scala"]<br />
+def myMethod<br />
+  (element: Int)<br />
+  (implicit ev1: ExecutionContext, ev2: ExecutionContext): Future[Boolean] = ???<br />
+[/code]</p>
+<p>ocurriría que ...</p>
+<p><a href="https://scalerablog.files.wordpress.com/2017/04/giphy-2.gif"><img src="/assets/giphy-2.gif" alt="" width="485" height="273" class="aligncenter size-full wp-image-4366" /></a></p>
+<p>Bueno, por definición eso es imposible ya que incurriría en un problema de ambigüedad a la hora de resolver implícitos. Es cierto que Scala nos permite este tipo de signaturas, pero sólo podríamos invocar al método haciendo explícitos los argumentos del segundo grupo de parámetros:</p>
+<p>[code language="scala"]<br />
+myMethod(2)(ec1,ec2)<br />
+[/code]</p>
+<p>Lo cual es un tanto...</p>
+<p><a href="https://scalerablog.files.wordpress.com/2017/04/giphy-3.gif"><img src="/assets/giphy-3.gif" alt="" width="460" height="259" class="aligncenter size-full wp-image-4367" /></a></p>
+<h3>Contextos implícitos que son constructores de tipos</h3>
+<p>Cuando tenemos parámetros implícitos que son constructores de tipos como <code>List[T], Future[T], Option[T]</code> ...</p>
+<p>En realidad depende.</p>
+<h4>Caso1</h4>
+<p>Si el tipo que parametriza el método y el que parametriza la evidencia no están relacionados, no hay mucho problema: definimos otro type alias y a correr:</p>
+<p>[code language="scala"]<br />
+type EC[_] = ExecutionContext<br />
+type MongoDB[_] = MongoDBDatabase<br />
+type IntOpt[_] = Option[Int]<br />
+type StrList[_] = List[String]</p>
+<p>def myMethod[_:EC:MongoDB:IntOpt:StrList](<br />
+  element: Int): Future[Boolean] = ???<br />
+[/code]</p>
+<p>Lo cual sería el equivalente a:</p>
+<p>[code language="scala"]<br />
+def myMethod(<br />
+  element: Int)(<br />
+  implicit ev1: ExecutionContext,<br />
+  ev2: MongoDBDatabase,<br />
+  ev3: Option[Int],<br />
+  ev4: List[String]): Future[Boolean] = ???<br />
+[/code]</p>
+<h4>Caso 2</h4>
+<p>Si el tipo que parametriza el método y el que parametriza la evidencia tienen que concordar ...</p>
+<p><a href="https://scalerablog.files.wordpress.com/2017/04/giphy-4.gif"><img src="/assets/giphy-4.gif" alt="" width="200" height="150" class="aligncenter size-full wp-image-4368" /></a></p>
+<p>Bueno no es posible. El syntax sugar implica que el tipo que parametriza el método vaya en concordancia con el tipo que parametriza nuestra evidencia. Quizás era todo demasiado bonito :-)</p>
+<p>Hasta el próximo post. ¡Agur de limón!</p>

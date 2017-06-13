@@ -1,0 +1,84 @@
+---
+layout: post
+title: 'Scalera tips: Como NO modificar el estado de tu actor'
+date: 2016-03-23 12:00:38.000000000 +01:00
+type: post
+published: true
+status: publish
+categories:
+- Castellano
+tags:
+- actor
+- akka
+- ask
+- concurrency
+- future
+- mutable
+- side effect
+- state
+- tip
+meta:
+  _edit_last: '59615419'
+  geo_public: '0'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/712580105923461120";}}
+  _publicize_job_id: '21044009399'
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: jpaniego
+  email: javiersantospaniego@gmail.com
+  display_name: Javier S. Paniego
+  first_name: ''
+  last_name: ''
+---
+<p>Una cuestión habitual a la hora de trabajar con Akka, es modificar de manera correcta el estado de nuestro actor. Si recordamos la base del paradigma de este framework que nos permite programar modelando la concurrencia en base a actores y el paso de mensajes, es que un actor puede definirse como una <strong>unidad computacional que puede tener estado y realiza tareas en base a mensajes que recibe en su mailbox y que procesará de manera secuencial</strong>.</p>
+<p>Esto significa que, para no tener efectos de lado, es necesario que la modificación del estado del actor se haga al procesar un mensaje. Hasta aquí todo tiene sentido. No obstante, es un fallo bastante común el hacer algo del siguiente estilo:</p>
+<p>[code language="scala"]<br />
+class MyActor extends Actor {</p>
+<p>  var state: Int = 0</p>
+<p>  def receive = {</p>
+<p>    case &quot;command&quot; =&gt;<br />
+      Future(state = 1)</p>
+<p>    case &quot;someOtherCommand&quot; =&gt;<br />
+      state = 2</p>
+<p>  }</p>
+<p>}<br />
+[/code]</p>
+<p>En ese caso, ya no tenemos garantía de que el cambio de estado (cuyo único responsable de mantenerlo consistente y thread-safe es el actor) puede generar efectos de lado dado que en el momento en que futuro modifica el <code>var</code> es posible que el estado esté siendo modificado por el propio actor, desencadenado por el procesamiento de otro mensaje.</p>
+<p>Este <code>Future[Unit]</code> puede no ser un bloque como tal, sino el resultado de haber preguntado a otro actor:</p>
+<p>[code language="scala"]<br />
+class MyActor extends Actor {</p>
+<p>  type State = Int</p>
+<p>  var state: State = 0</p>
+<p>  def receive = {</p>
+<p>    case &quot;command&quot; =&gt;<br />
+      (service ? &quot;giveMeMyNewState&quot;).map{<br />
+        case newState: State =&gt; state = newState<br />
+      }</p>
+<p>    case &quot;someOtherCommand&quot; =&gt;<br />
+      state = 2<br />
+  }</p>
+<p>}<br />
+[/code]</p>
+<p>Algo que probablemente nadie de nosotros haya intentado jamás.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/03/giphy3.gif" rel="attachment wp-att-1846"><img src="{{ site.baseurl }}/assets/giphy3.gif?w=300" alt="giphy" width="300" height="150" class="aligncenter size-medium wp-image-1846" /></a></p>
+<h2>La forma correcta</h2>
+<p>En caso de querer modificar el estado del actor como resultado de dicha consulta a otro actor sin romper el control de concurrencia sobre el estado, se podría hacer como sigue:</p>
+<p>[code language="scala"]<br />
+class MyActor extends Actor {</p>
+<p>  type State = Int</p>
+<p>  var state: State = 0</p>
+<p>  def receive = {</p>
+<p>    case &quot;command&quot; =&gt;<br />
+      (service ? &quot;giveMeMyNewState&quot;) pipeTo self</p>
+<p>    case &quot;someOtherCommand&quot; =&gt;<br />
+      state = 2</p>
+<p>    case newState: State =&gt;<br />
+      state = newState<br />
+  }</p>
+<p>}<br />
+[/code]</p>
+<p>Con <code>pipeTo</code> lo que hacemos es mandar a cierto actor el resultado de evaluar un futuro cuando este se resuelva. De esta manera estamos indicando que, cuando tengamos la respuesta del otro actor, se envie a nuestro mailbox, de manera que se procesará como otro mensaje más, de manera secuencial.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/03/bill_murray_gif_1.gif" rel="attachment wp-att-1847"><img src="{{ site.baseurl }}/assets/bill_murray_gif_1.gif?w=300" alt="bill_murray_gif_1" width="300" height="161" class="aligncenter size-medium wp-image-1847" /></a></p>
+<p>Easy peasy :-)</p>

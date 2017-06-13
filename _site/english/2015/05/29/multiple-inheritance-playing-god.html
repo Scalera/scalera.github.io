@@ -1,0 +1,60 @@
+<p>One of Scala’s main features is the possibility of doing mixin. By using <strong>mixin</strong>, we can have multiple inheritance from several traits. Traits? Mixin? What the ...? Well, step by step :)</p>
+<h2>What are traits?</h2>
+<p><strong>Traits</strong> (<em>rasgos</em> for those of you trying to learn Cervantes’ mother tongue) are a bundling of attributes and methods that define a feature o characteristic. They’re similar to Java’s interfaces, except traits can be implemented partially, that is, with only some of its methods or values defined.</p>
+<p>They are used to add behaviours to other entities. For instance, let’s implement the trait <em>CanFly</em>, in which we’ll define the values and methods that all flying creatures must conform to:</p>
+<p>[code language="scala"]</p>
+<p>trait CanFly {</p>
+<p>  val altitude: Float</p>
+<p>  def fly() = println(&quot;I'm flying!!!&quot;)<br />
+}</p>
+<p>[/code]</p>
+<p>As can be observed, this trait contains an undefined variable altitude and a defined method <em>fly</em>. We can create an instance from this trait by using an anonymous class:</p>
+<p>[code language="scala"]</p>
+<p>val myFlyingAnimal = new CanFly {}</p>
+<p>[/code]</p>
+<p>However, given that <em>altitude</em> variable is undefined, this piece of code will result in a <strong>compile time error</strong>. So, for a trait to be instantiated, all values and methods have to be implemented:</p>
+<p>[code language="scala"]</p>
+<p>val myFlyingAnimal = new CanFly { val altitude = 100.0f }</p>
+<p>[/code]</p>
+<p>&nbsp;</p>
+<h2>How can tratis be used?</h2>
+<p>Although we now know how to instantiate traits by means of anonymous classes, to be fair it is not one of its most common applications.</p>
+<p>As we said before, traits are used to add behaviours to our entities. And that can be done by using composition, by mixin one or multiple traits when defining a different trait, a class, a case class...</p>
+<p>In order to do so, two reserved words are used: strong&gt;<em>extends</em> and <strong><em>with</em></strong>. The first trait from which we inherit will be preceded by <em>extends</em> word, the rest will be preceded by <em>with</em>.</p>
+<p>[code language="scala"]</p>
+<p>case class Pigeon extends CanFly</p>
+<p>case class Superman extends Superhero with CanFly</p>
+<p>[/code]</p>
+<p>&nbsp;</p>
+<p><img class="  https://scalerablog.files.wordpress.com/2015/03/og6kv6.jpg aligncenter" src="/assets/og6kv6.jpg" alt="nlY1Wxv" width="422" height="246" /></p>
+<p>This is what we call Mixin. Now it all makes much more sense, doesn’t it?</p>
+<h2>How do traits work when facing the diamond problem?</h2>
+<p>Firstly, let’s create an scenario with this ambiguity. On one hand, we have an <em>Animal</em> trait, with a non-implemented method that returns the sound produced by the animal.</p>
+<p>[code language="scala"]</p>
+<p>trait Animal {<br />
+  def sound: String<br />
+}</p>
+<p>[/code]</p>
+<p>On the other hand, we also have two specifications of an animal: a cat and a dog.</p>
+<p>[code language="scala"]</p>
+<p>trait Cat extends Animal {<br />
+  override def sound = &quot;Meow&quot;<br />
+}</p>
+<p>trait Dog extends Animal {<br />
+  override def sound = &quot;Woof&quot;<br />
+}</p>
+<p>[/code]</p>
+<p>Now, by using our boundless imagination, let’s think of a fox as a mixture between a cat and a dog.</p>
+<p>[code language="scala"]</p>
+<p>case class Fox extends Cat with Dog</p>
+<p>[/code]</p>
+<p>But, if we try to print the sound of our fox...</p>
+<p>[code language="scala"]</p>
+<p>val myFox = Fox()<br />
+println(myFox.sound)</p>
+<p>[/code]</p>
+<p>&nbsp;</p>
+<p><img class="  wp-image-91 aligncenter" src="/assets/what-does-the-fox-say-1378489657.jpg" alt="nlY1Wxv" width="422" height="246" /></p>
+<p>&nbsp;</p>
+<p>Well, in this case, our fox will bark. Why? Because the last trait that’s been used in the mixin is <em>Dog</em>. At first, <em>Cat</em> implementation is applied, but then it is overwritten by the following trait that is defined, that is, <em>Dog</em>. So we can say that traits are instantiated in the same order they are declared.</p>
+<p>And that’s all! What have we learnt today? That traits and mixin are pretty useful… and that sometimes, foxes say ‘woof’!</p>

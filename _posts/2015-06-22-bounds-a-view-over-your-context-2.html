@@ -1,0 +1,97 @@
+---
+layout: post
+title: 'Bounds: A View over your Context...*'
+date: 2015-06-22 11:00:26.000000000 +02:00
+type: post
+published: true
+status: publish
+categories:
+- English
+tags:
+- beginner
+- bound
+- context
+- parameter
+- scala
+- type
+- view
+meta:
+  _edit_last: '59615419'
+  geo_public: '0'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/612921718202499073";}}
+  _publicize_job_id: '11916158990'
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: jpaniego
+  email: javiersantospaniego@gmail.com
+  display_name: Javier S. Paniego
+  first_name: ''
+  last_name: ''
+---
+<p>Has it ever happened to you that you're with your colleagues and you feel the need of expressing better parameterizing your methods and classes?</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/06/i-know-that-feel-1.jpg"><img class=" size-medium wp-image-465 aligncenter" src="{{ site.baseurl }}/assets/i-know-that-feel-1.jpg?w=300" alt="I-know-that-feel (1)" width="300" height="277" /></a></p>
+<h3>Context bounds</h3>
+<p>Context bounds allow defining constraints about parameter types inheritance.<br />
+For example, let's suppose the classical inheritance:</p>
+<p>[code language="scala"]<br />
+trait Animal<br />
+trait Cat extends Animal<br />
+trait Dog extends Animal<br />
+[/code]</p>
+<p>If we want to define a method with an any-kind-of-animal argument, we could define that method as follows:</p>
+<p>[code language="scala"]<br />
+def myMethod(animal: Animal): Unit =<br />
+  println(animal)<br />
+[/code]</p>
+<p>But, using parameter types, we could also do it this way:</p>
+<p>[code language="scala"]<br />
+def myMethod[T&lt;:Animal](animal: T): Unit =<br />
+  println(animal)<br />
+[/code]</p>
+<p>With <strong>&lt;:</strong> notation, we force the type <strong>T</strong> to be a subtype of <strong>Animal</strong>.<br />
+So now, what's the benefit of using the second notation instead of using the first one? Let's free our minds a little bit...</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/06/post-28553-steve-jobs-mind-blown-gif-hd-t-pvbd.gif"><img class=" size-medium wp-image-466 aligncenter" src="{{ site.baseurl }}/assets/post-28553-steve-jobs-mind-blown-gif-hd-t-pvbd.gif?w=300" alt="post-28553-Steve-Jobs-mind-blown-gif-HD-T-pVbd" width="300" height="200" /></a></p>
+<p>What happens if our method receives a Set[Animal] instead of an Animal?</p>
+<p>Well, we have to admit, due to invariance, that a Set[Animal] is not the same as a Set[_&lt;:Animal], and we would have to declare our method using one of the following options:</p>
+<p>[code language="scala"]<br />
+def myMethod[T&lt;:Animal](animals: Set[T]): Unit =<br />
+  animals.foreach(println)</p>
+<p>def myMethod(animals: Set[_&lt;:Animal]): Unit =<br />
+  animals.foreach(println)<br />
+[/code]</p>
+<p>We can also define constraints so that the expressed type is a supertype of Dog, for example:</p>
+<p>[code language="scala"]<br />
+def myType[T&gt;:Dog](animals:Set[T]): Unit =<br />
+  animals.foreach(println)<br />
+myType(Set(new Animal{})) //ok!<br />
+[/code]</p>
+<h3>View bounds</h3>
+<p>If we don't need to define inheritance constraints, but we want a way to convert the parameter type to something else, then what we're looking for are view bounds. Their notation is <strong>&lt;%</strong>.<br />
+For example:</p>
+<p>[code language="scala"]<br />
+def myMethod[T&lt;%Double](doubleLikes: Set[T]): Unit=<br />
+  douleLikes.foreach(d =&gt; println(d + 2.0))<br />
+[/code]</p>
+<p>It means that our method is parameterized by a type T and, in current scope, there must exist a conversion function from T to Double. It's just syntactic sugar for:</p>
+<p>[code language="scala"]<br />
+def myMethod[T](doubleLikes: Set[T])(implicit ev: T =&gt; Double): Unit =<br />
+  douleLikes.foreach(d =&gt; println(ev(d) + 2.0))<br />
+[/code]</p>
+<p>This way, we could invoke our method like this:</p>
+<p>[code language="scala"]<br />
+myMethod(Set(1,2,3))//ok<br />
+myMethod(Set(true,false))//fail!<br />
+&lt;console&gt;:9: error: No implicit view available from Boolean =&gt; Double.<br />
+              myMethod(Set(true,false,true))<br />
+               ^<br />
+[/code]</p>
+<p>If there is no view for a concrete type, like in this case for Boolean, we can define one:</p>
+<p>[code language="scala"]<br />
+implicit def toD(b: Boolean):Double =<br />
+  if (b) 1.0 else 2.0<br />
+myMethod(Set(true,false))//ok<br />
+[/code]</p>
+<p>And that's all folks! Easy peasy lemon squeezy :-)</p>
+<p>Peace out.</p>

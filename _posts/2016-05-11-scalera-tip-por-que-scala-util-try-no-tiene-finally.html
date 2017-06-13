@@ -1,0 +1,92 @@
+---
+layout: post
+title: 'Scalera tip: ¿Por qué ''scala.util.Try'' no tiene ''finally''?'
+date: 2016-05-11 12:00:34.000000000 +02:00
+type: post
+published: true
+status: publish
+categories:
+- Castellano
+tags:
+- catch
+- finally
+- functional
+- recover
+- referential transparency
+- scala
+- side effect
+- tip
+- try
+meta:
+  _edit_last: '59615419'
+  geo_public: '0'
+  _publicize_job_id: '22698193240'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/730337182808825856";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: jpaniego
+  email: javiersantospaniego@gmail.com
+  display_name: Javier S. Paniego
+  first_name: ''
+  last_name: ''
+---
+<p>Hace algunos días, un compañero del trabajo planteó la duda del millón.</p>
+<p>Si usamos el <code>try</code> tradicional de Java, podríamos encontrarnos con código similar a:</p>
+<p>[code language="scala"]<br />
+val connection = database.getConnection()<br />
+var data: Seq[Data] = Seq()<br />
+try {<br />
+  val results = connection.query(&quot;select whatever&quot;)<br />
+  data = results.map(convertToWhatIneed)<br />
+} catch {<br />
+  case t: Throwable =&gt; logger.error(&quot;Oh noes!&quot;)<br />
+} finally {<br />
+  connection.close()<br />
+}<br />
+[/code]</p>
+<p>En Scala, disponemos de una versión más funcional de este mecanismo: <code>scala.util.Try</code>.<br />
+El mismo ejemplo, utilizando esté tipo de datos, sería algo como</p>
+<p>[code language="scala"]<br />
+val connection = database.getConnection()<br />
+val data: Seq[Data] = Try{<br />
+  val results = connection.query(&quot;select whatever&quot;)<br />
+  val data: Seq[Data] =<br />
+    results.map(convertToWhatIneed)<br />
+  connection.close()<br />
+  data<br />
+} recover {<br />
+  case t: Throwable =&gt;<br />
+    logger.error(&quot;Oh noes!&quot;)<br />
+    connection.close()<br />
+    Seq.empty[Data]<br />
+} get<br />
+[/code]</p>
+<p>La pregunta es, ¿por qué <code>scala.util.Try</code> no considera una claúsula <code>finally</code> como el <code>try</code> de java?</p>
+<h2>Side effects....side effects everywhere...</h2>
+<p>Si recordáis el post en el que David habló sobre <a href="https://scalerablog.wordpress.com/2015/06/24/capturando-excepciones-en-scala-el-tipo-try/" target="_blank">el tipo Try[T]</a>, es un tipo que puede tener dos posibles estados: <code>Success(t: T)</code> o <code>Failure(t: Throwable)</code>. </p>
+<p>Por otra parte, si hacéis memoria sobre el post en el que hablábamos sobre <a href="https://scalerablog.wordpress.com/2016/03/09/scalera-tips-var-inmutable-vs-val-mutable/" target="_blank">los valores y las variables</a>, mencionábamos la <strong>transparencia referencial</strong> como principio que debe cumplirse para considerar una función pura.</p>
+<p>Por lo tanto, si ponemos a prueba este principio con el snippet arriba descrito, podríamos sustituir la expresión de tipo <code>Try[Seq[Data]]</code> por el valor del mismo tipo que hubiéramos obtenido al evaluar la expresión, y deberíamos tener el mismo resultado. Por ejemplo:</p>
+<p>[code language="scala"]<br />
+val connection = database.getConnection()<br />
+val data: Seq[Data] =<br />
+  Success(Seq(data1,data2,data3)).get<br />
+[/code]</p>
+<p>Sin embargo, vemos que no ha cerrado la conexión que hemos abierto justo antes...</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/04/o6dau.jpg" rel="attachment wp-att-2655"><img src="{{ site.baseurl }}/assets/o6dau.jpg?w=300" alt="o6dau" width="300" height="235" class="aligncenter size-medium wp-image-2655" /></a></p>
+<p>Por ese motivo, tiene más lógica hacer algo así como:</p>
+<p>[code language="scala"]<br />
+val connection = database.getConnection()<br />
+val data: Seq[Data] = Try{<br />
+  val results = connection.query(&quot;select whatever&quot;)<br />
+  results.map(convertToWhatIneed)<br />
+} recover {<br />
+  case t: Throwable =&gt;<br />
+    Seq.empty[Data]<br />
+} get<br />
+connection.close()<br />
+[/code]</p>
+<p>De esta forma, el valor de <code>data</code> puede ser sustituido fácilmente, sin implicar más efectos de lado.</p>
+<p>...¡y por esto, amigos, no tiene sentido pensar en un <code>finally</code> para <code>Try[T]</code>! :-)</p>
+<p>Agur de limón</p>

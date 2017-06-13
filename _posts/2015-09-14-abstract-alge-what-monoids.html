@@ -1,0 +1,108 @@
+---
+layout: post
+title: 'Abstract alge..what?: Monoids'
+date: 2015-09-14 12:00:00.000000000 +02:00
+type: post
+published: true
+status: publish
+categories:
+- English
+tags:
+- advanced
+- monoid
+- scala
+meta:
+  _rest_api_published: '1'
+  _rest_api_client_id: "-1"
+  _publicize_job_id: '14765587424'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/643373217831251968";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: dvallejonava
+  email: d.vallejo.nava@gmail.com
+  display_name: dvallejonava
+  first_name: ''
+  last_name: ''
+---
+<p>We are like the fascicles of tin soldier collections and the free enrollment at gyms ... back in September! And with something that seems a little harsh but that surely after reading a few lines will be easier. Today we initiate a series of posts in which we'll discuss some functional abstractions, that are very related to the world of mathematics, with the aim of being gradually introduced into the world of purely functional Scala libraries, such as as <em><a href="https://github.com/scalaz/scalaz">Scalaz</a></em> or <em><a href="https://github.com/non/cats" target="_blank">Cats</a></em>. To do this, we will rely on some features and techniques that have already been discussed, such as <a href="https://scalerablog.wordpress.com/2015/07/27/type-classes-in-scala/" target="_blank">type classes</a>.</p>
+<p>Today, we'll start with <strong>monoids</strong>.</p>
+<p><strong>Monoids, monoids everywhere...</strong></p>
+<p>Monoid? Weird word. Let's see what Wikipedia has to say about monoids:</p>
+<blockquote><p><em><span style="font-weight:400;">"Algebraic structure with a single associative binary operation and an identity element. Monoids are studied in semigroup theory as they are semigroups with identity."</span></em></p></blockquote>
+<p><a href="https://scalerablog.files.wordpress.com/2015/09/i-dont-understand.jpg"><img class="size-medium wp-image-608 aligncenter" src="{{ site.baseurl }}/assets/i-dont-understand.jpg?w=300" alt="i-dont-understand" width="300" height="226" /></a></p>
+<p>Hmmm... yes, right. What the hell? Let's face it gradually.</p>
+<ul>
+<li><strong>Binary operation</strong>: ok, I get this one. It's an operation with two operands. In order to follow the same convention, we are going to call this operation in a generic way with the symbol |+|.</li>
+</ul>
+<p>However, the binary operation must comply with two rules:</p>
+<ol>
+<li>It must comply with the <strong>associative property</strong>, ie:  a |+| (b + c) = (a + b) |+| c</li>
+<li>And besides, it must have a <strong>neutral element</strong>.:   a |+| neutralElement = a</li>
+</ol>
+<p>Hmmmm, that makes sense. For instance, the addition of integers follows the rules of monoids:</p>
+<ul>
+<li>Associative property: 1 + (2 + 3) = (1 + 2) + 3</li>
+<li>The neutral element is zero: 1 + 0 = 1</li>
+</ul>
+<p>Same reasoning applies to the multiplication of integers (whose neutral element is 1), and the concatenation of strings as well (being the empty string "", the neutral element). Great! I'm starting to get it.</p>
+<p><strong>Monoids in Scalaz</strong></p>
+<p>In order to work with monoids, in this post we will be using the Scalaz library. Scalaz offers us a wide range of options, abstractions and functionalities. Today we will only give you a glimpse of Scalaz in order to write an example. We promise to talk at great length about this library in the future :)</p>
+<p>The first thing to do is to import Scalaz in our project. To do so, we have to include this library in the dependencies of our project:</p>
+<pre>libraryDependencies <span class="pl-k">+</span><span class="pl-k">=</span> <span class="pl-s"><span class="pl-pds">"</span>org.scalaz<span class="pl-pds">"</span></span> <span class="pl-k">%%</span> <span class="pl-s"><span class="pl-pds">"</span>scalaz-core<span class="pl-pds">"</span></span> <span class="pl-k">%</span> <span class="pl-s"><span class="pl-pds">"</span>7.1.3<span class="pl-pds">"</span></span></pre>
+<p>and now we write the following imports:</p>
+<p>[code language="scala"]<br />
+import scalaz._, Scalaz._<br />
+[/code]</p>
+<p>If we get a sneak peek at the library, we can find the Monoid  <a href="https://github.com/scalaz/scalaz/blob/series/7.2.x/core/src/main/scala/scalaz/Monoid.scala">Monoid</a> class, or the class <a href="https://github.com/scalaz/scalaz/blob/series/7.2.x/core/src/main/scala/scalaz/Semigroup.scala">Semigroup</a>. They define the functionality we will make use of.</p>
+<p>The Monoid class defines the <a href="https://github.com/scalaz/scalaz/blob/series/7.2.x/core/src/main/scala/scalaz/Monoid.scala#L23">zero</a> method,, which serves us to indicate which is the neutral element. Furthermore, in the <a href="https://github.com/scalaz/scalaz/blob/series/7.2.x/core/src/main/scala/scalaz/Monoid.scala#L75">MonoidLaw</a> trait, the fundamental rule that a neutral element must comply with is defined.</p>
+<p>But, where is the information regarding the associative property?. Well, it is in the Semigroup class. It seems that monoids are an specialization of semigroups. Semigroups are responsible for the associative rule, while monoids add the rule of the neutral element. In fact, if we go to the Semigroup class, we can find the <a href="https://github.com/scalaz/scalaz/blob/series/7.2.x/core/src/main/scala/scalaz/Semigroup.scala#L22">append</a> method, which represents our binary operation |+|, and a bit further down we can see how the <a href="https://github.com/scalaz/scalaz/blob/series/7.2.x/core/src/main/scala/scalaz/Semigroup.scala#L78">associative property</a> is defined.</p>
+<p>The next thing we must know is that Scalaz is based on a structure of type classes. This is why we will have to implement implicit objects, defining the inherent behaviour of our structures with respect to the monadic properties.</p>
+<p>After this brief but (I hope) sufficient explanation, we will see how to apply all this knowledge to a simple example.</p>
+<p><strong>Creating our first monoid</strong></p>
+<p>Now finally, we will create our own monoid with Scalaz. Let's start by creating new data types. We'll create two types of atoms: oxygen and hydrogen.</p>
+<p>[code language="scala"]<br />
+trait Atom<br />
+case object Oxygen extends Atom<br />
+case object Hydrogen extends Atom<br />
+[/code]</p>
+<p>And finally, the molecule type. This type will have a certain number of atoms (which may be of different types), and a molecular stability.</p>
+<p>[code language="scala"]<br />
+case class Molecule(atoms: Map[Atom, Int], stability: Double)<br />
+[/code]</p>
+<p style="text-align:center;"><a href="https://scalerablog.files.wordpress.com/2015/09/jesse-pinkman-yeah-bitch-science.jpg"><img class="alignnone size-medium wp-image-609" src="{{ site.baseurl }}/assets/jesse-pinkman-yeah-bitch-science.jpg?w=300" alt="jesse-pinkman-yeah-bitch-science" width="300" height="187" /></a></p>
+<p>We want to work with our molecule type as if it were a monoid. For that purpose, and by using the Scalaz type classes, we'll define an implicit object that defines the monadic behaviour of the molecule:</p>
+<p>[code language="scala"]<br />
+implicit object MoleculeIsMonoid extends Monoid[Molecule] {</p>
+<p>  def zero: Molecule = Molecule(Map(), 1)<br />
+  def append(f1: Molecule, f2: =&gt; Molecule): Molecule = f1.fusion(f2)</p>
+<p>}<br />
+[/code]</p>
+<p>We have decided that the neutral molecule is the one that has no atoms, and whose stability is 1, the maximum stability possible.</p>
+<p>In addition, we have decided that the addition of molecules is delegated to a function called fusion. Let's see how it's defined:</p>
+<p>[code language="scala"]<br />
+case class Molecule(atoms: Map[Atom, Int], stability: Double) {</p>
+<p>def fusion(other: Molecule): Molecule =<br />
+  Molecule(<br />
+    atoms = atoms |+| other.atoms,<br />
+    stability = stability * other.stability<br />
+  )<br />
+}<br />
+[/code]</p>
+<p>As we can see, the fusion of two molecules is the union of the atoms that compose them as if they were monoids. It turns out that Scalaz provides us with the functionality to address the combination of maps as monoids. In addition, we will combine the stabilities as if they were two probabilities, that is, multiplying them both.</p>
+<blockquote><p>The append method can also be represented by the symbol | + |, just as we had initially defined it.</p></blockquote>
+<p>And that's all! We can now merge molecules using monoids and the operations that Scalaz provides us with for such abstractions:</p>
+<p>[code language="scala"]<br />
+val m1 = Molecule(Map(Oxygen -&gt; 1, Hydrogen -&gt; 2), 0.2)<br />
+val m2 = Molecule(Map(Oxygen -&gt; 1), 0.3)</p>
+<p>m1 |+| m2<br />
+//Molecule(Map(Oxygen -&gt; 2, Hydrogen -&gt; 2), 0.06)</p>
+<p>List(m1, m2, m2, m1).foldLeft(Molecule(Map(), 1))(_ |+| _)<br />
+//Molecule(Map(Oxygen -&gt; 4, Hydrogen -&gt; 4), 0.0036)</p>
+<p>Some(m1) |+| Some(m2)<br />
+//Some(Molecule(Map(Oxygen -&gt; 2, Hydrogen -&gt; 2), 0.06))<br />
+[/code]</p>
+<p style="text-align:left;"><img class="alignnone wp-image-612 aligncenter" src="{{ site.baseurl }}/assets/46196561.jpg?w=237" alt="46196561" width="188" height="236" /></p>
+<p><strong>Conclusion</strong></p>
+<p>By the time you get to this point, I hope you'll have lost the fear of bizarre words. As we have seen, algebraic abstractions are just a way of naming items that comply with some properties. Then, we can benefit from this abstraction to treat different operations in the same way. Today, we've seen monoids. Later on, other concepts you might have heard about will be discussed, such as the famous monads. Now you know, show off your knowledge about monoids to your friends and family :)</p>

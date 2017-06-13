@@ -1,0 +1,71 @@
+---
+layout: post
+title: 'Scalera tips: Referential transparency'
+date: 2016-04-25 12:00:25.000000000 +02:00
+type: post
+published: true
+status: publish
+categories:
+- English
+tags:
+- beginner
+- functional
+- referential transparency
+meta:
+  _rest_api_published: '1'
+  _rest_api_client_id: "-1"
+  _publicize_job_id: '22142771712'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/724538705457745920";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: dvallejonava
+  email: d.vallejo.nava@gmail.com
+  display_name: dvallejonava
+  first_name: ''
+  last_name: ''
+---
+<div>
+<p style="text-align:justify;">We have already talked in other <a href="https://scalerablog.wordpress.com/2016/03/14/scalera-tips-var-immutable-vs-val-mutable/" target="_blank">posts</a> about several details of <i>pure functional programming</i> and the importance of avoiding <i>side effects</i> wherever possible.</p>
+<div style="text-align:justify;">Should we investigate a bit further about it, we would likely run into the concept of<b><i> referential transparency</i></b>. Today it's time to see what this concept is about.</div>
+<div></div>
+</div>
+<div>
+<p><img class="CToWUd aligncenter" src="{{ site.baseurl }}/assets/giphy.gif" alt="giphy" width="260" height="225" /></p>
+<p style="text-align:justify;">Referential transparency is strongly linked to the substitution model. If we want to use Scala and exploit its full potential as a functional programming language, we must keep this concept in mind. Despite its weird name, it is pretty easy to understand. Referential transparency means that a function of type I =&gt; O ought to be replaceable by a value of type O, without that entailing any loss of functionality. This way, we can be sure that the function has no side effects.</p>
+<blockquote>
+<p style="text-align:justify;"><em><strong>Side effects</strong></em>: a function has no side effects if it only transforms the input arguments into output arguments and does nothing else. Connecting to a database, printing on screen, writing logs or modifying a variable outside the scope of the function are considered to be side effects.</p>
+</blockquote>
+<p style="text-align:justify;">Let's see an example with code. In this example we are going to create a function that will allow us to book a hotel room. The function will update the hotel's reservations list and will return an identifier for the user:</p>
+<p>[code language="scala"]<br />
+var reservations: List[Reservation] = List.empy[Reservation]</p>
+<p>def reserveRoom(roomNumber: Int, from: String, to: String): Int = {<br />
+  val id = generateId()<br />
+  reservations = Reservation(roomNumber, from, to, id) :: reservations<br />
+  id<br />
+}</p>
+<p>val myReservation: Int = reserveRoom(1, &quot;1/8/16&quot;, &quot;15/8/16&quot;)<br />
+[/code]</p>
+<p style="text-align:justify;">In this case, we are modifying a list which is outside the scope of the function. This is a side effect. Therefore, if we performed a substitution by any value belonging to the function domain, we would lose functionality as nothing would be added to the reservations list:</p>
+<p>[code language="scala"]<br />
+var reservations: List[Reservation] = List.empy[Reservation]</p>
+<p>val myReservation: Int = &quot;1&quot; //Result of reserveRoom method</p>
+<p>reservations.isEmpty //true....where is my reservation???<br />
+[/code]</p>
+<p style="text-align:justify;">How can referential transparency be achieved? A simple option would be to return both the new updated list and the reservation identifier:</p>
+<p>[code language="scala"]<br />
+var reservations: List[Reservation] = List.empy[Reservation]</p>
+<p>def reserveRoom(<br />
+  roomNumber: Int,<br />
+  from: Date,<br />
+  to: Date<br />
+): (Int, List[Reservation]) = {<br />
+  val id = generateId()<br />
+  (id, Reservation(roomNumber, from, to, id) :: reservations)<br />
+}</p>
+<p>val (myReservation, reservationsUpdated) = reserveRoom(1, &quot;1/8/16&quot;, &quot;15/8/16&quot;)<br />
+reservations = reservationsUpdated</p>
+<p>[/code]</p>
+<p style="text-align:justify;">This way, if we repeated the exercise of substituting by a value, we wouldn't be losing any information at all. And that's all for today! See you soon ;)</p>
+</div>

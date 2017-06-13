@@ -1,0 +1,37 @@
+<p>Today's post is dedicated to a library based on reactive functional programming: <a href="https://github.com/lihaoyi/scala.rx">ScalaRx</a>.</p>
+<p>The main objective of this library is that, with the use of values (<em><strong>val</strong></em>), we are going to define an operations flow, which will change dynamically when any of the values changes. We call those values reactive variables.</p>
+<p>To use the library, it is enough to add it as a dependency:</p>
+<p>[code language="scala"]<br />
+libraryDependencies += &quot;com.lihaoyi&quot; %%% &quot;scalarx&quot; % &quot;0.3.0&quot;<br />
+[/code]<br />
+and to import rx:</p>
+<p>[code language="scala"]<br />
+import rx._<br />
+[/code]</p>
+<h3>
+Reactive variables</h3>
+<p>Reactive variables will be the main elements we will be able to work with. To define them, the constructor <em><strong>Var</strong></em> will be used:</p>
+<p>[code language="scala"]<br />
+val reactiveVar = Var(0)<br />
+[/code]</p>
+<p>This way, we are defining a reactive value containing a 0. As can be observed, we can use <em><strong>val</strong></em> instead of <em><strong>var</strong></em>, even though the value will change. This is so because the state of the reactive variable is handled with ScalaRx.</p>
+<p>Once we have a reactive variable, we can combine it with other static values or other reactive variables. So that our mastery and expertise can be noticed, we’ll perform a complex operation. We’ll be doing the sum of two reactive variables.</p>
+<p>[code language="scala"]<br />
+val sum1 = Var(1)<br />
+val sum2 = Var(4)<br />
+val result = Rx{ sum1() + sum2() }<br />
+result.now // Returns 5<br />
+[/code]</p>
+<p>In order to make reference to the use of the value of the variable in a reactive way, parenthesis are used. Furthermore, given that we want that the value of <em><strong>result</strong></em> changes as a function of the reactive values sum1 and sum2, we enclose it within an <em><strong>Rx</strong></em> block. If we want to evaluate <strong><em>result</em></strong> just after its definition, we’ll be able to do so with the <em><strong>now</strong></em> method. We will obviously be getting a wonderful 5.</p>
+<p>Everything looks pretty simple right now. Let’s try to see how reactive changes do work. To do so, let’s change the value of the first summand. For that purpose, we will use again the parenthesis to make reference to the fact that we are changing the value contained in the reactive variable.</p>
+<p>[code language="scala"]<br />
+sum1() = 2<br />
+[/code]</p>
+<p>This update of the first summand will cause a reactive change that will affect the whole flow defined. In this case, it will only affect the result value.</p>
+<p>[code language="scala"]<br />
+result.now // Returns 6<br />
+[/code]</p>
+<p>This has been an extremely simple example. However, more complex flows could be created so that, when the value of a reactive variable is updated and following a ripple effect, a reaction is triggered at the rest of elements.</p>
+<p style="text-align:justify;"><img class="  wp-image-1466 aligncenter" src="/assets/giphy.gif" alt="giphy" width="339" height="207" /></p>
+<p>You may now be thinking “I already do this by replacing the reactive variables by our var friends and done”. Well, that’s true. However, Rx is intended to get notifications of the changes in the reactive variables and be able to respond to them (<a href="http://stackoverflow.com/questions/24484450/what-is-the-difference-between-reactive-programming-and-plain-old-closures">here you will find a more complete explanation</a>). <em><strong>Observables</strong></em> are used for this purpose. We’ll have to wait to the second part of the post to get to them.</p>
+<p>See you soon!</p>

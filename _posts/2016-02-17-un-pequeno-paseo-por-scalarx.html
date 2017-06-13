@@ -1,0 +1,67 @@
+---
+layout: post
+title: 'Un pequeño paseo por ScalaRx: Parte I'
+date: 2016-02-17 17:00:58.000000000 +01:00
+type: post
+published: true
+status: publish
+categories:
+- Castellano
+tags:
+- beginner
+- reactive
+- rx
+meta:
+  _rest_api_published: '1'
+  _rest_api_client_id: "-1"
+  _edit_last: '59615419'
+  geo_public: '0'
+  _publicize_done_10471757: '1'
+  _publicize_job_id: '19898356095'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/699975628850753539";}}
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: dvallejonava
+  email: d.vallejo.nava@gmail.com
+  display_name: dvallejonava
+  first_name: ''
+  last_name: ''
+---
+<p style="text-align:justify;">Hoy el post va dedicado a una librería basada en la programación funcional reactiva: <a href="https://github.com/lihaoyi/scala.rx">ScalaRx</a>.</p>
+<p style="text-align:justify;">El objetivo principal de la librería es que, utilizando valores (<strong><em>val</em></strong>), vamos a definir un flujo de operaciones que cambiarán de forma dinámica cuando alguno de los valores cambien. A dichos valores los llamaremos variables reactivas.</p>
+<p style="text-align:justify;">Para utilizar la librería basta con añadir como dependencia:</p>
+<p>[code language="scala"]<br />
+libraryDependencies += &quot;com.lihaoyi&quot; %% &quot;scalarx&quot; % &quot;0.3.1&quot;<br />
+[/code]</p>
+<p>e importar rx:</p>
+<p>[code language="scala"]<br />
+import rx._<br />
+[/code]</p>
+<h3 style="text-align:justify;"><strong>Variables reactivas</strong></h3>
+<p style="text-align:justify;">Las variables reactivas serán los elementos principales con los que podremos trabajar. Para definirlas usamos el constructor <strong><em>Var</em></strong>:</p>
+<p>[code language="scala"]<br />
+val reactiveVar = Var(0)<br />
+[/code]</p>
+<p style="text-align:justify;">De esta manera, estamos definiendo una variable reactiva que contiene un 0. Como se puede observar, podemos usar <strong>val</strong> en vez de <strong>var</strong> a pesar de que el valor cambiará. Esto es debido a que el estado de la variable reactiva se maneja mendiante ScalaRx.</p>
+<p style="text-align:justify;">Una vez que tenemos una variable reactiva, podemos combinarla con otros valores estáticos o con otros variables reactivas. Para que se note que pilotamos, vamos a realizar una operación compleja. Vamos a realizar una suma de dos variables reactivas.</p>
+<p>[code language="scala"]<br />
+val sum1 = Var(1)<br />
+val sum2 = Var(4)<br />
+val result = Rx{ sum1() + sum2() }<br />
+result.now // Returns 5<br />
+[/code]</p>
+<p>Para poder hacer referencia a que queremos utilizar el valor de la variable de forma reactiva, se utilizan los paréntesis. Además, como queremos que el valor <strong><em>result</em></strong> cambie en función de los valores reactivos sum1 y sum2, lo englobamos en un bloque <strong><em>Rx</em></strong>. Si queremos evaluar <strong><em>result</em></strong> justo después de definirlo podemos utilizar el método <strong><em>now</em></strong>. Obviamente, obtenemos un número con rima fácil: un maravilloso 5.</p>
+<p>De momento todo parece bastante simple. Ahora vamos a probar como funciona esto de los cambios reactivos. Para ello, vamos a cambiar el valor del primer sumando. Para ello volvemos a utilizar los paréntesis para hacer referencia a que estamos cambiando el valor contenido dentro de la variable reactiva.</p>
+<p>[code language="scala"]<br />
+sum1() = 2<br />
+[/code]</p>
+<p>Esta actualización del primer sumando provocará un cambio reactivo que afectará a todo el flujo que se haya definido. En este caso, afectará únicamente al valor <strong><em>result</em></strong>.</p>
+<p>[code language="scala"]<br />
+result.now // Returns 6<br />
+[/code]</p>
+<p>Este ha sido un ejemplo muy sencillo. Sin embargo, podemos crear flujos más complejos que, al actualizar el valor de una variable reactiva, mediante un efecto dominó, vaya provocando una reacción en el resto de elementos.</p>
+<p><img class="  wp-image-1466 aligncenter" src="{{ site.baseurl }}/assets/giphy.gif" alt="giphy" width="350" height="237" /></p>
+<p>Probablemente estés pensando "esto ya lo hago yo cambiando las variables reactivas por unos var de toda la vida y apañao". Pues efectivamente. Sin embargo, Rx está pensado para obtener notificaciones de los cambios de las variables reactivas y poder reaccionar a ellas. (<a href="http://stackoverflow.com/questions/24484450/what-is-the-difference-between-reactive-programming-and-plain-old-closures">aquí podreis encontrar una explicación más completa</a>). Para ello usa los <strong><em>Observables</em></strong>. Pero para eso tendremos que esperar a la segunda parte del post.</p>
+<p>Hasta la próxima! :)</p>
+<h3></h3>

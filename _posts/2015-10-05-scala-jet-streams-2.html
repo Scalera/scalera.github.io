@@ -1,0 +1,115 @@
+---
+layout: post
+title: Scala Jet Streams *
+date: 2015-10-05 12:00:40.000000000 +02:00
+type: post
+published: true
+status: publish
+categories:
+- English
+tags:
+- collection
+- iterator
+- jets
+- lazy
+- scala
+- stream
+- traversable
+- weather
+meta:
+  _edit_last: '59615419'
+  geo_public: '0'
+  _publicize_job_id: '15493240430'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/650975385300013056";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: jpaniego
+  email: javiersantospaniego@gmail.com
+  display_name: Javier S. Paniego
+  first_name: ''
+  last_name: ''
+---
+<p>Sometimes, it's usual that obtaining a method's result which is, in fact, a collection; this collection has a huge size and besides, the process of computing it is really harsh or slow. On the other side, if we're not going to process all its composing elements or if the collection is not finite (numerical series), we cannot use conventional structures to hold these functionality.</p>
+<p>For example, let's supose we're trying to implement a near-real-time weather system . We can picture the query process like the typical infinite loop:</p>
+<p>[code language="scala"]</p>
+<p>case class Weather(<br />
+  tempCelsius: Float,<br />
+  humidity: Double)</p>
+<p>def checkWeather(): Weather = {<br />
+  /* Some request to a web service<br />
+   * or access some weather station device.<br />
+   * We'll mock it.<br />
+   */<br />
+   import scala.util.Random<br />
+   Weather(<br />
+     Random.nextFloat() * 100 % 40,<br />
+     Random.nextDouble() % 1)<br />
+}</p>
+<p>type WeatherHandler[T] = Weather =&gt; T</p>
+<p>val handler: WeatherHandler[Unit] = println</p>
+<p>while(true){<br />
+  handler.apply(checkWeather())<br />
+}</p>
+<p>[/code]</p>
+<p>Or we can assume that weather data is just an infinite collection of precise discrete data elements.</p>
+<p>[code language="scala"]</p>
+<p>val weather: TraversableOnce[Weather] = ???</p>
+<p>for (value &lt;- weather) handler.apply(value)</p>
+<p>[/code]</p>
+<p>This way, we could also change the nature of that collection by using a simple <code>map</code> for getting only Celsius temperatures, for example:</p>
+<p>[code language="scala"]<br />
+val extractTemperature: WeatherHandler[Float] =<br />
+  _.tempCelsius</p>
+<p>val onlyTemperatures: TraversableOnce[Float] =<br />
+  weather.map(extractTemperature)</p>
+<p>[/code]</p>
+<p>Let's see which other ways we can use to achieve such behavior.</p>
+<h2>Iterators</h2>
+<p>A first approach could be implementing <code>Iterator[+A]</code>:</p>
+<p>[code language="scala"]<br />
+object weather extends Iterator[Weather]{</p>
+<p>  def hasNext() = true</p>
+<p>  def next(): Weather = checkWeather()</p>
+<p>}<br />
+[/code]</p>
+<p>Given that our iterator will not certainly finish, the value of <code>hasNext()</code> is always <code>true</code>. Every time we invoke method <code>next()</code>, we will obtain a new value <code>Weather</code>-typed (this may involve invoking some web service or a request to a weather measure device).</p>
+<p>Easy peasy. However, we can think about another kind of Scala collections, known as Streams...</p>
+<h2>Streams</h2>
+<p>We can think of Streams as sorted collections whose values are lazy evaluated. For example, if we describe the numerical serie that define integer numbers we will have that:</p>
+<p>[code language="scala"]<br />
+val integers: Stream[Int] = {</p>
+<p>  def loop(v: Int): Stream[Int] =<br />
+    v #:: loop(v + 1)</p>
+<p>  loop(0)</p>
+<p>}<br />
+[/code]</p>
+<p>As you can see, method <code>#::</code> is used for adding an initial element to an existing <code>Stream</code>. If we run:</p>
+<p>[code language="scala"]<br />
+integers.head<br />
+integers.take(2).toArray<br />
+[/code]</p>
+<p>we will get both first stream's element and two first elements.</p>
+<p>We can invoke from this Stream every single method that apply to Scala collections (Traversable):</p>
+<p>[code language="scala"]<br />
+integers<br />
+  .filter(_ % 2 == 0)<br />
+  .take(5)<br />
+  .toArray //Array(0, 2, 4, 6, 8)</p>
+<p>integers<br />
+  .takeWhile(_ &lt; 5)<br />
+  .toArray //Array(0, 1, 2, 3, 4)<br />
+[/code]</p>
+<p>Look out! Until we invoke method <code>toArray</code>, streams that result of applying transformations to initial stream(filter, take, ...) are not evaluated. Only we retrieving concrete values, transformation methods will be applied.</p>
+<p>Now we have it, let's use it with our weather service:</p>
+<p>[code language="scala"]<br />
+val weather: Stream[Weather] = {</p>
+<p>  def loop(): Stream[Weather] =<br />
+    checkWeather() #:: loop</p>
+<p>  loop</p>
+<p>}<br />
+[/code]</p>
+<p>We will get a Stream that will have an inner method <code>loop()</code> that defines the way of evaluating the Stream (invoking method <code>checkWeather()</code>). </p>
+<p>And that's all folks :-)<br />
+Fear us, Al Roker!</p>

@@ -1,0 +1,70 @@
+<p><a title="Hello World in Akka (Part I)" href="https://scalerablog.wordpress.com/2015/04/29/hello-world-in-akka-part-i/" target="_blank">Last week</a> we learnt what an actor-based model was. Moreover, we saw how to create our own actor in Akka. Let me remind you what we obtained:</p>
+<p>[code language="scala"]<br />
+class MyFirstActor extends Actor {</p>
+<p>  def receive = {<br />
+    case _ =&gt; println(&quot;Hello World!&quot;)<br />
+  }</p>
+<p>}<br />
+[/code]</p>
+<p>I’m sure some of you thought: ‘Mmm...perfect. And what am I supposed to do with this?’</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/05/wtfshit.jpg"><img class=" size-medium wp-image-279 aligncenter" src="/assets/wtfshit.jpg?w=300" alt="wtfshit" width="300" height="230" /></a></p>
+<p>Fine, today we are finishing our <em>Hello World</em>. We just have to learn two more important concepts to complete the example:</p>
+<ul>
+<li>Now we know how to define actors, how can we instantiate them?</li>
+<li>Once we have instances from actors, how can we send messages to them?</li>
+</ul>
+<p>Once we are comfortable with these two last things, we will have our <em>Hello World</em> ready to run.</p>
+<p><strong>Actor creation</strong></p>
+<p>The first thing we need to know is that all actors in <em>Akka</em> are created in a particular context. That context can be an actor system of the type <em><strong>ActorSystem</strong></em>. That system is in charge of handling the whole actor-based model that runs on top of it. To create it, this single line has to be included:</p>
+<p>[code language="scala"]<br />
+val system = ActorSystem(&quot;my-first-system&quot;)<br />
+[/code]</p>
+<p>A <em>String</em> is passed as argument in the <em>ActorSystem</em> creation for it to be recognizable by a particular name. This system will be the context where all the actors in our program shall live. Provided that it is quite a heavy object, it is recommended that there is only one instance of this per program.</p>
+<p>Other possible option is to create an actor inside other actor. This way we would be creating an actor inside the context of the other actor. This is what is called <strong><em>Supervision</em></strong>. Since our goal is to create a simple <strong>Hello World</strong>, we will not look further into that.</p>
+<p>Now we have a system, we can create actors in it. The first think we could have thought of would be using the constructor of an <em>Actor</em>. Well... we can’t. Not everything is that simple. In order to create an actor, a <em><strong>Props</strong></em> needs to be used. The <em>Props</em> is a configuration object that allows us to create an actor and define the arguments (in case there are some) that we want to pass to it. Let’s look at a simple example:</p>
+<p>[code language="scala"]<br />
+system.actorOf(Props[MyFirstActor], &quot;myFirstActor&quot;)<br />
+[/code]</p>
+<p>As can be observed, the system has a method to create actors. That method (called <strong><em>actorOf</em></strong>) receives a <em>Props</em> as argument, and optionally, a name to identify the actor.</p>
+<p>It is important to know that the actorOf method does not return an instance of Actor. Instead, a reference to the actor is returned, an <strong><em>ActorRef</em></strong>. But there’s nothing to worry about. With this <em>ActorRef</em>, messages can be sent to the actor without any trouble.</p>
+<p><strong>Sending messages to actors</strong></p>
+<p>Defining actors is pretty good. Creating them is even better. But we shall not forget that the essence of an actor is substantially reactive. If we don’t know how to send messages to trigger a reaction, an actor is rather useless.<br />
+In <em>Akka</em>, there are two ways to send messages to actors. The more basic approach is to use the method <strong><em>tell</em></strong>.</p>
+<p>[code language="scala"]<br />
+actorRef.tell(msg: Any, sender: ActorRef): Unit<br />
+[/code]</p>
+<p>This method allows us to send a message to an actor (<em>actorRef</em>) and… that’all. We are not getting a response. That’s the reason why the method returns <em>Unit</em>. Besides, it is important to know that at the <em>sender</em> field, we have to write the reference to the actor that we want to behave as sender. It’s not much use in our Hello World, but further on we’ll see how, by using this <em>sender</em> variable, an actor A (which sends a message to an actor B) can make actor B send its response to an actor C.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/05/tellexamplesender.png"><img class="  wp-image-289 aligncenter" src="/assets/tellexamplesender.png?w=300" alt="tellExampleSender" width="421" height="237" /></a></p>
+<p><em>Tell</em> signature seems a little bit cumbersome. This is why there’s a shorter way to use this method with just a spoonful of syntactic sugar:</p>
+<p>[code language="scala"]<br />
+actorRef ! &quot;Yeah, madafaka!&quot;<br />
+[/code]</p>
+<p>With this line we are sending our Bronx greetings to an actor whose reference is in the variable actorRef. Provided that we use the ‘!’ in our tell method, the sender will be the instance of the actor that sent the original message.</p>
+<p>However, we might want to have some feedback from the actor. We might want to wait for its response. Don’t panic! For that, we can use the <strong><em>ask</em></strong> method:</p>
+<p>[code language="scala"]<br />
+import akka.pattern.ask</p>
+<p>def ask(actorRef: ActorRef, message: Any)(implicit timeout: Timeout): Future[Any])<br />
+[/code]</p>
+<p>In addition to the message we want to send and the actor we’re sending the message to, a <em>timeout</em> needs to be set for not being waiting for an answer indefinitely. In this case, no <em>sender</em> has be defined and it will always be the actor that sent the message.</p>
+<p>Since we are waiting for the response in an asynchronous way, the answer will come to us in a future. A future? What the #$?&amp; is that? For now, and without going into much detail, we’ll say that a future is a container in which some data will be generated, when that data is ready. Later on, in future posts, we’ll go into <strong><em>Future</em></strong> type in detail.</p>
+<p>Just like with tell method, we also have a simpler way to use <em>ask</em> method, with ‘?’ symbol:</p>
+<p>[code language="scala"]<br />
+val response: Future[Any] = actorRef ? &quot;What time is it?&quot;<br />
+[/code]</p>
+<p><strong>Finally, the Hello World</strong></p>
+<p>Now we know how to create actors and send messages to them, if we use the previously defined actor, we can finish the implementation of the “<em>Hello World</em>” in Akka:</p>
+<p>[code language="scala"]<br />
+class MyFirstActor extends Actor {</p>
+<p>  def receive = {<br />
+    case _ =&gt; println(&quot;Hello World!&quot;)<br />
+  }</p>
+<p>}</p>
+<p>object HelloWorldBoot extends App {</p>
+<p>  val system = ActorSystem(&quot;my-first-system&quot;)<br />
+  val myActor: ActorRef =<br />
+    system.actorOf(Props[MyFirstActor],&quot;my-first-actor&quot;)</p>
+<p>  myActor ! &quot;Start!&quot;</p>
+<p>}<br />
+[/code]</p>
+<p>We just need to create an ActorSystem, an actor in that system and send a message to the actor for him to println “Hello World” when that message is processed.</p>
+<p>If everything goes ok and we run the program, we will see a beautiful Hello World on the screen.</p>

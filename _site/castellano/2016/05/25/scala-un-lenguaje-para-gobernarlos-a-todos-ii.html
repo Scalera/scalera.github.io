@@ -1,0 +1,375 @@
+<p>A ninguna aerolínea se le ocurriría poner a los mandos de un Airbus 380 a alguien sin entrenamiento.<br />
+Algo parecido ocurre con la creación de anillos de poder, ¡ups! DSLs, en Scala. Es una actividad que requiere entrenamiento, aunque por suerte no tan intensivo. Ha de ser tanto teórico como práctico pero, sobre todo, práctico.  En esta serie de posts <a href="https://scalerablog.wordpress.com/2016/04/13/scala-un-lenguaje-para-gobernarlos-a-todos-i/" target="_blank">ya se ha tratado algo de teoría</a> y ahora toca la parte divertida del aprendizaje ¡Es hora de construir un DSL desde cero!</p>
+<h1>El objetivo de nuestro DSL</h1>
+<p>El fin último de nuestro futuro DSL es el de servir de ejercicio didáctico. Sin embargo, todo DSL ha de ser de ayuda en un dominio concreto, bien (o):</p>
+<ul>
+<li>Facilitando la gestión o control de un sistema.</li>
+<li>Sirviendo de lenguaje intermedio para otros lenguajes que son demasiado complejos o extensos.</li>
+</ul>
+<p>En el ejemplo que vamos a desarrollar abordaremos el segundo caso.</p>
+<h2>Os presento a AWK</h2>
+<p>¡Menuda broma! Quién no conoce AWK ¡Si hasta tu Linux Box sabe qué es!</p>
+<p>[code language="bash"]<br />
+man awk | head -n 6<br />
+[/code]</p>
+<blockquote><p><em>GAWK(1) Utility Commands GAWK(1)</em></p>
+<p><em>NAME</em><br />
+<em> gawk - pattern scanning and processing language</em></p></blockquote>
+<p>OK, es necesario recurrir a <a href="https://es.wikipedia.org/wiki/AWK" target="_blank">Wikipedia</a> para encontrar una explicación algo menos tácita:</p>
+<blockquote><p><em><b>AWK </b>es un lenguaje de programación diseñado para procesar datos basados en texto, ya sean ficheros o flujos de datos...</em></p>
+<p><em><br />
+... <strong>AWK</strong> fue una de las primeras herramientas en aparecer en Unix (en la versión 3) y ganó popularidad como una manera de añadir funcionalidad a las tuberías de Unix. La implementación de alguna versión del lenguaje AWK es estándar en casi todo sistema operativo tipo unix moderno.<br />
+</em></p></blockquote>
+<p>Recordemos a este tandem de superheroes:</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/05/gnu-and-penguin-color.png"><img class="aligncenter size-medium wp-image-3389" src="/assets/gnu-and-penguin-color.png?w=300" alt="Gnu-and-penguin-color" width="300" height="277" /></a></p>
+<p>Aunque no puede apreciarse en el dibujo, GNU tiene un cinturón en el que oculta un arma muy poderosa: AWK.<br />
+Su poder más destacado es el de permitir la creación de scripts que pueden transformar, filtrar, agregar... los datos originados por las salidas de otros mandatos. Convirtiéndose, de esta manera, en una herramienta fundamental para la construcción de scripts de sistema en los que se apoyan nuestras distribuciones y aplicaciones favoritas.</p>
+<p>Ejemplo:</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/05/awk_sample.png"><img class="aligncenter size-full wp-image-3391" src="/assets/awk_sample.png" alt="awk_sample" width="700" height="70" /></a></p>
+<p>Con esta, aparentemente simple, línea hemos escrito un script capaz de indicarnos la memoria total utilizada por los módulos cargados en el sistema. Procesa la salida del comando de listado de módulos y agrega los valores de tamaño en memoria de cada entrada.</p>
+<h2>¿Un hueso duro de roer?</h2>
+<p>Siendo un lenguaje que aporta una máquina de Turing completa, las aplicaciones de AWK son infinitas. Es capaz de ahorrar horas de trabajo, facilitando la automatización de muchas tareas del sistema pero todo tiene un precio, y en el caso de AWK, el precio es que asusta a los usuarios que acuden por primera vez a él. Para muchos de ellos, se parece más a ...</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/05/6bkfb7b.png"><img class="aligncenter size-medium wp-image-3392" src="/assets/6bkfb7b.png?w=300" alt="6bkFb7B" width="300" height="179" /></a></p>
+<p>... que a una herramienta para facilitarles la vida. Las 1475 líneas de su entrada en <a href="https://es.wikipedia.org/wiki/Man_(Unix)" target="_blank">Man</a> tampoco suponen una lectura ligera.</p>
+<p>Si en esa cabina ponemos a un piloto al que pedirle que nos guíe ¿A que perdemos un poco el miedo?</p>
+<blockquote><p><em>Los DSLs son pequeños y concisos, esto implica que son de gran ayuda ya que guían a sus usuarios a través del proceso de describir acciones</em></p></blockquote>
+<p>Si, parece que un DSL interno en Scala podría ser de gran utilidad como guía en la utilización de AWK.</p>
+<h1>Manos a la obra en la construcción <del>del DSL</del> de Scalawk</h1>
+<blockquote><p><em>La característica más importante de un lenguaje de programación es el nombre...</em><br />
+Donald Erving Knuth</p></blockquote>
+<p>Empecemos por lo más importante, y si tomamos el <em>principio de autoridad</em> como un argumento válido, deberíamos empezar dándole nombre al DSL que vamos a construir.</p>
+<p>Queremos componer programas AWK usando un DSL interno en Scala:</p>
+<p style="text-align:center;">Scala + AWK = <strong>Scalawk</strong></p>
+<p style="text-align:left;">¡Buen comienzo!</p>
+<table border="1">
+<tbody>
+<tr>
+<td>Todo el código de Scalawk está disponible en <a href="https://github.com/pfcoperez/scalawk">GitHub</a>:</p>
+<p>[code language="bash"]<br />
+git clone https://github.com/pfcoperez/scalawk.git<br />
+[/code]</td>
+</tr>
+</tbody>
+</table>
+<h2 style="text-align:left;">Divide y vencerás</h2>
+<p><a href="https://scalerablog.wordpress.com/2016/04/13/scala-un-lenguaje-para-gobernarlos-a-todos-i/" target="_blank">En la entrega anterior</a> de esta serie de posts llegamos a la conclusión de que la mejor forma de diseñar un DSL es usando el modelo de máquinas de estado. Estas máquinas son fácilmente divisibles en componentes:</p>
+<ul>
+<li><strong>Estados</strong> (siendo el estado inicial un caso especial).</li>
+<li><strong>Transiciones </strong>(cambios de estado):
+<ul>
+<li>Entradas que provocan la transición.</li>
+<li>Efectos derivados de la transición:
+<ul>
+<li>La máquina cambia su estado.</li>
+<li>Laterales: Al margen del cambio de estado, es posible que la transición provoque la generación de salida.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><strong>Alfabeto de la máquina</strong>: Conjunto de entradas válidas.</li>
+</ul>
+<p>Diseñar y dibujar el diagrama de estados de la máquina, lo cual no es diferente a diseñar la guía interactiva que queremos construir, constituye el 90% del proceso creativo en la creación del DSL. La mayor parte del trabajo restante no es más que elegante y bonita fontanería Scala.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/05/machine.png"><img class="aligncenter size-full wp-image-3393" src="/assets/machine.png" alt="machine" width="361" height="553" /></a></p>
+<p>Todas las posibles interacciones del usuario con Scalawk están representadas en el diagrama de estados anterior. Por ejemplo:</p>
+<p>[code language="scala"]<br />
+lines splitBy arePresentedAs ('c1, 'c2)<br />
+[/code]</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/05/machine_walkthrough.png"><img class="aligncenter size-full wp-image-3394" src="/assets/machine_walkthrough.png" alt="machine_walkthrough" width="451" height="553" /></a></p>
+<p>Esta descomposición y modelado de la máquina de estados nos regala la estructura de paquetes de nuestro proyecto:</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/05/packages.png"><img class="aligncenter size-full wp-image-3395" src="/assets/packages.png" alt="packages" width="187" height="75" /></a></p>
+<h2>Al grano: O como perder el miedo y disfrutar de la materia prima que nos da Scala</h2>
+<p>Los estados, transiciones y elementos auxiliares son entidades definidas dentro de los paquetes descritos más arriba. De hecho, no son más que objetos, clases, métodos y traits Scala.</p>
+<h3>Estado inicial</h3>
+<p><a href="https://scalerablog.files.wordpress.com/2016/05/initial_state.png"><img class="aligncenter size-full wp-image-3396" src="/assets/initial_state.png" alt="initial_state" width="92" height="71" /></a></p>
+<p>Como <a href="https://scalerablog.wordpress.com/2016/04/13/scala-un-lenguaje-para-gobernarlos-a-todos-i/" target="_blank">ya sabemos</a>, los estados son objetos. O bien son instancias de clases u objetos singleton. Por otra parte, también hemos vista que la forma correcta de implementar máquinas de estado es hacer que estos estados, en definitiva objetos, sean inmutables. De esa manera, son las transiciones las responsables de generar nuevos estados totalmente nuevos.</p>
+<p>El estado inicial, al diferencia del resto de estados, no se genera por medio de una transición. Es el estado actual al iniciar la interacción con el DSL. Esto indica su naturaleza como singleton, la cual queda confirmada definitivamente por el hecho de que no puede existir ninguna otra instancia de él.</p>
+<p>[code language="scala"]<br />
+object lines extends ToCommandWithSeparator<br />
+[/code]</p>
+<p>Desde el punto de vista del usuario de Scalawk, este estado inicial debería ser una palabra indicando el comienzo de una frase en el DSL. Esta es otra razón para justificar el que sea implementado como un objeto singleton.</p>
+<p>El estado inicial necesita transitar a otro, es por ello por lo que el singleton <em>lines </em>extiende el trait <em>ToCommandWithSeparator. Para</em> no adelantar acontecimientos basta que, por el momento, tengamos en cuenta que <em>ToCommandWithSeparator</em> es un trait que contiene un conjunto de transiciones.</p>
+<h3>Estados transitorios y finales</h3>
+<p>¡Claro! Los estados son objetos pero... ¿Eso es todo? ¡No!<br />
+Hay diferentes tipos de estados. Además, muchos de estos estados son bastante parecidos entre sí y podrían construirse a partir de una plantilla común. Revisemos algunos trucos y consejos para implementarlos.</p>
+<p>La clasificación de más alto nivel para los estados no iniciales debería ser la siguiente: <strong>Transitorios </strong>y <strong>finales</strong>.<br />
+Conceptualmente, los estados del primer grupo no pueden usarse para generar resultados en tanto que los del segundo sí. Obviamente, esta limitación ocurre igualmente en la implementación de los estados y ello implica que los estados transitorios no pueden generar programas AWK mientras que los finales si.</p>
+<p>[caption id="attachment_3397" align="aligncenter" width="107"]<a href="https://scalerablog.files.wordpress.com/2016/05/with_initialprogram_st.png"><img class="aligncenter  wp-image-3397" src="/assets/with_initialprogram_st.png" alt="with_initialprogram_st" width="107" height="76" /></a> Estado no final[/caption]</p>
+<p>[caption id="attachment_3398" align="aligncenter" width="114"]<img class="  wp-image-3398 aligncenter" src="/assets/solidcomand_st.png" alt="solidcomand_st" width="114" height="74" /> Estado final[/caption]</p>
+<p>En Scalawk, cualquier entidad capaz de generar código AWK, sin importar de que se trate de un programa completo o no, debería extender o mezclarse con el trait <em>AwkElement.</em></p>
+<p>[code language="scala"]<br />
+trait AwkElement {<br />
+  def toAwk: String<br />
+}<br />
+[/code]</p>
+<p>De este modo, añadimos el método <em>toAwk </em>a dicha entidad. Esto es, le estamos otorgando del punto de entrada por el que la entidad es capaz de proveer código AWK.</p>
+<p>A pesar de sus diferencias, prácticamente todos los estados comparten un conjunto común de atributos a partir del cual es posible componer cadenas de texto que contienen mandatos AWK:</p>
+<ul>
+<li><b>Opciones de línea de comando</b>, e.j: <em>Token separador (espacio, salto de linea, ...)</em></li>
+<li><strong>Programa inicial: </strong>Instrucciones a ser ejecutadas por AWK antes de empezar a procesar la entrada línea a línea. e.g: <em>Inicializar un contador.</em></li>
+<li><strong>Programa de línea:</strong> Instrucciones que AWK ejecutará para cada una de las líneas de texto de entrada, las mismas instrucciones para todas las líneas. e.j: <em>Imprimir una línea, incrementar un contador o acumulador, etc</em><em>.</em></li>
+<li><strong>Programa final:</strong> Programa a ejecutar una vez que toda la entrada ha sido procesada, esto es, después de que el <em>programa de línea</em><em> </em>se haya ejecutado para todas y cada una de las líneas de entrada. e.j: <em>Imprimir el valor de los contadores.</em></li>
+</ul>
+<p>En cada estado estos atributos pueden estar vacíos o no y, cuando se le pide a un estado final que genere un programa AWK, dichos atributos se utilizarán para generar el resultado en formato de cadena de texto.</p>
+<p>[code language="scala"]<br />
+abstract class AwkCommand protected(<br />
+  private[scalawk] val commandOptions: Seq[String] = Seq.empty,<br />
+  private[scalawk] val linePresentation: Seq[AwkExpression] = Seq.empty,<br />
+  private[scalawk] val lineProgram: Seq[SideEffectStatement] = Seq.empty,<br />
+  private[scalawk] val initialProgram: Seq[SideEffectStatement] = Seq.empty,<br />
+  private[scalawk] val endProgram: Seq[SideEffectStatement] = Seq.empty<br />
+) {<br />
+  def this(prev: AwkCommand) = this(<br />
+    prev.commandOptions,<br />
+    prev.linePresentation,<br />
+    prev.lineProgram,<br />
+    prev.initialProgram,<br />
+    prev.endProgram<br />
+  )<br />
+}<br />
+[/code]</p>
+<p>Hasta el momento sabemos de los estados no iniciales que:</p>
+<ul>
+<li>Siempre contienen las piezas constituyentes de un resultado e inicialmente adquieren los valores de estas piezas a partir del estado que les precede: Por tanto, <strong>han de extender la clase abstracta <em>AwkCommand</em></strong>.</li>
+<li>Muy probablemente, añadan o cambien alguna de estas piezas de información: En ese caso, <strong>han de sobreescribir todos o algunos de los atributos de  <strong><em>AwkCommand.</em></strong></strong></li>
+<li>De forma opcional, pueden <strong>transitar</strong> a otro estado: En cuyo caso, <strong>han de ofrecer al menos un método cuyo valor de retorno sea del tipo del estado destino. </strong>También podrían mezclar sus clases con algún trait de familia o conjunto de transiciones.</li>
+</ul>
+<p>Surge la pregunta<em> </em>¿Por<em> AwkCommand </em>es una clase abstracta y no un trait?<br />
+Bien, el objetivo de <em>AwkCommand</em> es proveer código reutilizable para garantizar la continuidad. Es decir, proveer un constructor para construir nuevos estados a partir del que les precede (parámetro <em>prev</em>). Gracias a este constructor, el código de cada clase de estado queda reducido a tan sólo la definición de sus transiciones y sobreescrituras de los atributos heredados de <em>AwkCommand </em>(únicamente cuando estos atributos han de cambiar al transitar al nuevo estado).</p>
+<p>Obviamente, la única forma de proveer un constructor en una jerarquía de clases es por medio de una clase, no hay ningún problema si esta clase no debe ser instanciada: Basta con hacerla abstracta.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/05/abstract_with_constructor.jpg"><img class="aligncenter size-medium wp-image-3399" src="/assets/abstract_with_constructor.jpg?w=300" alt="abstract_with_constructor" width="300" height="300" /></a></p>
+<p>[code language="scala"]<br />
+class CommandWithLineProgram(<br />
+                              statements: Seq[SideEffectStatement]<br />
+                            )(prev: AwkCommand) extends AwkCommand(prev)<br />
+  with ToSolidCommand {</p>
+<p>  override private[scalawk]val lineProgram: Seq[SideEffectStatement] = statements</p>
+<p>}<br />
+[/code]</p>
+<p>La clase<em> CommandWithLineProgram</em> se corresponde con un estado no final y por ello no mezcla el trait <em>AwkElement</em>.</p>
+<p>[code language="scala"]<br />
+//This is the first state which can be used to obtain an AWK command string `toAwk`<br />
+class SolidCommand(val lineResult: Seq[AwkExpression], prevSt: AwkCommand) extends AwkCommand(prevSt)<br />
+  with AwkElement<br />
+  with ToCommandWithLastAction {<br />
+ ...<br />
+ ...<br />
+ ...<br />
+}<br />
+[/code]</p>
+<p>En cambio, <em>SolidCommand representa un estado final</em> y ha de proporcionar una implementación del método <em>toAwk</em>:</p>
+<p>[code language="scala"]<br />
+ // AWK Program sections</p>
+<p>// BEGIN<br />
+protected def beginBlock: String = programToBlock(initialProgram)</p>
+<p>// Per-line<br />
+protected def eachLineActionBlock: String =<br />
+programToBlock(lineProgram ++ linePresentation.headOption.map(_ =&gt; Print(linePresentation)))</p>
+<p>// END<br />
+protected def endBlock: String = programToBlock(endProgram)</p>
+<p>protected def programToBlock(program: Seq[SideEffectStatement]) =<br />
+{program.map(_.toAwk) mkString &quot;; &quot;} +<br />
+program.headOption.map(_ =&gt; &quot;; &quot;).getOrElse(&quot;&quot;)</p>
+<p>protected def optionsBlock: String =<br />
+{commandOptions mkString &quot; &quot;} + commandOptions.headOption.map(_ =&gt; &quot; &quot;).getOrElse(&quot;&quot;)</p>
+<p>override def toAwk: String =<br />
+s&quot;&quot;&quot;|awk ${optionsBlock}'<br />
+|${identifyBlock(&quot;BEGIN&quot;, beginBlock)}<br />
+|${identifyBlock(&quot;&quot;, eachLineActionBlock)}<br />
+|${identifyBlock(&quot;END&quot;, endBlock)}'&quot;&quot;&quot;.stripMargin.replace(&quot;\n&quot;, &quot;&quot;)</p>
+<p>//Auxialiary methods<br />
+private[this] def identifyBlock(blockName: String, blockAwkCode: String): String =<br />
+blockAwkCode.headOption.map(_ =&gt; s&quot;$blockName{$blockAwkCode}&quot;).getOrElse(&quot;&quot;)<br />
+[/code]</p>
+<p>La jerarquía de clases presentada posibilita la reutilización. Por ejemplo, <em>SolidCommandWithLastAction </em>es prácticamente una copia de <em>SolidCommand </em>y nada nos impide que extendamos esta segunda clase a la hora de definir <em>SolidCommandWithLastAction.</em></p>
+<p>[code language="scala"]<br />
+class SolidCommandWithLastAction(lastAction: Seq[SideEffectStatement])(prevSt: SolidCommand)<br />
+extends SolidCommand(prevSt)<br />
+[/code]</p>
+<p>En este punto, deberíamos ser capaces de empezar a explorar el <a href="https://github.com/pfcoperez/scalawk" target="_blank">repositorio</a> y asociar cada estado del grafo con su clase correspondiente en el código.</p>
+<table class="c2">
+<tbody>
+<tr class="c7">
+<td class="c0" colspan="1" rowspan="1">
+<p class="c6"><strong><span class="c11">Nodo en el grafo</span></strong></p>
+</td>
+<td class="c5" colspan="1" rowspan="1">
+<p class="c6"><strong><span class="c11">Entidad</span></strong></p>
+</td>
+<td class="c8" colspan="1" rowspan="1">
+<p class="c6"><strong><span class="c11">¿Es estado final?</span></strong></p>
+</td>
+<td class="c3" colspan="1" rowspan="1">
+<p class="c6"><strong><span class="c11">Tipo de entidad</span></strong></p>
+</td>
+</tr>
+<tr class="c7">
+<td class="c0" colspan="1" rowspan="1">
+<p class="c6"><span class="c1">init</span></p>
+</td>
+<td class="c5" colspan="1" rowspan="1">
+<p class="c6"><span class="c9">lines</span></p>
+</td>
+<td class="c8" colspan="1" rowspan="1">
+<p class="c6"><span class="c1">No</span></p>
+</td>
+<td class="c3" colspan="1" rowspan="1">
+<p class="c6"><span class="c1">Objeto singleton</span></p>
+</td>
+</tr>
+<tr class="c7">
+<td class="c0" colspan="1" rowspan="1">
+<p class="c6"><span class="c1">command</span></p>
+</td>
+<td class="c5 c10" colspan="1" rowspan="1">
+<p class="c6"><span class="c10 c14">CommandWithSeparator</span></p>
+</td>
+<td class="c8" colspan="1" rowspan="1">
+<p class="c6"><span class="c1">No</span></p>
+</td>
+<td class="c3" colspan="1" rowspan="1">
+<p class="c6"><span class="c1">Clase</span></p>
+</td>
+</tr>
+<tr class="c7">
+<td class="c0" colspan="1" rowspan="1">
+<p class="c6"><span class="c1">with line program</span></p>
+</td>
+<td class="c5" colspan="1" rowspan="1">
+<p class="c6"><span class="c9">CommandWithLineProgram</span></p>
+</td>
+<td class="c8" colspan="1" rowspan="1">
+<p class="c6"><span class="c1">No</span></p>
+</td>
+<td class="c3" colspan="1" rowspan="1">
+<p class="c6">Clase</p>
+</td>
+</tr>
+<tr class="c7">
+<td class="c0 c10" colspan="1" rowspan="1">
+<p class="c6"><span class="c10 c13">with initial program</span></p>
+</td>
+<td class="c5" colspan="1" rowspan="1">
+<p class="c6"><span class="c9">CommandWithInitialProgram</span></p>
+</td>
+<td class="c8" colspan="1" rowspan="1">
+<p class="c6"><span class="c1">No</span></p>
+</td>
+<td class="c3" colspan="1" rowspan="1">
+<p class="c6">Clase</p>
+</td>
+</tr>
+<tr class="c7">
+<td class="c0" colspan="1" rowspan="1">
+<p class="c6"><span class="c1">solid command</span></p>
+</td>
+<td class="c5" colspan="1" rowspan="1">
+<p class="c6"><span class="c9">SolidCommand</span></p>
+</td>
+<td class="c8" colspan="1" rowspan="1">
+<p class="c6"><span class="c1">Sí</span></p>
+</td>
+<td class="c3" colspan="1" rowspan="1">
+<p class="c6">Clase</p>
+</td>
+</tr>
+<tr class="c7">
+<td class="c0" colspan="1" rowspan="1">
+<p class="c6"><span class="c1">with last action</span></p>
+</td>
+<td class="c5" colspan="1" rowspan="1">
+<p class="c6"><span class="c9">SolidCommandWithLastAction</span></p>
+</td>
+<td class="c8" colspan="1" rowspan="1">
+<p class="c6"><span class="c1">Sí</span></p>
+</td>
+<td class="c3" colspan="1" rowspan="1">
+<p class="c6">Clase</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3></h3>
+<h3>Transiciones</h3>
+<p>Las transiciones entre estados son bastante más sencillas, son simples métodos que devuelven nuevos estados. Gracias a la notación infija, Scala proporciona la ilusión de estar manejando expresiones en lenguaje natural, tan natural como describir en nuestro idioma humano lo que queremos.</p>
+<p>Algunos estados pueden compartir transiciones por lo que una buena idea es agruparlos en traits. Por medio de mixings, los estados pueden usar estos traits de transición como si de piezas de LEGO se tratase para construir sus conjuntos de transiciones.</p>
+<p>Hay dos casos especiales que requieren especial atención: <strong>Grupos de transiciones </strong>y <strong>transiciones de entrada vacía.</strong></p>
+<h4>Los grupos de transiciones...</h4>
+<p>... están compuestos por transiciones que siempre se agrupan de la misma forma, digamos que son transiciones amigas que jamás se separan, a veces estas transiciones son diferentes versiones de la misma transición y el trait en el que se agrupan suele tomar nombres que encajan en el patrón <em>To&lt;TargetState&gt;.</em></p>
+<p>[code language="scala"]<br />
+trait ToCommandWithSeparator {</p>
+<p>  def splitBy(separator: String) = new CommandWithSeparator(separator)<br />
+  def splitBy(separator: Regex) =  new CommandWithSeparator(separator)</p>
+<p>}<br />
+[/code]</p>
+<p>Este es un caso bastanete evidente de dos versiones de la misma transición: Una en la que recibe una cadena de texto y otra en la que recibe una expresión regular.</p>
+<p><strong><span style="color:#ff0000;">Nótese que</span>, en relación con la máquina abstracta de estados, la entrada es la conjunción del nombre del método de transición y sus parámetros.</strong></p>
+<h4>Transiciones de entrada vacía</h4>
+<p>Consideremos la siguiente transición (extraída de la máquina de estados):</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/05/empty_transition.png"><img class="aligncenter size-full wp-image-3400" src="/assets/empty_transition.png" alt="empty_transition" width="249" height="70" /></a></p>
+<p>Las máquinas de estado pueden transitar con entradas vacías. Esto puede parecer extraño pero es bastante común, tanto que ocurre con Scalawk. Además, no hay problema a la hora de plasmar esto en el modelo que estamos implementando con Scala gracias a las <a href="http://orionsword.no-ip.org/blog/wordpress/?p=600" target="_blank">conversiones implícitas</a>.</p>
+<p>Una conversión implícita desde un estado (Fuente) a otro (Objetivo), que se aplica al intentar acceder a uno de los métodos de <em>Objetivo</em> teniendo una instancia de <em>Fuente, </em>será percibida por el usuario del DSL como una transición de entrada vacía. Tan simple como suena.<em> </em></p>
+<p>Es más, basta con definir la conversión implícita en el objeto de compañía de <em>Fuente </em>o en el de <em>Objetivo  </em>para  que esté disponible en el ámbito de la sentencia en la que la transición de entrada vacía ocurre. Sin necesidad de <em>import</em>s explícitos, esto es: De forma TOTALMENTE TRANSPARENTE para el usuario.</p>
+<p>Así, el siguiente código:</p>
+<p>[code language="scala"]<br />
+object ToCommandWithSeparator {<br />
+  implicit def toCommandWithSep(x: ToCommandWithSeparator) = new CommandWithSeparator()<br />
+}<br />
+[/code]</p>
+<p>... activa la transición descrita en el diagrama presentado a continuación:</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/05/empty_transition2.png"><img class="aligncenter size-full wp-image-3401" src="/assets/empty_transition2.png" alt="empty_transition2" width="203" height="71" /></a></p>
+<blockquote><p><img class="  wp-image-3944 aligncenter" src="/assets/vvqnk6o.jpg" alt="VvqNk6o" width="399" height="257" /><br />
+- Si <em>ToCommandWithSeparator</em> es un trait de familia de transiciones, el objeto homónimo (del snippet de código anterior) ¿No es el objeto de compañía de un trait de familia de transiciones? ¿No hemos dicho que la conversión implícita ha de estar definida en el objeto de compañía de <em>Fuente </em>u <em>Objetivo </em>y, por tanto, en el objeto de compañía de una clase de <strong>estado</strong>?</p>
+<p>- ¡Y así es! ¿Cual es el fin de <em>ToCommandWithSeparator</em> si no ser mezclado en una clase de estado?</p></blockquote>
+<p>En Scala, las conversiones implícitas definidas en el objeto de compañía de un trait aplicarán también a las clases que mezclen o extiendan ese trait y estarán disponibles en todos los scopes en los que la clase esté disponible. Esto, además de ser extremadamente útil para casos como el que nos ocupa, encaja con el sentido común: Se entiende que dicha clase es un sub-tipo del trait.</p>
+<p>Por ejemplo, si declaramos los traits <em>T </em>y <em>S</em>, con objetos de compañía en los que  hay conversiones implícitas a <em>D </em>y <em>E </em>respectivamente:</p>
+<p>[code language="scala"]<br />
+case class E(x: Int)<br />
+case class D(x: Int)</p>
+<p>trait T<br />
+object T { implicit def toD(from: T): D = D(1) }</p>
+<p>trait S<br />
+object S { implicit def toE(from: S): E = E(2) }<br />
+[/code]</p>
+<p>Para luego mezclarlos en en una tercera clase <em>C...</em></p>
+<p>[code language="scala"]<br />
+case class C() extends T with S<br />
+[/code]</p>
+<p>... entonces, cualquier instancia de C puede implícitamente convertirse en instancias de <em>E</em> o <em>D</em>:</p>
+<p>[code language="scala"]<br />
+scala&gt; val c: C = C()<br />
+c: C = C()</p>
+<p>scala&gt; val d: D = c<br />
+d: D = D(1)<br />
+scala&gt; val e: E = c<br />
+e: E = E(2)<br />
+[/code]</p>
+<h3>Expresiones</h3>
+<p>La mayor parte de las transiciones posibles en Scalawk encajan con el patrón <em>transición + valor de tipo básico.<br />
+</em>Pero algunas de ellas reciben expresiones, identificadores o sentencias. Estos son valores de tipos creados ad-hoc para expresar instrucciones y valores internos al lenguaje AWK. Ergo, los detalles acerca de estos tipos no deberían formar parte de una guía genérica para la creación de DSLs. Aún así, las construcciones Scala detrás de estos tipos son muy comunes en el universo de los DSLs creados a partir de Scala y merece la pena mencionarlas, al menos de forma superficial.</p>
+<h4>Identificadores (internos) en Scalawk</h4>
+<p>Algunas expresiones de este DSL, como <em>arePresentedAs</em>, necesitan hacer referencia a variables dentro del programa AWK, declaradas previamente por medio de otra expresión del DSL. Se podrían usar cadenas de texto para representar estos identificadores internos. Tener que envolver los identificadores en comillas dobles es lanzar una jarra de agua fría sobre la experiencia del usuario, haciéndole consciente del hecho de que, realmente, está utilizando Scala en vez de un lenguaje de dominio.</p>
+<p>Scala ofrece un mecanismo para obtener objetos <a href="http://www.scala-lang.org/api/2.11.8/#scala.Symbol" target="_blank">únicos para cadenas iguales</a>. Y es eso, precisamente, lo que un buen identificador interno al DSL necesita.</p>
+<p>Si alguien escribe:</p>
+<p>[code language="scala"]<br />
+'counter<br />
+[/code]</p>
+<p>... obtendrá una referencia a una instancia de la clase <em>Symbol. </em>Esta clase tiene un atributo nombre gracias al cual, su usuario puede recuperar la cadena de texto que se utilizó para obtener la instancia.</p>
+<p>De esta forma,  el usuario escribiría <em>'counter </em>y del desarrollador del DSL podría contar con obtener la cadena<em> counter </em>y usarla para la representación interna de, en este caso, la variable de AWK.</p>
+<h4>Sentencias</h4>
+<p>Mediante la combinación de los identificadores internos (arriba descritos) con clases ad-hoc y conversiones implícitas es relativamente sencillo expresar sentencias de asignación e incluso expresiones algebraicas.</p>
+<p>[code language="scala"]<br />
+'s := 's + 1<br />
+[/code]</p>
+<p>Este artículo está empezando a alargarse y, con las pistas y trucos que hemos ido desarrollando a lo largo de las secciones anteriores, es posible entender el código de Scalawk dedicado a la construcción de este tipo de expresiones. Ese código se encuentra dentro del paquete <a href="https://github.com/pfcoperez/scalawk/tree/master/src/main/scala/org/pfcoperez/scalawk/entities">entities</a>. Ese paquete puede verse como otro DSL embebido en Scalawk ¡Sí! un DSL dentro de otro DSL que, por último, se encuentra embebido en Scala</p>
+<h1>Divagaciones finales</h1>
+<p>Nadie dijo que desarrollar DSLs internos fuese pan comido. Es fácil hacer que el usuario se despierte del sueño de estar usando un lenguaje diseñado desde el principio para él/ella. Esto ocurre cuando se encuentra con construcciones que, sin motivo evidente, no deberían ser ser como son si no fuese porque pertenecen al lenguaje que alberga al DSL.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/05/scala_has_you.png"><img class="aligncenter size-full wp-image-3402" src="/assets/scala_has_you.png" alt="scala_has_you" width="384" height="113" /></a></p>
+<p>Es común encontrar obstáculos en el camino al intentar reproducir la máquina de estados de forma fidedigna. La tentación a abondar el modelo puede llegar a ser irresistible. Creedme cuando os digo que esta es una actividad compleja en la que, si abandonáis la calzada de adoquines que proporciona el modelo de máquina de estados, los ogros del bosque del "todo vale" devorarán vuestros corazones antes de que os deis cuenta.</p>
+<p>Scala ha probado su valía a la hora de ofrecer soluciones a los baches y obstáculos en el camino de las máquinas de estado, salid de este e intentad sobrevivir en un campo de minas.</p>
+<p>Como último consejo, os recomiendo que compréis pizarras, cuadernos, piedras y cinceles... cualquier cosa con la que os sintáis cómodos dibujando grafos.</p>
+<p>Estos son dos bocetos de un incipiente Scalawk:</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/05/whiteboard.jpg"><img class="aligncenter size-medium wp-image-3403" src="/assets/whiteboard.jpg?w=225" alt="whiteboard" width="225" height="300" /></a></p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/05/notebook.jpg"><img class="aligncenter size-medium wp-image-3404" src="/assets/notebook.jpg?w=238" alt="notebook" width="238" height="300" /></a></p>
+<p>¡Pensad! ¡Dibujad! ¡Pensad de nuevo! Así seréis mejores arquitectos de DSL que este...<br />
+<a href="https://scalerablog.files.wordpress.com/2016/05/be-21-architect.jpg"><img class="aligncenter  wp-image-3405" src="/assets/be-21-architect.jpg?w=300" alt="BE-21-architect" width="388" height="219" /></a></p>
+<p>... y vuestros Neo(s) nunca despertarán.</p>

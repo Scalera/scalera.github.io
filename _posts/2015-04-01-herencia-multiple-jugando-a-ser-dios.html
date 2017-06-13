@@ -1,0 +1,91 @@
+---
+layout: post
+title: 'Herencia Múltiple: jugando a ser Dios'
+date: 2015-04-01 12:00:00.000000000 +02:00
+type: post
+published: true
+status: publish
+categories:
+- Castellano
+tags:
+- beginner
+- scala
+- trait
+meta:
+  _thumbnail_id: '154'
+  _rest_api_published: '1'
+  _rest_api_client_id: "-1"
+  publicize_twitter_user: ScaleraBlog
+  publicize_twitter_url: http://t.co/uxUGKBNqdx
+  _wpas_done_10515941: '1'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:3064583607;b:1;}}
+author:
+  login: dvallejonava
+  email: d.vallejo.nava@gmail.com
+  display_name: dvallejonava
+  first_name: ''
+  last_name: ''
+---
+<p>Una de las características de Scala más importantes es la posibilidad de hacer mixin. Mediante <strong>mixin</strong> podemos tener herencia múltiple de varios <strong>traits</strong>. ¿Traits? ¿Mixin? ¿Lo qué? Bueno, vamos a empezar poco a poco :)</p>
+<h2>¿Qué son los traits?</h2>
+<p>&nbsp;<br />
+Los <strong>Traits</strong> (o<em> rasgos</em> en la lengua de Cervantes) son un aglutinamiento de atributos y métodos propios de un rasgo o característica. Son similares a las interfaces de Java con la salvedad de que se pueden implementar parcialmente, es decir, solo algunos de sus métodos o valores.</p>
+<p>Sirve para añadir comportamientos a otras entidades. Por ejemplo, vamos a implementar el trait <em>CanFly</em> en el que definiremos los valores y métodos necesarios para cualquier criatura voladora:</p>
+<p>[code language="scala"]</p>
+<p>trait CanFly {</p>
+<p>  val altitude: Float</p>
+<p>  def fly() = println(&quot;I'm flying!!!&quot;)<br />
+}</p>
+<p>[/code]</p>
+<p>Como se puede observar, en este trait existe una variable <em>altitude</em> que está sin definir, y un método <em>fly</em> que sí está definido. Podemos instanciar un trait utilizando una clase anónima de la siguiente forma:</p>
+<p>[code language="scala"]</p>
+<p>val myFlyingAnimal = new CanFly {}</p>
+<p>[/code]</p>
+<p>Sin embargo, como la variable <em>altitude</em> no está definida, este trozo de código provocará un <strong>error de compilación</strong>. Para poder instanciar un trait, es necesario implementar todos sus valores y métodos:</p>
+<p>[code language="scala"]</p>
+<p>val myFlyingAnimal = new CanFly { val altitude = 100.0f }</p>
+<p>[/code]</p>
+<p>&nbsp;</p>
+<h2>¿Cómo podemos utilizar los traits?</h2>
+<p>&nbsp;<br />
+A pesar de que ya sabemos como instanciar traits mediante clases anónimas, no es uno de sus usos más comunes.</p>
+<p>Los traits se usan para añadir comportamientos a nuestras entidades. Para ello podemos, mediante composición, hacer mixin de uno o varios traits a la hora de definir otro trait, una clase, una case class ...</p>
+<p>Para ello, se utilizan dos palabras reservadas: <strong><em>extends</em></strong> y <strong><em>with</em></strong>. El primer trait tendrá como predecesor la palabra <em>extends</em>, el resto se irán incluyendo con <em>with</em>.</p>
+<p>[code language="scala"]</p>
+<p>case class Pigeon extends CanFly</p>
+<p>case class Superman extends Superhero with CanFly</p>
+<p>[/code]</p>
+<p>&nbsp;</p>
+<p><img class="  https://scalerablog.files.wordpress.com/2015/03/og6kv6.jpg aligncenter" src="{{ site.baseurl }}/assets/og6kv6.jpg" alt="nlY1Wxv" width="422" height="246" /></p>
+<p>A esto es a lo que llamamos Mixin. ¿A que ahora todo tiene más sentido?</p>
+<h2>¿Y cómo trabajan los mixin con el problema del diamante?</h2>
+<p>&nbsp;<br />
+Primero vamos a crear un escenario con el problema. Tenemos un trait <em>Animal</em> que tiene un método sin implementar que devuelve el sonido del animal.</p>
+<p>[code language="scala"]</p>
+<p>trait Animal {<br />
+  def sound: String<br />
+}</p>
+<p>[/code]</p>
+<p>Por otro lado, tenemos dos especificaciones del animal: un gato y un perro.</p>
+<p>[code language="scala"]</p>
+<p>trait Cat extends Animal {<br />
+  override def sound = &quot;Miau&quot;<br />
+}</p>
+<p>trait Dog extends Animal {<br />
+  override def sound = &quot;Guau&quot;<br />
+}</p>
+<p>[/code]</p>
+<p>Haciendo un esfuerzo de imaginación sin igual, vamos a imaginar que un zorro es la mezcla entre un gato y un perro.</p>
+<p>[code language="scala"]</p>
+<p>case class Fox extends Cat with Dog</p>
+<p>[/code]</p>
+<p>Pero, si intentamos imprimir el sonido del zorro....</p>
+<p>[code language="scala"]</p>
+<p>val myFox = Fox()<br />
+println(myFox.sound)</p>
+<p>[/code]</p>
+<p>&nbsp;</p>
+<p><img class="  wp-image-91 aligncenter" src="{{ site.baseurl }}/assets/what-does-the-fox-say-1378489657.jpg" alt="nlY1Wxv" width="422" height="246" /></p>
+<p>&nbsp;</p>
+<p>Pues en este caso, nuestro zorro ladrará. ¿Por qué? Por que el último trait con el que se ha hecho mixin es <em>Dog</em>. Primer se utiliza la implementación de <em>Cat</em>, pero más tarde es sobrescrita por el siguiente trait definido, es decir, <em>Dog</em>. Por tanto podemos decir, que los traits se van instanciando en el orden en el que se han declarado.</p>
+<p>¡Y ya está! ¿Qué hemos aprendido hoy? Que los traits y los mixins son bastante útiles....y que los zorros, en ocasiones, ladran.</p>

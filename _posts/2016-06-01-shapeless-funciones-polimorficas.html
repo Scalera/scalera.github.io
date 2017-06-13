@@ -1,0 +1,159 @@
+---
+layout: post
+title: 'Shapeless: funciones polimórficas'
+date: 2016-06-01 12:00:38.000000000 +02:00
+type: post
+published: true
+status: publish
+categories:
+- Castellano
+tags:
+- ad-hoc
+- at
+- case
+- defined
+- function
+- future
+- gentraversable
+- iterable
+- iterator
+- parametric
+- polymorphic
+- shapeless
+- stream
+- subtype
+- try
+- values
+meta:
+  _edit_last: '59615419'
+  geo_public: '0'
+  _oembed_c6816fe84e2bcd99e4a47d0e7807fa21: "{{unknown}}"
+  draftfeedback_requests: a:1:{s:13:"57220d279e90f";a:3:{s:3:"key";s:13:"57220d279e90f";s:4:"time";s:10:"1461849383";s:7:"user_id";s:8:"59615419";}}
+  _publicize_job_id: '23395468713'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/737947051447590912";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+  _wpas_skip_10515941: '1'
+author:
+  login: jpaniego
+  email: javiersantospaniego@gmail.com
+  display_name: Javier S. Paniego
+  first_name: ''
+  last_name: ''
+---
+<p>Hace ya un tiempo, nuestro amigo <a href="https://twitter.com/javifdev" target="_blank">Javier Fuentes</a> nos ilustró con una <a href="https://scalerablog.wordpress.com/2015/11/18/shapeless-introduccion-y-hlists-parte-1/" target="_blank">introducción a Shapeless</a>.<br />
+Unos meseses después, en el <a href="http://www.meetup.com/Scala-Programming-Madrid/" target="_blank">meetup de Scala en Madrid</a>, dio una interesante charla sobre inducción estructural con Shapeless y HLists. No pudimos evitarlo y nos contagiaron el entusiasmo :-P</p>
+<h2>Lo que queremos hacer</h2>
+<p>Pongamos como caso de estudio lo que yo creo que a más de uno le ha debido pasar: querer mezclar en la misma for-comprehension distintos tipos. Algo del estilo:</p>
+<p>[code language="scala"]<br />
+import scala.util.Try</p>
+<p>for {<br />
+  v1 &lt;- List(1,2,3)<br />
+  v2 &lt;- Try(&quot;hi, person &quot;)<br />
+} yield s&quot;$v2 $v1&quot;<br />
+[/code]</p>
+<p>con la consiguiente frustración que produce ver el siguiente error:</p>
+<p>[code]<br />
+&lt;console&gt;:15: error: type mismatch;<br />
+ found   : scala.util.Try[String]<br />
+ required: scala.collection.GenTraversableOnce[?]<br />
+         v2 &lt;- Try(&quot;hi, person &quot;)<br />
+            ^<br />
+[/code]</p>
+<p>Necesitamos por tanto, una manera de transformar estos tipos de datos (<code>Future</code>, <code>Try</code>) en 'cosas' iterables (algo <code>GenTraversable[T]</code> nos podría valer). En nuestro ejemplo no tendremos en cuenta la información sobre el error si, por ejemplo, un tipo <code>Try</code> o un <code>Future</code> ha fallado e impide seguir evaluando la for-comprehension. Para entender un poco mejor el problema planteado, vamos a ver algunas pinceladas de teoría.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/05/53132063.jpg" rel="attachment wp-att-2750"><img src="{{ site.baseurl }}/assets/53132063.jpg?w=224" alt="53132063" width="224" height="300" class="aligncenter size-medium wp-image-2750" /></a></p>
+<h2>Monomorfismo vs polimorfismo</h2>
+<p>Se define un método como monomórfico cuando solo se puede aplicar al tipo que indican los argumentos en su signatura, mientas que los métodos polimórficos pueden aplicarse a argumentos de cualquier tipo (siempre que encajen en la signatura: en el caso de Scala, tipos parametrizados). En cristiano:</p>
+<p>[code language="scala"]<br />
+def monomorphic(parameter: Int): String</p>
+<p>def polymorphic[T](parameter: T): String<br />
+[/code]</p>
+<h3>Tipos de polimorfismo</h3>
+<p>Otra cuestión importante es que un método puede ser polimórfico debido a los parameter types o bien por sub-tipado, por ejemplo:</p>
+<p>[code language="scala"]<br />
+def parametricallyPolymorphic[T](parameter: T): String</p>
+<p>def subtypedPolymorphic(parameter: Animal): String</p>
+<p>subtypedPolymorphic(new Cat)<br />
+[/code]</p>
+<p>Si usamos parameter types, y no tenemos <strong>NADA</strong> de información sobre dichos tipos, nos encontramos ante un caso de polimorfismo paramétrico.</p>
+<p>Si usamos parameter types pero tenemos algún view / context bound sobre dicho tipo ( <code>T &lt;: Whatever</code> o <code>T:TypeClass</code> ), entonces hablamos de polimorfismo ad-hoc.</p>
+<h3>Problema: Function values</h3>
+<p>Con los métodos no hay problema a la hora de usar genéricos pero, ¿qué ocurre con los valores que son funciones? En Scala, el polimorfismo paramétrico no puede expresarse en base a valores que son funciones:</p>
+<p>[code language="scala"]<br />
+val monomorphic: Int =&gt; String = _.toString</p>
+<p>val anotherMonomorphic: List[Int] =&gt; Set[Int] =<br />
+  _.toSet</p>
+<p>[/code]</p>
+<p>Nótese que la definición de una función que pasa de List a Set es independiente del tipo de elemento que contiene la lista; pero la sintaxis de Scala no nos permite definir nada parecido. Podríamos intentarlo asignando a un <code>val</code> (eta expansion) :</p>
+<p>[code language="scala"]<br />
+def polymorphic[T](l: List[T]): Set[T] = l.toSet</p>
+<p>val sadlyMonomorphic = polymorphic _<br />
+[/code]</p>
+<p>Pero el compilador, que es muy listo, inferirá que que el tipo de la lista es <code>Nothing</code>: un tipo peculiar, pero concreto al fin y al cabo.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/05/64331666.jpg" rel="attachment wp-att-2751"><img src="{{ site.baseurl }}/assets/64331666.jpg?w=300" alt="64331666" width="300" height="300" class="aligncenter size-medium wp-image-2751" /></a></p>
+<h2>Polimorfismo paramétrico en Shapeless</p>
+<p>¿Cómo soluciona este problema Shapeless? Si por ejemplo tuviéramos que definir una función de transformación de <code>Option</code> a <code>List</code> en Scala, tendríamos la limitación antes citada para usar function values y sólo podríamos hacerlo definiendo un método:</p>
+<p>[code language="scala"]<br />
+def toList[T](o: Option[T]): List[T] =<br />
+  o.toList<br />
+[/code]</p>
+<p>Sin embargo Shapeless, haciendo gala de toda su alquimia, nos aporta varias formas de tener function values polimórficas. Es lo que en teoría de categorías, cuando hacemos referencia a transformaciones de constructores de tipos, se denomina <a href="https://en.wikipedia.org/wiki/Natural_transformation#Definition" target="_blank">transformaciones naturales</a>. La primera de ellas tiene la siguiente notación:</p>
+<p>[code language="scala"]<br />
+import shapeless.poly._</p>
+<p>val polyFunction = new (Option ~&gt; List){<br />
+  def apply[T](f: Option[T]): List[T] = f.toList<br />
+}<br />
+[/code]</p>
+<p>Fijaros que lo que hace es trasladar el polimorfismo paramétrico a la definición del objeto. Para usar posteriormente esta función basta con:</p>
+<p>[code language="scala"]<br />
+val result: List[Int] = polyFunction(Option(2))<br />
+[/code]</p>
+<p>La otra notación posible consiste en definir el comportamiento de la función en base a casos, es decir, si queremos que la función solo valga para Int, String y Boolean, añadiríamos un caso para cada uno de estos tipos. </p>
+<p>[code language="scala"]<br />
+import shapeless.Poly1</p>
+<p>object polymorphic extends Poly1 {</p>
+<p>  implicit optionIntCase =<br />
+    at[Option[Int]](_.toList.map(_ + 1))</p>
+<p>  implicit optionStringCase =<br />
+    at[Option[String]](_.toList.map(_ + &quot; mutated&quot;))</p>
+<p>  implicit optionBooleanCase =<br />
+    at[Option[Boolean]](_.toList.map(!_))</p>
+<p>}<br />
+[/code]</p>
+<p>Como podéis ver, si queremos que nuestra función esté definida para el caso en que un argumento de entrada sea <code>Option[Int]</code>, definimos que a todos los elementos de la lista que se devuelve, por ejemplo, se les sume 1. </p>
+<p>Esta expresión devuelve un <code>this.Case[Option[Int]]</code>, donde <strong>this</strong> hace referencia a la función <code>polymorphic</code> que estamos definiendo:</p>
+<p>[code language="scala"]<br />
+implicit optionIntCase =<br />
+  at[Option[Int]](_.toList.map(_ + 1))<br />
+[/code]</p>
+<p>¿Lo bueno de esto? Que en caso de usar la función sobre un tipo de entrada que no tiene un caso definido en la función, obtendremos un error <strong>en tiempo de compilación</strong> (Brutal, ¿no?):</p>
+<h2>El resultado</h2>
+<p>Aplicando esta última forma de expresar funciones polimórficas en base a casos, obtenemos el resultado deseado que se planteaba en la introducción: poder usar una for-comprehension sobre valores de distintos tipos: iterables, Try, Future...</p>
+<p>Podéis ver en detalle la solución propuesta <a href="https://github.com/Scalera/shapeless-handson/blob/master/src/main/scala/scalera/Polymorphic.scala" target="_blank">en el siguiente fichero</a>. </p>
+<p>En nuestra función tenemos un caso para los <code>GenTraversable</code>, el tipo <code>Try</code> y el tipo <code>Future</code> (en este último caso necesitamos disponer del valor del futuro para poder iterar sobre él, de manera que nos hace falta un timeout):</p>
+<p>[code language="scala"]<br />
+object values extends Poly1 {</p>
+<p>  implicit def genTraversableCase[T,C[_]](implicit ev: C[T] =&gt; GenTraversable[T]) =<br />
+    at[C[T]](_.toStream)</p>
+<p>  implicit def tryCase[T,C[_]](implicit ev: C[T] =&gt; Try[T]) =<br />
+    at[C[T]](_.toOption.toStream)</p>
+<p>  implicit def futureCase[T,C[_]](implicit ev: C[T] =&gt; Future[T], atMost: Duration = Duration.Inf) =<br />
+    at[C[T]](f =&gt; Try(Await.result(f,atMost)).toOption.toStream)</p>
+<p>}<br />
+[/code]</p>
+<p>Ahora podremos utilizarlo en nuestro controvertido snippet de código:</p>
+<p>[code language="scala"]<br />
+import scala.concurrent.ExecutionContext.Implicits.global</p>
+<p>case class User(name: String, age: Int)</p>
+<p>val result: Stream[_] = for {<br />
+  v1 &lt;- values(List(1,2,3))<br />
+  v2 &lt;- values(Set(&quot;hi&quot;,&quot;bye&quot;))<br />
+  v3 &lt;- values(Option(true))<br />
+  v4 &lt;- values(Try(2.0))<br />
+  v5 &lt;- values(Future(User(&quot;john&quot;,15)))<br />
+} yield (v1,v2,v3,v4,v5)<br />
+[/code]</p>
+<h2>¿Única solución?</h2>
+<p>¡En absoluto!, siempre se puede implementar usando type classes tradicionales de la huerta de Scala, aunque implique definir un trait que represente el iterable del ADT. Puedes ver el ejemplo en el <a href="https://gist.github.com/JSantosP/4888479a06b6c7064199f41f85b0b867" target="_blank">contenido del siguiente gist</a>.</p>
+<p>¡Agur de limón!</h2>

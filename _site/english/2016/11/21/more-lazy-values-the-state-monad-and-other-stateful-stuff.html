@@ -1,0 +1,134 @@
+<p>In the <a href="https://scalerablog.wordpress.com/2016/10/31/lazy-values/" target="_blank">previous post</a>, we talked about lazy evaluation in Scala. At the end of that post, we asked an interesting question: Does a <code>Lazy</code> value hold an state?</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/10/24195622.jpg"><img src="/assets/24195622.jpg?w=300" alt="24195622" width="300" height="300" class="aligncenter size-medium wp-image-4313" /></a></p>
+<p>In order to answer that question, we'll try to define a type that could represent the Lazy values:</p>
+<p>[code language="scala"]<br />
+trait Lazy[T] {</p>
+<p>  val evalF : () =&gt; T</p>
+<p>  val value: Option[T] = None</p>
+<p>}<br />
+object Lazy{<br />
+  def apply[T](f: =&gt; T): Lazy[T] =<br />
+    new Lazy[T]{ val evalF = () =&gt; f }<br />
+}<br />
+[/code]</p>
+<p>As you can see, our <code>Lazy</code> type is parameterized by some <code>T</code> type that represents the actual value type(<code>Lazy[Int]</code> would be the representation for a lazy integer).<br />
+Besides that, we can see that it's composed of the two main Lazy type features:</p>
+<ul>
+<li><strong>evalF</strong> : Zero-parameter function that, when its 'apply' method is invoked, it evaluates the contained T expression.</li>
+<li><strong>value</strong> : The result value of the interpretation of the <code>evalF</code> function. This concrete part denotes the state in the <code>Lazy</code> type, and it only admit two possible values: <code>None</code> (not evaluated) or <code>Some(t)</code> (if it has been already evaluated and the result itself).</li>
+</ul>
+<p>We've also added a companion object that defines the Lazy instance constructor that receives a <strong>by-name</strong> parameter that is returned as result of the <code>evalF</code> function.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/10/e9a2295b3db9b45c8f5484a09033c1c71cf88e3375bb7ff60456bc81c29a4e04.jpg"><img src="/assets/e9a2295b3db9b45c8f5484a09033c1c71cf88e3375bb7ff60456bc81c29a4e04.jpg?w=103" alt="e9a2295b3db9b45c8f5484a09033c1c71cf88e3375bb7ff60456bc81c29a4e04" width="103" height="150" class="aligncenter size-thumbnail wp-image-4303" /></a></p>
+<p>Now the question is, how do we join both the evaluation function and the value that it returns so we can make <code>Lazy</code> an stateful type? We define the 'eval' function this way:</p>
+<p>[code language="scala"]<br />
+trait Lazy[T] { lzy =&gt;</p>
+<p>  val evalF : () =&gt; T</p>
+<p>  val value: Option[T] = None</p>
+<p>  def eval: (T, Lazy[T]) = {<br />
+    val evaluated = evalF.apply()<br />
+    evaluated -&gt; new Lazy[T]{ mutated =&gt;<br />
+      val evalF = lzy.evalF<br />
+      override val value = Some(evaluated)<br />
+      override def eval: (T, Lazy[T]) =<br />
+        evaluated -&gt; mutated<br />
+    }<br />
+  } </p>
+<p>}<br />
+[/code]</p>
+<p>The 'eval' function returns a two-element tuple:</p>
+<ul>
+<li>The value result of evaluating the expression that stands for the lazy value.</li>
+<li>a new <code>Lazy</code> value version that contains the new state: the T evaluation result.</li>
+</ul>
+<p>If you take a closer look, what 'eval' method does in first place is to invoke the <strong>evalF</strong> function so it can retrieved the T value that remained until that point not-evaluated.<br />
+Once done, we return it as well as the new Lazy value version. This new version (let's call it <code>mutated</code> version) will have in its 'value' attribute the result of having invoked the <code>evalF</code> function. In the same way, we change its <code>eval</code> method, so in future invocations the Lazy instance itself is returned instead of creating new instances (because it actually won't change its state, like Scala's lazy definitions work).</p>
+<p>The interesting question that comes next is: is this an isolated case? Could anything else be defined as stateful? Let's perform an abstraction exercise.</p>
+<h2>Looking for generics: stateful stuff</h2>
+<p>Let's think about a simple stack:</p>
+<p>[code language="scala"]<br />
+sealed trait Stack[+T]<br />
+case object Empty extends Stack[Nothing]<br />
+case class NonEmpty[T](head: T, tail: Stack[T]) extends Stack<br />
+[/code]</p>
+<p>The implementation is really simple. But let's focus in the <code>Stack</code> trait and in a hypothetical <code>pop</code> method that pops an element from the stack so it is returned as well as the rest of the stack:</p>
+<p>[code language="scala"]<br />
+sealed trait Stack[+T]{<br />
+  def pop(): (Option[T], Stack[T])<br />
+}<br />
+[/code]</p>
+<p>Does it sound familiar to you? It is mysteriously similar to</p>
+<p>[code language="scala"]<br />
+trait Lazy[T]{<br />
+  def eval: (T, Lazy[T])<br />
+}<br />
+[/code]</p>
+<p>isn't it?</p>
+<p>If we try to re-factor for getting a common trait between <code>Lazy</code> and <code>Stack</code>, we could define a much more abstract type called <code>State</code>:</p>
+<p>[code language="scala"]<br />
+trait State[S,T] {<br />
+  def apply(s: S): (T, S)<br />
+}<br />
+[/code]</p>
+<p>Simple but pretty: the <code>State</code> trait is parameterized by two types: S (state type) and T (info or additional element that is returned in the specified state mutation). Though it's simple, it's also a ver common pattern when designing Scala systems. There's always something that holds certain state. And everything that has an state, it mutates. And if something mutates in a fancy and smart way...oh man.</p>
+<h2>That already exists...</h2>
+<p><a href="https://scalerablog.files.wordpress.com/2016/11/24314442.jpg"><img src="/assets/24314442.jpg?w=150" alt="24314442" width="150" height="150" class="aligncenter size-thumbnail wp-image-4332" /></a></p>
+<p>All this story that seems to be created from a post-modern essay, has already been subject of study for people...that study stuff. Without going into greater detail, in <a href="https://github.com/scalaz/scalaz#scalaz" target="_blank">ScalaZ</a> library you can find  the <code>State</code> monad that, apart from what was previously pointed, is fully-equipped with composability and everything that being a monad means (semigroup, monoid, ...).</p>
+<p>If we define our Lazy type with the State monad, we'll get something similar to:</p>
+<p>[code language="scala"]<br />
+import scalaz.State</p>
+<p>type Lazy[T] = (() =&gt; T, Option[T])</p>
+<p>def Lazy[T](f: =&gt; T) = (() =&gt; f, None)</p>
+<p>def eval[T] = State[Lazy[T], T]{<br />
+  case ((f, None)) =&gt; {<br />
+    val evaluated = f.apply()<br />
+    ((f, Some(evaluated)), evaluated)<br />
+  }<br />
+  case s@((_, Some(evaluated))) =&gt; (s, evaluated)<br />
+}<br />
+[/code]</p>
+<p>When decrypting the egyptian hieroglyph, given the <code>State[S,T]</code> monad, we have that our S state will be a tuple composed of what exactly represents a lazy expression (that we also previously described):</p>
+<p>[code language="scala"]<br />
+type Lazy[T] = (() =&gt; T, Option[T])<br />
+[/code]</p>
+<ul>
+<li>A Function0 that represents the lazy evaluation of T</li>
+<li>The T value that might have been evaluated or not</li>
+</ul>
+<p>For building a Lazy value, we generate a tuple with a function that stands for the expression pointed with the by-name parameter of the <code>Lazy</code> method; and the None value (because the Lazy guy hasn't been evaluated yet):</p>
+<p>[code language="scala"]<br />
+def Lazy[T](f: =&gt; T) = (() =&gt; f, None)<br />
+[/code]</p>
+<p>Last, but not least (it's actually the most important part), we define the only state transition that is possible in this type: the evaluation. This is the key when designing any State type builder: how to model what out S type stands for and the possible state transitions that we might consider.</p>
+<p>In the case of the Lazy type, we have two possible situations: the expression hasn't been evaluated yet (in that case, we'll evaluate it and we'll return the same function and the result) or the expression has been already evaluated (in that case we won't change the state at all and we'll return the evaluation result):</p>
+<p>[code language="scala"]<br />
+def eval[T] = State[Lazy[T], T]{<br />
+  case ((f, None)) =&gt; {<br />
+    val evaluated = f.apply()<br />
+    ((f, Some(evaluated)), evaluated)<br />
+  }<br />
+  case s@((_, Some(evaluated))) =&gt; (s, evaluated)<br />
+}<br />
+[/code]</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/12/izcunxh.gif"><img src="/assets/izcunxh.gif?w=300" alt="iZcUNxH" width="300" height="168" class="aligncenter size-medium wp-image-944" /></a></p>
+<p>In order to check that we can still count on the initial features we described for the Lazy type (it can only be evaluated once, only when necessary, ...) we check the following assertions:</p>
+<p>[code language="scala"]<br />
+var sideEffectDetector: Int = 0</p>
+<p>val two = Lazy {<br />
+  sideEffectDetector += 1<br />
+  2<br />
+}</p>
+<p>require(sideEffectDetector==0)</p>
+<p>val (_, (evaluated, evaluated2)) = (for {<br />
+  evaluated &lt;- eval[Int]<br />
+  evaluated2 &lt;- eval[Int]<br />
+} yield (evaluated, evaluated2)).apply(two)</p>
+<p>require(sideEffectDetector == 1)<br />
+require(evaluated == 2)<br />
+require(evaluated2 == 2)<br />
+[/code]</p>
+<p>Please, do notice that, as we mentioned before, what is defined inside the for-comprehension are the same transitions or steps that the state we decide will face. That means that we define the mutations that any S state will suffer. Once the recipe is defined, we apply it to the initial state we want.<br />
+In this particular case, we define as initial state a lazy integer that will hold the 2 value. For checking the amount of times that our Lazy guy is evaluated, we just add a very dummy var that will be used as a counter. After that, we define inside our recipe that the state must mutate twice by ussing the <code>eval</code> operation. Afterwards we'll check that the expression of the Lazy block has only been evaluated once and that the returning value is the expected one.</p>
+<p>I wish you the best tea for digesting all this crazy story :-)<br />
+Please, feel free to add comments/menaces at the end of this post or even at our <a href="https://gitter.im/Scalera/general" target="_blank">gitter channel</a>.</p>
+<p>See you on next post.<br />
+Peace out!</p>

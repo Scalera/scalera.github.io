@@ -1,0 +1,106 @@
+---
+layout: post
+title: Usar nulls no es una Option
+date: 2015-03-16 20:08:20.000000000 +01:00
+type: post
+published: true
+status: publish
+categories:
+- Castellano
+tags:
+- beginner
+- option
+- scala
+meta:
+  _wpas_skip_facebook: '1'
+  _wpas_skip_google_plus: '1'
+  _wpas_skip_linkedin: '1'
+  _wpas_skip_tumblr: '1'
+  _wpas_skip_path: '1'
+  _rest_api_published: '1'
+  _rest_api_client_id: "-1"
+  publicize_twitter_user: ScaleraBlog
+  publicize_twitter_url: http://t.co/uYAxIRXaxO
+  _wpas_done_10515941: '1'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:3064583607;b:1;}}
+author:
+  login: dvallejonava
+  email: d.vallejo.nava@gmail.com
+  display_name: dvallejonava
+  first_name: ''
+  last_name: ''
+---
+<p>Este blog va dedicado a todas aquellas personas que odian los nulls.<br />
+¿Por qué existen los NullsPointerException? ¿Por qué tenemos que trabajar con nulls?<br />
+¿Por qué? O como diría Mou: ¿Pug qué?</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/03/mourinho.gif"><img class="  wp-image-91 aligncenter" src="{{ site.baseurl }}/assets/mourinho.gif" alt="nlY1Wxv" width="268" height="201" /></a><br />
+Señores, los programadores de Scala somos unos haters de los nulls. Nosotros trabajamos con el tipo <em>Option</em> :)</p>
+<p><strong>¿Qué es un Option?</strong></p>
+<p>Un <em>Option</em> es un tipo parametrizado que puede tener dos posibles valores:</p>
+<ul>
+<li>Some(T)</li>
+<li>None</li>
+</ul>
+<p>Por ejemplo, un <em>Option[Int]</em> puede ser <em>Some(1),</em> <em>Some(123456),</em> <em>None...</em></p>
+<p><strong>¿Y qué tiene que ver esto con los nulls?</strong></p>
+<p>Podemos encapsular los <em>nulls</em> en <em>Option</em>, de manera que en vez de trabajar directamente con <em>nulls</em>, trabajamos con un tipo preparado para devolver valor nulos.</p>
+<p>[code language="scala"]<br />
+Option(null) === None<br />
+[/code]</p>
+<p>No más explosiones de punteros a null o comprobaciones del tipo <em>if myValue == null.</em></p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/03/mourinhooh.jpg"><img class="  wp-image-91 aligncenter" src="{{ site.baseurl }}/assets/mourinhooh.jpg" alt="nlY1Wxv" width="248" height="248" /></a></p>
+<p>Imaginemos el típico método que devuelve un valor de un mapa:</p>
+<p>[code language="scala"]<br />
+val m =<br />
+  Map(<br />
+    1 -&gt; &quot;el breikin dance&quot;,<br />
+    2 -&gt; &quot;el crusaito&quot;,<br />
+    3 -&gt; &quot;el maikel jacson&quot;,<br />
+    4 -&gt; &quot;el robocó&quot;<br />
+  )<br />
+[/code]</p>
+<p>Si no trabajasemos con Option tendríamos que comprobar si una clave existe antes de pedir su valor.</p>
+<p>[code language="scala"]<br />
+if(m.contains(1))<br />
+  println(&quot;El paso de baile es: &quot; + m(1))<br />
+else<br />
+  println(&quot;No existe ese paso de baile&quot;)<br />
+[/code]</p>
+<p>Sin embargo, podemos pedirle al mapa que nos devuelva el valor directamente en un <em>Option</em>, y en caso de que no exista, este <em>Option</em> será <em>None</em>.</p>
+<p>[code language="scala"]<br />
+m.get(1) //Devolverá Some(&quot;el breikin dance&quot;)<br />
+m.get(5) //Devolverá None<br />
+[/code]</p>
+<p><strong>¿Cómo se trabaja con el tipo <em>Option</em>?</strong></p>
+<p>Existen varias formas de trabajar con esta estructura tan maja.</p>
+<p>Existe el método <em>getOrElse</em>. Este método devolverá el valor del <em>Option</em> (en caso de ser un <em>Some</em>) o bien devolverá lo que le pasemos como argumento a este método.<br />
+Un ejemplos sencillo:</p>
+<p>[code language="scala"]<br />
+m.get(1).getOrElse(&quot;Paquito el chocolatero&quot;)<br />
+[/code]</p>
+<p>Otra posibilidad es utilizar <em>Pattern Matching</em>:</p>
+<p>[code language="scala"]<br />
+m.get(1) match {<br />
+  case Some(danceStep) =&gt;<br />
+    println(&quot;Soy el amo de la pista bailando: &quot; + danceStep)<br />
+  case None =&gt;<br />
+    println(&quot;Soy de los que me quedo mirando en la barra&quot;)<br />
+}<br />
+[/code]</p>
+<p>También es posible utilizar el método <em>fold</em>. El método <em>fold</em>, a diferencia del método <em>getOrElse</em> (y al igual que el pattern matching), permite aplicar alguna función al método devuelto. El primer argumento de la función (llamado <em>ifEmpty</em>) recibirá el resultado que se devolverá en caso de que el <em>Option</em> sea <em>None</em>. El segundo argumento recibe una función, la cual definiremos para saber que resultado devolver en caso de que el <em>Option</em> tenga un valor.</p>
+<p>[code language="scala"]<br />
+m.get(1).fold(<br />
+  ifEmpty = println(&quot;A mi lo de bailar no me va mucho&quot;)){<br />
+  step =&gt; println(s&quot;Me rompí la cadera bailando $step&quot;)<br />
+}<br />
+[/code]</p>
+<p>Y para los functional lovers (un saludo para ellos), no hay que olvidar que un <em>Option</em> es una mónada y podemos hacer transformaciones, por ejemplo con <em>map</em>, <em>flatmaps</em> o, aplicando un poco de azucar sintáctico, <em>for comprehension</em>:</p>
+<p>[code language="scala"]<br />
+for {<br />
+  first &lt;- m.get(1)<br />
+  second &lt;- m.get(2)<br />
+} yield s&quot;Empiezo con $first y termino con $second&quot;<br />
+[/code]</p>
+<p>Existen otras estructuras parecidas de las que hablaremos en futuros posts: <em>Either</em>, <em>Try</em> ... pero tiempo al tiempo.</p>
+<p>Así que, recuerda: Si usas <em>Option</em> los niños sonríen, los pajarillos cantan y los nulls desaparecen :)</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/03/mourinhook.jpg"><img class="  wp-image-91 aligncenter" src="{{ site.baseurl }}/assets/mourinhook.jpg" alt="nlY1Wxv" width="350" height="208" /></a></p>

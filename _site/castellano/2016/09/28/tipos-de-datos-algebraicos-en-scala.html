@@ -1,0 +1,140 @@
+<p>Qué mejor que volver de vacaciones con las pilas cargadas y con algún que otro tornillo suelto que nos empuje a escribir sobre temas que solo se te ocurren bajo el influjo de <del>los puerros</del> la luna.</p>
+<h2>¿TDA?</h2>
+<p>Un Tipo de Datos Algebraico(TDA en adelante para que no nos cobre Wordpress por palabra) no es sino expresar un tipo de datos (Gato, Coche, Prevaricación) en base a un álgebra. Y cuando decimos álgebra nos referimos a sumas y productos de tipos (de Enteros, Gatos, Coches, Prevaricaciones, ...). Por ejemplo:</p>
+<p>[code]<br />
+Train = Locomotive + Wagon * Train<br />
+[/code]</p>
+<p>¿Esto como se lee? Un tren puede ser: una locomotora <strong>O</strong> un vagón <strong>Y</strong> otro tren (que a su vez puede ser otro vagón y otro tren, que a su vez ...).<br />
+Fijaos en la disyunción y la conjunción: la suma suele representar un OR y el producto un AND (como en el álgebra de Boole).</p>
+<p>Es interesante también darse cuenta que, de esta definición de tipos, se puede inferir un patrón recursivo. En el caso del tren, el caso base es la locomotora y en el caso recursivo tenemos un vagón y otro tren. Como veremos más adelante, este patrón se repite y facilita la definición de tipos.</p>
+<h2>¿Y cómo se representa la suma y el producto en Scala?</h2>
+<p>La forma más sencilla de representar la suma (también llamada <strong>coproducto</strong>) de tipos, en un paradigma que soporte polimorfismo (en general) y en Scala (en particular), no es sino la herencia. Si tenemos el siguiente caso:</p>
+<p>[code language="scala"]<br />
+sealed trait Animal<br />
+case object Cat extends Animal<br />
+case object Dog extends Animal<br />
+[/code]</p>
+<p>estamos formulando un coproducto de tipos:</p>
+<p>[code]<br />
+Animal = Cat + Dog<br />
+[/code]</p>
+<p>es decir, un <code>Animal</code> solamente puede ser, o un <code>Cat</code>, o un <code>Dog</code>.</p>
+<p>En cuanto al producto, podríamos definirlo como el conjunto de atributos que componen una instancia de un cierto tipo. Por ejemplo,</p>
+<p>[code language="scala"]<br />
+case class Student(name: String, age: Int)<br />
+[/code]</p>
+<p>expresado como suma de productos, es como sigue:</p>
+<p>[code]<br />
+Student = String * Int<br />
+[/code]</p>
+<p>Es decir, para construir el tipo <code>Student</code> hace falta un <code>String</code> y un <code>Int</code>.</p>
+<p>Si ahora tratamos de bajar a tierra el modelo de tren antes propuesto (con algún aditivo) tendremos que </p>
+<p>[code]<br />
+Wagon = String * Int<br />
+Train = Locomotive + Wagon * Train<br />
+[/code]</p>
+<p>se traduce en Scala a</p>
+<p>[code language="scala"]<br />
+sealed trait Train<br />
+case object Locomotive extends Train<br />
+case class Wagon(model: String, passengers: Int)<br />
+case class Nexus(wagon: Wagon, next: Train)<br />
+[/code]</p>
+<h2>¿Y esto para qué?</h2>
+<p>Si piensas, amigo, que esto son cosas que nadie usa, es porque no te paraste a pensar en qué estructuras de <code>scala.predef</code> se definen de esta forma. Las listas (<code>List</code>) por ejemplo se definen como:</p>
+<p>[code language="scala"]<br />
+trait List[+T]<br />
+case object Nil extends List[Nothing]<br />
+case class ::[T](head: T, tail: List[T]) extends List[T]<br />
+[/code]</p>
+<p>Es decir, una lista puede ser, o lista vacía, o un elemento seguido de otra lista.<br />
+Si lo expresamos en función de productos y coproductos:</p>
+<p>[code]<br />
+List[T] = EmptyList[T] + NonEmptyList[T]<br />
+NonEmptyList[T] = T * List[T]<br />
+[/code]</p>
+<p>Fijaos que el caso de la lista vacía (<code>Nil</code>) tiene una implementación muy bonita en Scala. </p>
+<p>Si tenemos que definir una lista vacía para tooooodos los tipos existentes, tendríamos que instanciar un <code>Nil[Cat]</code>, <code>Nil[Dog]</code>, ...<br />
+Para evitar eso, y tener un único <code>Nil</code>, hacemos que este extienda de <code>List[Nothing]</code> que, como recordareis de otros posts, <code>Nothing</code> extiende de tooooodos los tipos (tanto primitivos como definidos por el programador). Si a esto le sumamos que <code>List[T]</code> es covariante en <code>T</code>, tenemos un único objeto <code>Nil</code> que representa las listas vacías de tooooodos los tipos. Alucinante, ¿no?</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/07/odtudee.gif"><img src="/assets/odtudee.gif" alt="odtUdEE" width="450" height="260" class="aligncenter size-full wp-image-590" /></a></p>
+<h2>Ejemplo: Números pares </h2>
+<p>Para afianzar esta <del>novedosa</del> forma de pensar, pongámonos en la siguiente tesitura, ¿cómo podríamos representar los números pares en Scala?</p>
+<h3>Requirements</h3>
+<p>Si somos poco delicados y confiamos más en las aserciones en tiempo de runtime, podríamos decir que los números pares son:</p>
+<p>[code language="scala"]<br />
+case class Even(value: Int) {<br />
+  require(value%2==0, &quot;it's not even&quot;)<br />
+}<br />
+[/code]</p>
+<p>Si intentamos crear un <code>Even</code> con un número impar nos dirá que nope:</p>
+<p>[code language="scala"]<br />
+Even(1)<br />
+java.lang.IllegalArgumentException: requirement failed: it's not even<br />
+	at scala.Predef$.require(Predef.scala:233)<br />
+	at Even.&lt;init&gt;(&lt;console&gt;:7)<br />
+[/code]</p>
+<p>Sin embargo esta comprobación no se realiza hasta el momento de ejecución, que es cuando se comprueba el <code>require</code>. Por lo que nuestro código podría estar compilando pero no ser correcto...<br />
+Podemos hacerlo mejor...</p>
+<h3>Next(Next(...))</h3>
+<p>Otra opción es asumir (y no vamos a discutir sobre ello) que el número 0 es par, que tenemos memoria infinita en nuestra máquina, que no existe el overflow, ...</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/09/907958.png"><img src="/assets/907958.png" alt="907958" width="552" height="392" class="aligncenter size-full wp-image-4265" /></a></p>
+<p>En ese caso, para nada alejado de la realidad (...) podríamos definir los números enteros pares como:</p>
+<p>[code language="scala"]<br />
+sealed abstract class Even(val value: Int)<br />
+case object Zero extends Even(0)<br />
+case class Next(previousEven: Even)<br />
+  extends Even(2 + previousEven.value)<br />
+[/code]</p>
+<p>De manera que si tenemos un método que genera una reserva para el barco del amor que requiere de un número par de participantes, podemos usar nuestro recién definido tipo <code>Even</code>:</p>
+<p>[code language="scala"]<br />
+def loveBoatReservation(<br />
+  peopleAmount: Even): Reservation = ???<br />
+[/code]</p>
+<p>Dado que no hay forma de construir un <code>Even</code> a partir de un entero que no sea par, evitamos situaciones en runtime en las que el número de personas que se montan en el barco sean impares. Sino siempre habría alguien ...</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/09/forever-alone-400x400.png"><img src="/assets/forever-alone-400x400.png" alt="forever-alone-400x400" width="400" height="400" class="aligncenter size-full wp-image-4266" /></a></p>
+<h3>Mecánica de métodos sobre TDAs recursivos</h3>
+<p>Una vez definido el tipo de datos, supongamos que queremos implementar la suma de números pares:</p>
+<p>[code language="scala"]<br />
+def sum(e1: Even, e2: Even): Even = ???<br />
+[/code]</p>
+<p>Tenemos varias alternativas. Una de ellas puede ser la quick-and-dirty:</p>
+<p>[code language="scala"]<br />
+def sum(e1: Even, e2: Even): Event =<br />
+  new Even(e1.value + e2.value){}<br />
+[/code]</p>
+<p>Pero fijaos que estamos pasando un kilo de los constructores que hemos definido. Si queremos hacer pattern matching ahora sobre el resultado:</p>
+<p>[code language="scala"]<br />
+val four = new Even(4){}<br />
+sum(Zero, four) match {<br />
+  case Zero =&gt;<br />
+    //it never gets inside this case!<br />
+  case Next(Next(Zero)) =&gt;<br />
+    //OMG! IT DOESN'T FIT HERE EITHER!<br />
+}<br />
+scala.MatchError: $anon$1@649f2009 (of class $anon$1)<br />
+[/code]</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/09/51067781.jpg"><img src="/assets/51067781.jpg" alt="51067781" width="450" height="334" class="aligncenter size-full wp-image-4268" /></a></p>
+<p>La otra técnica (algo más fina por otra parte) consiste en lanzar un método recursivo que, en cada llamada, vaya disminuyendo el segundo número par mientras que aumenta el primero. Para ello hacemos uso del constructor y extractor <code>Next</code>:</p>
+<p>[code language="scala"]<br />
+def sum(e1: Even, e2: Even): Even = {<br />
+  @tailrec<br />
+  def rSum(ev1: Even, ev2: Even): (Even, Even) = {<br />
+    ev2 match {<br />
+      case Zero =&gt; (ev1, Zero)<br />
+      case Next(e) =&gt; rSum(Next(ev1), e)<br />
+    }<br />
+  }<br />
+  val (result, _) = rSum(e1, e2)<br />
+  result<br />
+}<br />
+[/code]</p>
+<p>Innegablemente bello :-)</p>
+<h2>Conclusiones</h2>
+<p>Pues a parte de que los posts de vuelta de vacaciones suelen ser para volverse majara, saquemos varias conclusiones principales:</p>
+<ul>
+<li>Como siempre decimos, que toda comprobación que nos podamos llevar de runtime a tiempo de compilación es un ahorro de quebraderos de cabeza cazando fallos con software en producción (lo cual es caro y es más fácil que haga rodar cabezas).</li>
+<li>Que los constructores son la clave. Si definimos un TDA sobre los números pares, podemos controlar que los valores generados son correctos definiendo los constructores adecuados: el <code>Zero</code> y el <code>Next</code>. En ambos casos, tenemos la certeza de que se cumplen las leyes de los números enteros.</li>
+<li>Que los métodos que operan sobre tipos de datos recursivos suelen ser, a menudo, recursivos también. Y no solo eso, sino que para poder generar valores del tipo en cuestión (<code>Even </code> en nuestro caso) solo deberían hacer uso de los constructores ya existentes.</li>
+</ul>
+<p>En otro post hablaremos sobre la relación del álgebra de tipos y la definición de gramáticas formales...o no.</p>
+<p>¡Agur de limón!</p>

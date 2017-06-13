@@ -1,0 +1,65 @@
+<p style="text-align:justify;">Después de más de un año publicando entradas en Scalera creo que ya ha llegado el momento de tocar un poco una de las herramientas más importantes del ecosistema Scala. Por supuesto, me refiero a <em><strong>Spark</strong></em>.</p>
+<p style="text-align:justify;">Spark es un framework que permite paralelizar colecciones y su procesamiento. Este procesamiento pueden ser tareas batch tipo Map-Reduce sobre multitud de orígenes de datos (HDFS, Cassandra, ElasticSearch, ...), procesamiento en streaming de ciertos flujos de datos (Kafka, Flume, ...); o realizar consultas con distintas fuentes de datos de manera unificada con un lenguaje de consulta tipo SQL.<br />
+Pero hoy no vamos a abarcar tanto. Hoy vamos a conocer el tipo de dato básico que se utiliza en Spark: el tipo RDD.</p>
+<p style="text-align:justify;"><strong>¿Qué es un RDD?</strong></p>
+<p style="text-align:justify;">El tipo <em><strong>RDD</strong></em> (Resilient Distributed Dataset) se parece mucho a otras colecciones de Scala. Sin embargo es importante conocer alguna de sus características principales:</p>
+<ul>
+<li style="text-align:justify;">Es una colección distribuida. Esto quiere decir que está particionada entre los distintos workers de Spark.</li>
+<li style="text-align:justify;">Son inmutables: cuando transformamos un nuevo RDD realmente estamos creando uno nuevo.</li>
+<li style="text-align:justify;">Su evaluación es perezosa. Con los RDD's estamos definiendo un flujo de información, pero no se ejecuta en el momento de definición, sino en el momento en el que se evalúe aplicando una acción sobre el RDD.<img class="  wp-image-2003 aligncenter" src="/assets/funny-meme-super-lazy1.jpg" alt="funny-meme-super-lazy1" width="289" height="248" /></li>
+</ul>
+<p>Además, es importate saber que sobre los RDD's se pueden realizar dos tipos de operaciones: transformaciones y acciones.</p>
+<p><strong>Genial, ¿pero cómo los creo?</strong></p>
+<p>Existen varias formas para crear un RDD:</p>
+<ul>
+<li><em><strong>Paralelizando</strong></em> una colección en memoria, por ejemplo, una lista de valores. Para ello utilizamos el método <em>parallelize</em> del <em>SparkContext</em>.<br />
+[code language="scala"]<br />
+val newRDD: RDD[Int] = sc.parallelize(List(1, 2, 3, 4))<br />
+[/code]</li>
+<li>A partir de una <em><strong>fuente de almacenamiento</strong></em> utilizando, por ejemplo, la función <em>textFile</em> del <em>SparkContext</em>.<br />
+[code language="scala"]<br />
+val newRDD: RDD[Int] = sc.textFile(&quot;myValues.txt&quot;)<br />
+[/code]</li>
+<li><em><strong>Transformando</strong> <strong>un RDD</strong></em> aplicando una transformación para crear un nuevo RDD a partir de otro.<br />
+[code language="scala"]<br />
+val newRDD: RDD[String] = intValues.map(_.toString)<br />
+[/code]</li>
+</ul>
+<p><strong>¿Y eso de las transformaciones ...?</strong></p>
+<p>Las transformaciones definirán como cambiará el flujo de información generando un nuevo RDD. Con estas transformaciones no se está evaluando el RDD, sino creando uno nuevo. Algunas de las transformaciones son:</p>
+<ul>
+<li><em><strong>map</strong></em>: aplica una función a cada elemento de la colección:<br />
+[code language="scala"]<br />
+intValues.map(_.toString) // RDD[String]<br />
+[/code]</li>
+<li><em><strong>filter</strong></em>: selecciona el subconjunto de elementos que cumplen una determinada expresión booleana:<br />
+[code language="scala"]<br />
+intValues.filter(_.isOdd)// RDD[Int]<br />
+[/code]</li>
+<li><em><strong>flatMap</strong></em>: además de realizar una función map, aplica un método flatten:
+<p>[code language="scala"]<br />
+textFile.map(_.split(&quot; &quot;)) //RDD[Array[String]] but ...<br />
+textFile.flatMap(_.split(&quot; &quot;)) //RDD[String]<br />
+[/code]</li>
+</ul>
+<p><strong>Habías dicho acciones, ¿no?</strong></p>
+<p>Las acciones nos permitirán evaluar un RDD y devolver un resultado. De esta forma se ejecuta todo el flujo de datos definido. ¿Algún ejemplo? Aquí van algunos:</p>
+<ul>
+<li><strong><em>count</em></strong>: nos devuelve el número total de elementos:<br />
+[code language="scala"]<br />
+sc.parallelize(List(1, 2, 3, 4)).count //4<br />
+[/code]</li>
+<li><em><strong>collect</strong></em>: nos vuelca toda la colección distribuida en un array en memoria:<br />
+[code language="scala"]<br />
+sc.parallelize(List(1, 2, 3, 4)).collect // Array(1, 2, 3, 4)<br />
+[/code]</p>
+<p>Ojo, cuidao. Si el RDD es muy grande, podemos tener problemas al volcar toda la colección en memoria.</li>
+<li><em><strong>saveAsTextFile</strong></em>: nos vuelca la información en un fichero de texto:<br />
+[code language="scala"]<br />
+intValues.saveAsTextFile(&quot;results.txt&quot;)<br />
+[/code]</li>
+</ul>
+<hr />
+<p>&nbsp;</p>
+<p>¿Y esto como lo puedo usar con Spark? Dentro de una semana lo veremos con un caso práctico que aunará Twitter con Spark Streaming para hacer analitycs de una forma fácil, sencilla y para toda la familia. De esta forma podremos sacarle todo el partido que queramos y sentirnos poderosos y geeks al mismo tiempo.</p>
+<p><img class="  wp-image-2030 aligncenter" src="/assets/aad69873-6bcc-4a0d-84eb-abe375f34c6c.gif" alt="aad69873-6bcc-4a0d-84eb-abe375f34c6c" width="390" height="195" /></p>

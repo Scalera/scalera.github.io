@@ -1,0 +1,68 @@
+---
+layout: post
+title: Tarta de Scala al estilo tradicional
+date: 2015-07-08 17:00:00.000000000 +02:00
+type: post
+published: true
+status: publish
+categories:
+- Castellano
+tags:
+- beginner
+- design-pattern
+- scala
+- trait
+meta:
+  _rest_api_published: '1'
+  _rest_api_client_id: "-1"
+  _publicize_job_id: '12527248477'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/618797105419653120";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: dvallejonava
+  email: d.vallejo.nava@gmail.com
+  display_name: dvallejonava
+  first_name: ''
+  last_name: ''
+---
+<p>Hoy toca hablar de cocina. Hoy vamos a hacer una bonita tarta. ¿Se me ha ido la olla con Master Chef?<br />
+No. Hoy toca hablar del <em><strong>cake-pattern</strong></em>.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/07/t4ilmu.jpg"><img class=" size-medium wp-image-527 aligncenter" src="{{ site.baseurl }}/assets/t4ilmu.jpg?w=300" alt="t4ilmu" width="300" height="198" /></a></p>
+<p>El <em>cake-pattern</em> es un patrón de diseño de inyección de dependencias. Nos permite establecer dependencias entre componentes. Es común necesitar un servicio o un repositorio para poder implementar otros. En estos casos, el <em>cake pattern</em> nos ayudará a establecer esta relación.</p>
+<p>La base de este patrón de diseño es formar nuestro sistema a partir de varios componentes más pequeños. Es decir, vamos a formar nuestra tarta a partir de pequeñas porciones. Además, estableceremos relaciones entre dichas porciones.</p>
+<p>Para ello, primero crearemos unos componentes abstractos mediante <em>traits</em>, de los que heredarán los componentes reales. De esta forma, nos aseguramos que todos los componentes que implementemos tengan la misma funcionalidad.</p>
+<p>[code language="scala"]<br />
+trait MyComponent {</p>
+<p>  def service: MyService</p>
+<p>  trait MyService {<br />
+    def saySomething: String<br />
+  }<br />
+}<br />
+[/code]</p>
+<p>En este caso tenemos un componente que engloba un servicio que contiene el método <em>saySomething</em>.</p>
+<p>Ahora vamos a implementar el servicio. Para ello necesitamos llamar a un repositorio. Por lo tanto, debemos inyectar la dependencia con dicho repositorio. Pero como aún no sabemos que tipo de repositorio será (una base de datos implementada en <em>mysql</em>, una estructura en memoria, ...), vamos a tener una dependencia con un repositorio abstracto. Más tarde, cuando creemos nuestro sistema (aka, nuestra tarta), decidiremos con qué tipo de repositorio vamos a trabajar.</p>
+<p>[code language="scala"]<br />
+trait MyRepository {</p>
+<p>  def repo: MyRepoService {</p>
+<p>    def getRandomExpression: String<br />
+  }<br />
+}<br />
+[/code]</p>
+<p>Para poder crear dependencias vamos a usar los <strong><em>self types</em></strong>. Los <em>self types</em> los usaremos en este caso para inyectar una dependencia con otro componente. Sin embargo, también pueden ser utilizados para hacer referencia a <em>inners</em> u <em>outter</em> <em>classes</em>. Don't worry. Ya veremos estos conceptos más adelante. Por el momento, vamos a usar estos <em>self types</em> para crear restricciones en el <em>mixin</em> con el componente ya que si queremos tener un componente que herede de este <em>trait</em>, tendrá que heredar también de los <em>traits</em> que aparecen en su <em>self type</em>. Vamos a ver como queda:</p>
+<p>[code language="scala"]<br />
+trait MyComponentImpl extends MyComponent{<br />
+  self: MyRepository =&gt;</p>
+<p>  def service = new MyServiceImpl</p>
+<p>  trait MyServiceImpl extends MyService {</p>
+<p>    def saySomething: String = repo.getRandomExpression()</p>
+<p>  }<br />
+}<br />
+[/code]</p>
+<p>Para finalizar, podemos crear nuestro sistema utilizando la versión implementada de nuestro componente, y la versión implementada de un repositorio. Una vez creado el sistema (la tarta), ya podemos hacer uso de su funcionalidad:</p>
+<p>[code language="scala"]<br />
+val system = new MyComponentImpl with MyRepositoryImpl</p>
+<p>println(system.service.saySomething)<br />
+[/code]</p>
+<p>Et voila! Bon appetit!</p>

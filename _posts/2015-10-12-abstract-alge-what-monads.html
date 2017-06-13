@@ -1,0 +1,64 @@
+---
+layout: post
+title: Abstract alge... what? Monads
+date: 2015-10-12 17:00:00.000000000 +02:00
+type: post
+published: true
+status: publish
+categories:
+- English
+tags:
+- advanced
+- monad
+- scala
+meta:
+  _rest_api_published: '1'
+  _rest_api_client_id: "-1"
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/653589803766706176";}}
+  _publicize_job_id: '15744894954'
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: dvallejonava
+  email: d.vallejo.nava@gmail.com
+  display_name: dvallejonava
+  first_name: ''
+  last_name: ''
+---
+<p>The day has finally come. Today we'll take a look at the noteworthy <strong>monads</strong>.</p>
+<p>A monad, just like a monoid, may seem to be a concept taken from the deepest hell. It seems almost impossible to understand. Nothing could be further from the truth. Let's try to shed light on this concept.</p>
+<p>There are many definitions of what a monad is. Some are complicated, others are easier.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/10/44b0bd758f8ee5c81362923f0d5c8e017c9ddf623925e60c29a4c015b89fbb45.jpg"><img class="size-medium wp-image-712 aligncenter" src="{{ site.baseurl }}/assets/44b0bd758f8ee5c81362923f0d5c8e017c9ddf623925e60c29a4c015b89fbb45.jpg?w=300" alt="44b0bd758f8ee5c81362923f0d5c8e017c9ddf623925e60c29a4c015b89fbb45" width="300" height="198" /></a></p>
+<p>As we are really fond of simple definitions, in this first contact with monads we'll say that they are algebraic structures that have a <strong>constructor</strong> and a <em><strong>flatMap</strong></em> method which, as we already saw in <a href="https://scalerablog.wordpress.com/2015/05/29/traversable-ops-map-flatten-flatmap-2/">previous posts</a>, is a concatenation of a <em>map</em> method and a <em>flatten</em>.</p>
+<p><strong>What do we need to create a monad?</strong></p>
+<p>As we have already said, we need basically two methods: a constructor (commonly called <em>apply</em>) and a <em>flatMap</em> method.</p>
+<p>In addition, there are some monadic laws to comply with. Those laws require that certain relations exist between the abovementioned functions. However, for better or worse, we are not going to analyse them in this post in order not to complicate it unnecessarily.</p>
+<p><strong>Case: Option type<br />
+</strong></p>
+<p><em>Option</em> type, as already mentioned in some other posts, is a monad.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/10/bdu68sacyaafkkr.jpg"><img class="alignnone size-medium wp-image-714" src="{{ site.baseurl }}/assets/bdu68sacyaafkkr.jpg?w=300" alt="Bdu68sACYAAfkkr" width="300" height="211" /></a></p>
+<p>Let's get into the insides of Scala to see how it's defined:</p>
+<p>[code language="scala"]<br />
+def apply[A](x: A): Option[A] =<br />
+  if (x == null) None else Some(x)</p>
+<p>def flatMap[B](f: A =&gt; Option[B]): Option[B] =<br />
+  if (isEmpty) None else f(this.get)<br />
+[/code]</p>
+<p>As can be appreciated, <em>Option</em> type has a constructor (<em>apply</em>) and a <em>flatMap</em> method. Thanks to these two methods (and to the compliance with monadic laws), we can say that <em>Option</em> type is a monad.</p>
+<p>However, in Scala's basic library, the <em>Monad</em> type is not defined. This is where Scalaz comes in. Let's see how Scalaz defines the <em>Option</em> type as a monad:</p>
+<p>[code language="scala"]<br />
+def point[A](a: =&gt; A) = Some(a)</p>
+<p>def bind[A, B](fa: Option[A])(f: A =&gt; Option[B]) =<br />
+  fa flatMap f<br />
+[/code]</p>
+<p>As can be seen, in Scalaz, the <em>flatMap</em> method is called <em><strong>bind</strong></em>. In turn, the <strong><em>point</em></strong> method calls a constructor and therefore, the <em>apply</em> method is called. Henceforth, if we define these two methods for our own types (them complying with monadic laws too), we'll be able to create our own monads.</p>
+<p>And, as they'll have a flatMap and an apply methods (or same thing, a bind and a point methods), we'll be able to use the <strong><em>for comprehension</em></strong> structure to make our code more readable, <a href="https://scalerablog.wordpress.com/2015/09/28/for-comprehension-and-importance-of-beauty/">as we learned two weeks ago</a>:</p>
+<p>[code language="scala"]<br />
+for {<br />
+  x &lt;- Some(1)<br />
+  y &lt;- Some(2)<br />
+} yield x + y //Some(3)<br />
+[/code]</p>
+<p><strong>Conclusion</strong></p>
+<p>Monads are much more than we have described in this post. It's a whole new world to explore. Apart from the abovementioned monadic laws, there are some predefined monads, such as the Reader one. Furthermore, the use of monads is geared towards avoiding side effects, which is quite important in pure functional programming. But all in due time :)</p>

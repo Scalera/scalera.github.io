@@ -1,0 +1,46 @@
+<p style="text-align:justify;">Hoy toca un post breve pero espero que descubra algo nuevo para algunos. Hoy hablaremos de los problemas que puede dar la sobrecarga al tener parámetros por defecto.</p>
+<p style="text-align:justify;">Vamos a empezar definiendo los conceptos básicos:</p>
+<p style="text-align:justify;">- Sobrecarga: ...really?<br />
+- Parámetros por defecto: en Scala, es posible definir parámetros por defecto en los métodos. Estos parámetros nos permitirán obviar algunos parámetros en su llamada. Vamos a ver un ejemplo:</p>
+<p>[code language="scala"]<br />
+def getUri(host: String = &quot;localhost&quot;, port: Int = 8080): String = &quot;$host:$port&quot;</p>
+<p>getUri(&quot;127.0.0.1&quot;, 8081) //&quot;127.0.0.1:8081&quot;<br />
+getUri(port = 8081) //&quot;localhost:8081&quot;<br />
+getUri(&quot;127.0.0.1&quot;) //&quot;127.0.0.1:8080&quot;<br />
+getUri() //&quot;localhost:8080&quot;<br />
+[/code]</p>
+<h3>Genial...y ¿cuál es el problema?</h3>
+<p>Vamos a crear el siguiente trait:</p>
+<p>[code language="scala"]<br />
+trait A {<br />
+  def a(a: Int, p: Boolean = false)<br />
+  def a(b: Boolean = false)<br />
+}<br />
+[/code]</p>
+<p>y ahora compilamos y...</p>
+<p><img class="  wp-image-1805 aligncenter" src="/assets/giphy2.gif" alt="giphy2" width="318" height="160" /></p>
+<blockquote><p>error: in trait A, multiple overloaded alternatives of method a define default arguments.</p></blockquote>
+<p>Sin embargo, si quitamos el parámetro por defecto de la primera función:</p>
+<p>[code language="scala"]<br />
+trait A {<br />
+  def a(a: Int, p: Boolean)<br />
+  def a(b: Boolean = false)<br />
+}<br />
+[/code]</p>
+<p>y compilamos .....</p>
+<p><img class=" size-full wp-image-1802 aligncenter" src="/assets/giphy1.gif" alt="giphy1" width="160" height="160" /></p>
+<p>todo va bien.</p>
+<h3>¿Cuál es la causa de este kilombo?</h3>
+<p>El problema es que el compilador utilizará los parámetros por defecto para generar los nombres de unas funciones auxiliares que utilizará para tratar los método con valores por defecto (no olvidemos que seguimos en la JVM). Veamos el ejemplo que aparece en la <a href="http://docs.scala-lang.org/sips/completed/named-and-default-arguments.html">documentación</a>:</p>
+<p>[code language="scala"]<br />
+def f(a: Int = 1, b: String)<br />
+// generates a method: def f$default$1 = 1<br />
+f(b = &quot;3&quot;)<br />
+// transformed to: f(b = &quot;3&quot;, a = f$default$1)<br />
+[/code]</p>
+<p>Como se puede observar, se genera una nueva función y se sobreescribe la llamada al método original haciendo uso de dicha función.</p>
+<p>Después de esto, podemos decir que en el primer caso de nuestro kilombo, las dos funciones auxiliares creadas tendrán este nombre:</p>
+<blockquote><p>def a$default$1 = false</p></blockquote>
+<p>y por ello se producirá un conflicto de nombres.</p>
+<p>En el segundo caso, al no existir un parámetro por defecto en el primer método, solo se generará una nueva función y, por tanto, no se producirá ningún conflicto.</p>
+<p>Y hasta aquí el post :)</p>

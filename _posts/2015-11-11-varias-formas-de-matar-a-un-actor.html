@@ -1,0 +1,58 @@
+---
+layout: post
+title: 'Akka: Varias formas de matar a un actor'
+date: 2015-11-11 16:00:00.000000000 +01:00
+type: post
+published: true
+status: publish
+categories:
+- Castellano
+tags:
+- actors
+- akka
+- beginner
+meta:
+  _rest_api_published: '1'
+  _rest_api_client_id: "-1"
+  _publicize_job_id: '16753010032'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/664442616394592256";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: dvallejonava
+  email: d.vallejo.nava@gmail.com
+  display_name: dvallejonava
+  first_name: ''
+  last_name: ''
+---
+<p>A pesar de que ya han pasado algunos días desde Halloween, hoy podremos saciar nuestro instinto asesino.</p>
+<p><img class="size-full wp-image-817 aligncenter" src="{{ site.baseurl }}/assets/17c8f21e452c8161a7f19b8fc3f7d1a5.jpg" alt="17c8f21e452c8161a7f19b8fc3f7d1a5" width="250" height="250" /></p>
+<p>En este post volvemos a tocar el toolkit Akka, diseñado para crear aplicaciones distribuidas utilizando actores. Dichos actores funcionan muy bien y son muy útiles pero llega un momento en el que hay que acabar con ellos. ¿Cómo podemos hacerlo? ¿Podemos hacer que parezca un accidente? ¿Son muy resistentes al cianuro? Hoy esperamos responder a alguna de estas preguntas.</p>
+<p><strong>Forma 1: Envenenamiento</strong></p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/11/tumblr_n6da8xjdli1t4x1pbo1_500.gif"><img class="size-medium wp-image-821 aligncenter" src="{{ site.baseurl }}/assets/tumblr_n6da8xjdli1t4x1pbo1_500.gif?w=300" alt="tumblr_n6da8xJdLi1t4x1pbo1_500" width="300" height="211" /></a></p>
+<p>Lo más sencillo que podemos hacer para matar a un actor es enviarle un mensaje de tipo <em>PoisonPill. </em>De esta forma, en cuanto se trate el mensaje, el actor morirá.</p>
+<p>[code language="scala"]<br />
+seanBeanCharacter ! PoisonPill<br />
+[/code]</p>
+<p>Este mecanismo no sirve sólo para el asesinato, sino también para el suicidio. Para ello basta con que el actor se envíe a si mismo un PoisonPill.</p>
+<p>[code language="scala"]<br />
+self ! PoisonPill<br />
+[/code]</p>
+<p><strong>Forma 2: Parada cardiaca</strong></p>
+<p><img class="size-medium wp-image-820 aligncenter" src="{{ site.baseurl }}/assets/jack-30-rock-heart-attack-study.gif?w=300" alt="jack-30-rock-heart-attack-study" width="300" height="174" /></p>
+<p>Otra opción que tenemos es parar el actor. Para ello podemos hacer uso del método stop.</p>
+<p>[code language="scala"]<br />
+context.stop(seanBeanCharacter)<br />
+[/code]</p>
+<p>La diferencia fundamental entre utilizar un <em>PoisonPill</em> y una llamada al método <em>stop</em>, es que el método <em>stop </em>realiza una parada inmediata del actor. En el caso de las <em>PoisonPill</em>, al ser un mensaje más que recibe el actor, es necesario esperar a que se trate dicho mensaje para que el actor muera.</p>
+<p><strong>Forma 3: Provocar una hemorragia interna</strong></p>
+<p><img class="size-medium wp-image-819 aligncenter" src="{{ site.baseurl }}/assets/tumblr_mk2nondhhx1qasthro1_r1_500.gif?w=300" alt="tumblr_mk2nondHhx1qasthro1_r1_500" width="300" height="187" /></p>
+<p>Finalmente, podemos hacer que un actor sufra una excepción enviandole el mensaje de tipo Kill.</p>
+<p>[code language="scala"]<br />
+seanBeanCharacter ! Kill<br />
+[/code]</p>
+<p>Este mensaje, cuando sea tratado por el actor, generará una excepción de tipo <em>ActorKilledException</em>. Este tipo de muerte lo podemos usar cuando queramos manejar este tipo de excepción en la política de supervisión. Es posible decidir que acción realizará un supervisor cuando un actor suyo lance una excepción de este tipo.</p>
+<p><strong>Última voluntad</strong></p>
+<p>Todos los actores, por muy mal que sea la película, tienen derecho a una última voluntad. Dicha última voluntad está materializada por una serie de acciones, como parar a los actores que tiene bajo su supervisión. Además, es posible añadir funcionalidad propia sobrescribiendo el método <strong><em>postStop</em></strong>.</p>
+<p>Y esto es todo. Solo recordad una cosa. Si usáis alguna de estas técnicas, en ningún caso conocéis a los chicos de Scalera :p</p>

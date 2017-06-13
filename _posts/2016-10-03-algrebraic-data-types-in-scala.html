@@ -1,0 +1,175 @@
+---
+layout: post
+title: Algrebraic Data Types in Scala
+date: 2016-10-03 12:00:25.000000000 +02:00
+type: post
+published: true
+status: publish
+categories:
+- English
+tags:
+- ADT
+- algebra
+- cathegory
+- functional
+- product
+- scala
+- sum
+- TDA
+meta:
+  _edit_last: '59615419'
+  geo_public: '0'
+  _publicize_job_id: '27454284231'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/782883920144543745";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: jpaniego
+  email: javiersantospaniego@gmail.com
+  display_name: Javier S. Paniego
+  first_name: ''
+  last_name: ''
+---
+<p>What a delightful idea to come back from vacation with batteries fully charged and with some wacky ideas around our minds to write about. Best of these came from the very influence of <del>joints</del> the moon.</p>
+<h2>ADT?</h2>
+<p>An Algebraic Data Type (TDA from now so we can save money for each word in WordPress) is just a way to express a data type (Cat, Dog, Prevarication) based on an algebra. And when we say 'algebra', we mean type sums and products (of Integers, Cats, Cars, Prevarications, ...). For example:</p>
+<p>[code]<br />
+Train = Locomotive + Wagon * Train<br />
+[/code]</p>
+<p>How do one read that? A train may be: a locomotive <strong>OR</strong> a wagon <strong>AND</strong> another train (that may be as well a wagon and another train, that may be as well a ...).<br />
+Take a look at both disjunction and conjunction: the sum represents an OR, and the product represents an AND (like Boole algebra).</p>
+<p>It's also worthy to notice that, from this type definition you can infer a recursive pattern. With the Train type, the base case is definitively the Locomotive and, at the recursive case, we have a wagon and another train. As we'll see later, this pattern is very frequent and makes easier the type definition.</p>
+<h2>And how are sum and product represented in Scala?</h2>
+<p>The easier way to represent the type sum (also called <strong>co-product</strong>), in a paradigm with polimorphism support (in general) and in Scala (in particular), is just the inheritance feature. If we have the following case:</p>
+<p>[code language="scala"]<br />
+sealed trait Animal<br />
+case object Cat extends Animal<br />
+case object Dog extends Animal<br />
+[/code]</p>
+<p>we're indeed expressing a type co-product:</p>
+<p>[code]<br />
+Animal = Cat + Dog<br />
+[/code]</p>
+<p>that is, an <code>Animal</code> can only be, a <code>Cat</code>, or a <code>Dog</code>.</p>
+<p>Regarding the product, we could define it as the attribute set that compounds a certain type instance. For example,</p>
+<p>[code language="scala"]<br />
+case class Student(name: String, age: Int)<br />
+[/code]</p>
+<p>expressed as a product sum, would be as follows:</p>
+<p>[code]<br />
+Student = String * Int<br />
+[/code]</p>
+<p>So, for building a <code>Student</code> instance, you need a <code>String</code> and an <code>Int</code>.</p>
+<p>If we try now to materialize the previously exposed train model (with some additives) we'll notice that</p>
+<p>[code]<br />
+Wagon = String * Int<br />
+Train = Locomotive + Wagon * Train<br />
+[/code]</p>
+<p>is translated into Scala as</p>
+<p>[code language="scala"]<br />
+sealed trait Train<br />
+case object Locomotive extends Train<br />
+case class Wagon(model: String, passengers: Int)<br />
+case class Nexus(wagon: Wagon, next: Train)<br />
+[/code]</p>
+<h2>So what is it good for?</h2>
+<p><a href="https://scalerablog.files.wordpress.com/2016/10/hqdefault.jpg"><img src="{{ site.baseurl }}/assets/hqdefault.jpg" alt="hqdefault" width="480" height="360" class="aligncenter size-full wp-image-4282" /></a></p>
+<p><del>...absolutely nothing, listen to me♩♪♫♬</del>.<br />
+If you think, my fellow, that this is stuff that nobody uses, you haven't thought about which <code>scala.Prefef</code> structures are defined this way. <code>List</code>s, for example, as defined as:</p>
+<p>[code language="scala"]<br />
+trait List[+T]<br />
+case object Nil extends List[Nothing]<br />
+case class ::[T](head: T, tail: List[T]) extends List[T]<br />
+[/code]</p>
+<p>That is, a List can be, an empty one, or an element followed by another list.<br />
+If we express that idea in terms of products and co-products:</p>
+<p>[code]<br />
+List[T] = EmptyList[T] + NonEmptyList[T]<br />
+NonEmptyList[T] = T * List[T]<br />
+[/code]</p>
+<p>Please, notice that, the case of the empt list (<code>Nil</code>) has a bizarre but beautiful implementation in Scala. </p>
+<p>If we try to define an empty list for eeeeeeeeeevery single existing type, we would have to instantiate a <code>Nil[Cat]</code>, a <code>Nil[Dog]</code>, ...<br />
+In order to avoid this, and having an only <code>Nil</code>, we make it extend from <code>List[Nothing]</code> that, as you'll probably remember from other posts, <code>Nothing</code> extends from eeeeeeeeevery single existing type (both primitive and programmer defined). If we add the fact of <code>List[T]</code> being covariant at <code>T</code>, we'll have an only object <code>Nil</code> that represents the empty lists for all types. Awesome, right?</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/07/odtudee.gif"><img src="{{ site.baseurl }}/assets/odtudee.gif" alt="odtUdEE" width="450" height="260" class="aligncenter size-full wp-image-590" /></a></p>
+<h2>Example: Even numbers </h2>
+<p>In order to harden to this <del>new</del> way of thinking, let's suppose the following challenge: how could we represent even numbers in Scala?</p>
+<h3>Requirements</h3>
+<p>If we're not sophisticated enough and we trust a lil' bit in runtime assertions, we could say that even numbers are defined as:</p>
+<p>[code language="scala"]<br />
+case class Even(value: Int) {<br />
+  require(value%2==0, &quot;it's not even&quot;)<br />
+}<br />
+[/code]</p>
+<p>But, if we try to create an <code>Even</code> with an odd integer number we'll get a giant NOPE:</p>
+<p>[code language="scala"]<br />
+Even(1)<br />
+java.lang.IllegalArgumentException: requirement failed: it's not even<br />
+	at scala.Predef$.require(Predef.scala:233)<br />
+	at Even.&lt;init&gt;(&lt;console&gt;:7)<br />
+[/code]</p>
+<p>However this assertion won't be verified until run-time, the moment when <code>require</code> is executed. Thus, our code could be compiled without being correct...<br />
+We can do it much better...</p>
+<h3>Next(Next(...))</h3>
+<p>Another option is to assume (and we won't discuss about it) that zero is an even number, that we have infinite memory installed in our machine, that the overflow error doesn't exist...</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/09/907958.png"><img src="{{ site.baseurl }}/assets/907958.png" alt="907958" width="552" height="392" class="aligncenter size-full wp-image-4265" /></a></p>
+<p>In that, not so far, case (...), we could define even numbers as:</p>
+<p>[code language="scala"]<br />
+sealed abstract class Even(val value: Int)<br />
+case object Zero extends Even(0)<br />
+case class Next(previousEven: Even)<br />
+  extends Even(2 + previousEven.value)<br />
+[/code]</p>
+<p>So, if we have a method that generate reservations for the Boat Love, that requires an even number of participants, we can use our brand new defined <code>Even</code> type:</p>
+<p>[code language="scala"]<br />
+def loveBoatReservation(<br />
+  peopleAmount: Even): Reservation = ???<br />
+[/code]</p>
+<p>Given there's no way to build an <code>Even</code> from an integer that is not even, we avoid uncomfortable situations at runtime, where the amount of people that get on the Love Boat are odd. Otherwise, someone could be...</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/09/forever-alone-400x400.png"><img src="{{ site.baseurl }}/assets/forever-alone-400x400.png" alt="forever-alone-400x400" width="400" height="400" class="aligncenter size-full wp-image-4266" /></a></p>
+<h3>Recursive ADTs and its techniques</h3>
+<p>Once the data type is defined, let's suppose we want to implement the sum of even numbers:</p>
+<p>[code language="scala"]<br />
+def sum(e1: Even, e2: Even): Even = ???<br />
+[/code]</p>
+<p>We handle several alternatives. One of them could be the quick-and-dirty one:</p>
+<p>[code language="scala"]<br />
+def sum(e1: Even, e2: Even): Event =<br />
+  new Even(e1.value + e2.value){}<br />
+[/code]</p>
+<p>But take a closer look at the fact that we're totally ignoring the constructors we've defined. If we want to use pattern matching over the result:</p>
+<p>[code language="scala"]<br />
+val four = new Even(4){}<br />
+sum(Zero, four) match {<br />
+  case Zero =&gt;<br />
+    //it never gets inside this case!<br />
+  case Next(Next(Zero)) =&gt;<br />
+    //OMG! IT DOESN'T FIT HERE EITHER!<br />
+}<br />
+scala.MatchError: $anon$1@649f2009 (of class $anon$1)<br />
+[/code]</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/09/51067781.jpg"><img src="{{ site.baseurl }}/assets/51067781.jpg" alt="51067781" width="450" height="334" class="aligncenter size-full wp-image-4268" /></a></p>
+<p>The other technique (much more sophisticated by the way) consists on invoking a recursive method that, for each call, it decreases the second even number, while it increases the first one. For doing so, we make use of <code>Next</code> apply(constructor) and unapply(extractor) methods:</p>
+<p>[code language="scala"]<br />
+def sum(e1: Even, e2: Even): Even = {<br />
+  @tailrec<br />
+  def rSum(ev1: Even, ev2: Even): (Even, Even) = {<br />
+    ev2 match {<br />
+      case Zero =&gt; (ev1, Zero)<br />
+      case Next(e) =&gt; rSum(Next(ev1), e)<br />
+    }<br />
+  }<br />
+  val (result, _) = rSum(e1, e2)<br />
+  result<br />
+}<br />
+[/code]</p>
+<p>Undeniably beautiful :-)</p>
+<h2>Conclusions</h2>
+<p>Apart from becoming a lil' bit crazier when reading back-from-vacation posts, we can extract several main conclusions from what we've read:</p>
+<ul>
+<li>As we always say, every possible assertion that we can check at compile time instead of runtime, it's saving time and headaches hunting bugs of software in production (which is more expensive and more keen to make heads roll).</li>
+<li>Constructors are THE key. If we define an ADT, we can control that generated values of that type are correct by defining the proper constructors: <code>Zero</code> and <code>Next</code>. In both cases, we are certainly sure that even number rules are satisfied.</li>
+<li>Methods that operate over recursive data types use to be recursive as well. And, apart from that, for generating values of the mentioned type (<code>Even </code> in our example) they should only use the existing constructor methods.</li>
+</ul>
+<p>In a future post, we'll talk about the relation between data types algebra and definition of formal grammars...or not.</p>
+<p>Peace out!</p>

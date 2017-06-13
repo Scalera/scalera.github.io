@@ -1,0 +1,81 @@
+---
+layout: post
+title: Reading the future in Scala
+date: 2015-12-14 12:00:29.000000000 +01:00
+type: post
+published: true
+status: publish
+categories:
+- English
+tags:
+- async
+- beginner
+- future
+meta:
+  _rest_api_published: '1'
+  _rest_api_client_id: "-1"
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/676341160453914624";}}
+  _publicize_job_id: '17779588771'
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+  _edit_last: '59615419'
+  geo_public: '0'
+  _wpas_skip_10515941: '1'
+author:
+  login: dvallejonava
+  email: d.vallejo.nava@gmail.com
+  display_name: dvallejonava
+  first_name: ''
+  last_name: ''
+---
+<p style="text-align:justify;">Today we shall explore our mystic skills to try to divine the future. To do so, we will use the type <strong><em>Future</em></strong> that Scala is giving us.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/12/a7cae161ea16b893de40b46acadedad9b57373e6ebacfe9cd4bb57a32686517a.jpg" rel="attachment wp-att-971"><img class="size-medium wp-image-971 aligncenter" src="{{ site.baseurl }}/assets/a7cae161ea16b893de40b46acadedad9b57373e6ebacfe9cd4bb57a32686517a.jpg?w=300" alt="a7cae161ea16b893de40b46acadedad9b57373e6ebacfe9cd4bb57a32686517a" width="300" height="225" /></a></p>
+<p><strong>Wait, wait, what is the type Future?</strong></p>
+<p style="text-align:justify;">Scala's <em>Future</em> type is used to compute heavy operations in background so that the main execution thread remains unblocked. Within that <em>Future</em>, one or several operations will be evaluated. To do so, a parallel thread will be started.</p>
+<p style="text-align:justify;">For instance, if we woke up one day with the need to know which are the first thousand prime numbers, we would have to do something like this:</p>
+<p>[code language="scala"]</p>
+<p>def getFirstMillionOfPrimes: List[Int] = ???</p>
+<p>val f: Future[List[Int]] = Future{ getFirstMillionOfPrimes }<br />
+[/code]</p>
+<p style="text-align:justify;">Once the result of the Future is evaluated, there are mainly two ways of getting it:</p>
+<ul>
+<li style="text-align:justify;">In a <strong>blocking</strong> way: blocking the execution until the future is completed.</li>
+<li style="text-align:justify;">In a <strong>non blocking</strong> way: registering a function that will be executed once the future is completed. What has been traditionally known as a callback.</li>
+</ul>
+<p>Let's see how this would be implemented.</p>
+<p><strong>Second class fortune teller mode</strong></p>
+<p style="text-align:justify;">One of the options we had was to perform a blocking call on the future. This blocking call will wait until the future is completed and when so, it will return its result.</p>
+<p>To do so, the <strong><em>Await.result </em></strong>call is to be used:</p>
+<p>[code language="scala"]</p>
+<p>val f: Future[Int] = Future{<br />
+Thread.sleep(10000)<br />
+2<br />
+}</p>
+<p>println(Await.result(f,12.seconds))  //2<br />
+[/code]<br />
+As can be appreciated, a timeout must be defined so that the wait is not indefinitely long. In case the Future exceeds this timeout when computing the result, a timeout exception will be thrown.</p>
+<p style="text-align:justify;">This way of getting the result is not recommended since by blocking the program execution, what we are doing is just what we are trying to avoid by using the type <em>Future</em>. However, this is used sometimes, for example, in testing.</p>
+<p><strong>True fortune teller mode (with official certificate) </strong></p>
+<p style="text-align:justify;">So, how should we work with <em>Futures </em>then? Easy, with callbacks.</p>
+<p style="text-align:justify;">Callbacks will allow us to perform one or several actions once the future is solved. But here's the magic, they will do so in a non blocking way. The callback just has to be defined and then it will be called transparently when the future is completed. In the meantime, the program will continue with its execution.</p>
+<p style="text-align:justify;">In order to process the result, the types <em>Success</em> and <em>Failure</em> will be used. This is so because a <em><strong>Try</strong> </em>will be used to try to get the value of the future. We already talked about this type in another <a href="https://scalerablog.wordpress.com/2015/06/24/capturando-excepciones-en-scala-el-tipo-try/">post</a>, but let's see how this would be applied to futures:</p>
+<ul>
+<li style="text-align:justify;">If the future can perform its duty successfully, the result will be returned encapsulated in a <em>Success</em> type.</li>
+<li style="text-align:justify;">On the contrary, if something goes wrong, the generated exception will be returned encapsulated in a <em>Failure</em> type.</li>
+</ul>
+<p><img class=" size-medium wp-image-972 aligncenter" src="{{ site.baseurl }}/assets/crystal-ball-failure_300px.jpg?w=240" alt="crystal-ball-failure_300px" width="240" height="195" /></p>
+<p>And how is a callback defined? Very easily:</p>
+<p>[code language="scala"]</p>
+<p>f.onComplete( (t: Try[Int]) =&gt; println(t) )<br />
+//Success(2)</p>
+<p>[/code]</p>
+<p style="text-align:justify;">In this case, we are waiting until the future we had previously defined is completed and then, we print its result. As we have seen, that result will be encapsulated in a Try type.</p>
+<p style="text-align:justify;">Besides, we can define callbacks that will be only executed if the future goes right or wrong.</p>
+<p>[code language="scala"]</p>
+<p>f.onSuccess( n =&gt; println(n) )<br />
+//2</p>
+<p>f.onFailure( throwable =&gt; println(throwable.getMessage) )<br />
+//it will never print an error (because it equals Success(2))</p>
+<p>[/code]</p>
+<p style="text-align:justify;">All this callback thing is very useful. However, perhaps the most commonly used operations with <em>Future</em> types are transformations. By means of these transformations, we will be able to change the result of the Future without having to wait explicitly for the computed value to be obtained. Nevertheless, given the huge number of transformations that can be applied to a future, I think this issue deserves its own post. So, that's all for today. See you! :)</p>

@@ -1,0 +1,78 @@
+---
+layout: post
+title: Seeking anonymity. Anonymous classes
+date: 2015-05-29 10:09:00.000000000 +02:00
+type: post
+published: true
+status: publish
+categories:
+- English
+tags:
+- anonymous
+- beginner
+- class
+- function
+- scala
+meta:
+  _edit_last: '59615419'
+  geo_public: '0'
+  _rest_api_published: '1'
+  _rest_api_client_id: "-1"
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/604197789396910080";}}
+  _wpas_done_10515941: '1'
+  _publicize_job_id: '11123776175'
+  _publicize_done_10471757: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: dvallejonava
+  email: d.vallejo.nava@gmail.com
+  display_name: dvallejonava
+  first_name: ''
+  last_name: ''
+---
+<p><strong>What are anonymous classes?</strong></p>
+<p>As their name already suggests, anonymous classes are unnamed classes, classes that don’t have a name. They are the classes that corrupt people like the most. They are not declared… BA DUM, TSS!</p>
+<p>Now seriously, how can I create an instance from an anonymous class? Easy, simply by using the reserved word <em>new</em> and defining the body with braces.</p>
+<p>[code language="scala"]<br />
+val myPoint = new{ val x = 1; val y = 2 }<br />
+[/code]</p>
+<p>This way, we create an instance that has two integer values: <em>x</em> and <em>y</em>. However, as can be appreciated, we have given no name to this class.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/04/wtf.jpg"><img class=" size-medium wp-image-196 aligncenter" src="{{ site.baseurl }}/assets/wtf.jpg?w=300" alt="tGWoYYo" width="300" height="170" /></a></p>
+<p><strong>Syntactic sugar</strong></p>
+<p>A few weeks ago, we talked about traits and how we could create an instance from a trait by means of an anonymous class.<br />
+Perhaps at that time, a WTF the size of Sebastopol crossed your mind. If we take a look at that post, the syntax for creating an instance from a trait was something like this:</p>
+<p>[code language="scala"]<br />
+  trait AnonymousHero {<br />
+    def superpower: String<br />
+  }</p>
+<p>  val myHero = new AnonymousHero {<br />
+    def superpower = &quot;I can compile Scala with my brain&quot;<br />
+  }<br />
+[/code]</p>
+<p>We are creating an instance from a trait! They are no classes anywhere! Is this black magic? Well, no, it’s <strong>sintactic sugar</strong>.</p>
+<p>Actually, what is really going on underneath is something like this:</p>
+<p>[code language="scala"]<br />
+  class AnonymousHeroClass extends AnonymousHero {<br />
+    def superpower: String = &quot;I can compile Scala with my brain&quot;<br />
+  }</p>
+<p>  val myHero = new AnonymousHeroClass</p>
+<p>[/code]</p>
+<p>As can be seen, when instantiating a trait, what is really happening is that a class that extends that trait is created. After that, an instance of that class is created.</p>
+<p>This way, instances can be created from traits without any boilerplate code.</p>
+<p><strong>Bonus-track: Anonymous functions</strong></p>
+<p><strong>Lambda expressions</strong> can be used in Scala, that is, anonymous functions. Further on, in other posts we’ll get to the importance of the use of anonymous functions in, for instance, methods that accept functions as parameter.<br />
+Anonymous functions, just like anonymous classes, are functions that don’t need to be declared.<br />
+This is an example of anonymous function:</p>
+<p>[code language="scala"]<br />
+  (x: Int) =&gt; x + 1<br />
+[/code]</p>
+<p>In this case, the anonymous function expects an integer and returns that same integer plus one unit.</p>
+<p>We must not forget that, in Scala, functions are objects in reality. By taking this last consideration into account, we can relate anonymous functions (or lambda expressions) to anonymous classes.</p>
+<p>So, when we use the anonymous function <em>(x: Int) =&gt; x + 1</em>, what is really happening is the creation of an instance of an anonymous class from the trait <em>Function1</em>:</p>
+<p>[code language="scala"]<br />
+new Function1[Int, Int] {<br />
+  def apply(x: Int): Int = x + 1<br />
+}<br />
+[/code]</p>
+<p>Everything fits!</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/04/understand.gif"><img class=" size-medium wp-image-196 aligncenter" src="{{ site.baseurl }}/assets/understand.gif?w=300" alt="tGWoYYo" width="300" height="170" /></a></p>

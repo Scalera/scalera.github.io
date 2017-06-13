@@ -1,0 +1,37 @@
+---
+layout: post
+title: 'Spark SQL : Infiriendo un esquema común'
+date: 
+type: post
+published: false
+status: draft
+categories:
+- Castellano
+tags:
+- BigData
+- scala
+- schema
+- spark
+- StructType
+- union
+meta:
+  _edit_last: '59615419'
+  geo_public: '0'
+author:
+  login: jpaniego
+  email: javiersantospaniego@gmail.com
+  display_name: Javier S. Paniego
+  first_name: ''
+  last_name: ''
+---
+<p>[code language="scala"]<br />
+import org.apache.spark.sql.types.StructType</p>
+<p>case class Foo(a1: String, a2: Boolean)<br />
+case class Bar(a1: Int, a3: Double)</p>
+<p>val foos = List(Foo(&quot;hi&quot;, true), Foo(&quot;bye&quot;,false))<br />
+val bars = List(Bar(2,2.5), Bar(3,3.5))</p>
+<p>val fooDF = sc.parallelize(foos).toDF<br />
+val barDF = sc.parallelize(bars).toDF</p>
+<p>val st1 = fooDF.schema<br />
+val st2 = barDF.schema<br />
+[/code]</p>

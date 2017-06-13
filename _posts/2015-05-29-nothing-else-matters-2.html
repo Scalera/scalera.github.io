@@ -1,0 +1,87 @@
+---
+layout: post
+title: '"Nothing" else matters... *'
+date: 2015-05-29 10:14:02.000000000 +02:00
+type: post
+published: true
+status: publish
+categories:
+- English
+tags:
+- inference
+- medium
+- nil
+- none
+- nothing
+- scala
+- type
+meta:
+  _edit_last: '59615419'
+  geo_public: '0'
+  _publicize_job_id: '11123890324'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/604199021398237184";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: jpaniego
+  email: javiersantospaniego@gmail.com
+  display_name: Javier S. Paniego
+  first_name: ''
+  last_name: ''
+---
+<h2>What's Nothing, my precious?</h2>
+<p>Nothing is a kind of special type in Scala’s class hierarchy.</p>
+<p>To begin with, <strong>it is not instantiable</strong>: we cannot generate an instance from it by any means.</p>
+<p>Weird, isn’t it? This is understood a bit better with the second peculiarity: <strong>it is a type that extends aaaaall classes</strong>. Even those that are user defined? Even those.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/05/scala-hierarchy.png"><img class="alignnone  wp-image-294" src="{{ site.baseurl }}/assets/scala-hierarchy.png?w=300" alt="scala-hierarchy" width="624" height="385" /></a></p>
+<p>Then, what’s the use in it? The better example is <em><strong>None</strong></em>. If <em><strong>Option[T]</strong></em> weren’t covariant, we would need to define a <em><strong>None[T]</strong></em> for every <em><strong>T</strong></em>. And then, <strong><em>None[Int]</em></strong> would be different from em&gt;<strong>None[String]</strong>... you can imagine what a mess would that be!</p>
+<p>But since <em><strong>Option[+T]</strong></em> is covariant<strong>*</strong>, and <em><strong>Nothing</strong></em> a subtype of every class, we needn’t declare a <em><strong>None</strong></em> for every <em><strong>T</strong></em> in the list, but there’s only one <em><strong>None</strong></em> with the following signature:</p>
+<p>[code language="scala"]<br />
+object None extends Option[Nothing]<br />
+  //...with Product with Serializable<br />
+[/code]</p>
+<p>Same thing applies to <em><strong>Nil</strong></em>.</p>
+<h2>Type inference</h2>
+<p>When we define methods or values in Scala, at first and being quite purist, we define their type:</p>
+<p>[code language="scala"]<br />
+val myVal: String = &quot;hi&quot;<br />
+def myMethod(n: String): Boolean =<br />
+  (n % 2 == 0)<br />
+[/code]</p>
+<p>But it is quite likely that, as time goes by and after a lot of lines of code, we start forgetting to add the type that these expressions return:</p>
+<p>[code language="scala"]<br />
+val myVal = &quot;hi&quot;<br />
+def myMethod(n: String) =<br />
+  (n % 2 == 0)<br />
+[/code]</p>
+<p>Nothing happens, compiler is capable of inferring the returned types… as long as there are enough hints to figure them out. It’s in this case when the “Nothing” bogeyman menace arises.</p>
+<h2>Nothing's coming</h2>
+<p>Imagine we have a generic method like this:</p>
+<p>[code language="scala"]<br />
+def getFirstElement[T](list: List[T]): Option[T] =<br />
+  list.headOption<br />
+[/code]</p>
+<p>What this method does is to return the first element in a list (if there’s some). Where can all start to go wrong?</p>
+<p>Suppose we want to test our method on an empty list. Our experience tells us that the best way to do that is by using List’s apply method with no argument: List().<br />
+However, if we pass this as a parameter to our method:</p>
+<p>[code language="scala"]<br />
+val first = getFirstElement(List())<br />
+[/code]</p>
+<p>Let’s see what is returned:</p>
+<p>[code language="scala"]<br />
+first: Option[Nothing] = None<br />
+[/code]</p>
+<p>We shouldn’t be mean to the compiler, let’s face that we have given no facility for it to infer the correct type. We could do it simply by using the empty method of the List object:</p>
+<p>[code language="scala"]<br />
+val first = getFirstElement(List.empty[Int])<br />
+first: Option[Int] = None<br />
+[/code]</p>
+<p>though the type could also be inferred by adding the parameter type in the method call:</p>
+<p>[code language="scala"]<br />
+val first = getFirstElement[Int](List())<br />
+first: Option[Int] = None<br />
+[/code]</p>
+<p>Done! Now I think about it, this post looks a bit dull without any memes in it...</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/05/60965939.jpg"><img class=" size-full wp-image-293 aligncenter" src="{{ site.baseurl }}/assets/60965939.jpg" alt="60965939" width="250" height="250" /></a></p>
+<p><strong>*</strong> <em>Covariance</em>: <strong>C[T]</strong> is said to be covariant in <strong>T</strong>, if given a certain<strong>V&lt;:T</strong>, then <strong>C[V]&lt;:C[T]</strong> . This issue will be treated in detail in future (but not that remote) posts :-)</p>

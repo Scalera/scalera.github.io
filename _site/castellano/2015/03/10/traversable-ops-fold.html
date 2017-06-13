@@ -1,0 +1,36 @@
+<p>Esta es la primera de una serie de entradas relacionadas con las operaciones más comunes en el mundo de la programación funcional con Scala: las operaciones pertenecientes a la API de Traversable.</p>
+<p><strong>Traversable</strong> se considera la base para todas las colecciones de Scala y se caracteriza principalmente por dos rasgos:</p>
+<ul>
+<li><em>Strictness</em>: Todos los elementos tienen que ser computados previamente para poder manejarlos como valores.</li>
+<li><em>Orderness</em>: Los elementos mantienen una relación de orden entre ellos</li>
+</ul>
+<p>Hay otro tipo de colecciones como los Streams, de evaluación perezosa, pero no perdamos el foco. Hoy hablaremos sobre el fold...sin ponernos nerviosos, ni colapsar.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/03/nly1wxv.gif"><img class="alignnone size-full wp-image-91" src="/assets/nly1wxv.gif" alt="nlY1Wxv" width="227" height="158" /></a></p>
+<p>Supongamos que queremos concatenar los números del 1 al 5 en una cadena de texto, obteniendo el resultado "My numbers are: 12345", ¿cuál sería la primera aproximación? Podría ser algo del estilo</p>
+<p>[sourcecode language="scala"]<br />
+var initial: String = &quot;My numbers are: &quot;<br />
+for(i &lt;- 1 to 10){<br />
+  initial = initial + i.toString<br />
+}<br />
+[/sourcecode]</p>
+<p>Funcionaría. Pero os podéis imaginar lo feas que quedan las variables.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/03/40hylzx.gif"><img class="alignnone size-medium wp-image-72" src="/assets/40hylzx.gif?w=300" alt="40HYLZX" width="300" height="214" /></a></p>
+<p>No os preocupéis. La operación que os proponemos para sustituir el bucle anterior es fold, que tiene dos variantes: <strong>foldLeft</strong> y <strong>foldRight</strong>. Mientras que la primera operación ejecuta elemento a elemento del Traversable de manera iterativa, la segunda lo hace de manera recursiva, por tanto se recomienda evitarla si la colección sobre la que ejecutamos el foldRight tiene un tamaño considerable. Nos centraremos pues en la primera operación.</p>
+<p>La notación del <strong>foldLeft</strong> para un cierto Traversable[T] es</p>
+<p>[sourcecode language="scala"]<br />
+def foldLeft[U](zero: U)(f: (U,T) =&gt; U): U<br />
+[/sourcecode]</p>
+<p>dicho así puede parecer dificil de ver. Apliquemos la operación al ejemplo anterior:</p>
+<p>El elemento 'zero' en este caso, sería la cadena inicial de tipo String "My numbers are: "<br />
+Y la función a aplicar para cada par de String, Int sería la concatenación.</p>
+<p>Por tanto seríamos capaz de expresar el primer snippet de código, sin hacer uso de variables, de la siguiente forma:</p>
+<p>[sourcecode language="scala"]<br />
+(1 to 5).foldLeft(&quot;My numbers are: &quot;)(<br />
+  (accumulator,iterator) =&gt; accumulator + iterator.toString)<br />
+[/sourcecode]</p>
+<p>Para aquellos que creais que esta sintaxis es demasiado mainstream, hay una notación alternativa que permite realizar la misma operación de la siguiente forma:</p>
+<p>[sourcecode language="scala"]<br />
+(&quot;My numbers are: &quot; /: (1 to 5))((accumulator,iterator) =&gt;<br />
+  accumulator + iterator.toString)<br />
+[/sourcecode]</p>
+<p>Fácil, sencillo y para toda la familia :-)</p>

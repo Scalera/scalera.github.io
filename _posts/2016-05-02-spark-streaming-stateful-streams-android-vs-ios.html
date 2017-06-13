@@ -1,0 +1,106 @@
+---
+layout: post
+title: 'Spark Streaming: stateful streams (Android vs IOS?)'
+date: 2016-05-02 12:00:01.000000000 +02:00
+type: post
+published: true
+status: publish
+categories:
+- English
+tags:
+- BigData
+- spark
+- state
+- stateful
+- stream
+- streaming
+- update
+- updateByKey
+meta:
+  _edit_last: '59615419'
+  geo_public: '0'
+  _publicize_job_id: '22390481483'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/727077840944930820";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: jpaniego
+  email: javiersantospaniego@gmail.com
+  display_name: Javier S. Paniego
+  first_name: ''
+  last_name: ''
+---
+<p>If you remember the post where we talk about how to <a href="https://scalerablog.wordpress.com/2016/04/11/spark-streaming-twitter-analytics-to-ones-taste/" target="_blank">connect Spark Streaming and Twitter</a>, we said that the limit for performing analytics was up to your imagination. </p>
+<p>In this post we're going to propose some example that works for illustrating the idea of keeping a state based on the defined stream feed. Speaking plainly, we'll see how popular is some Twitter topic compared to another one: Android vs IOS.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/04/appleandroid.jpg" rel="attachment wp-att-2642"><img src="{{ site.baseurl }}/assets/appleandroid.jpg?w=700" alt="appleandroid" width="700" height="280" class="aligncenter size-large wp-image-2642" /></a></p>
+<h2>Stateful</h2>
+<p>The main idea is to have some S entity which state is fed by V-typed elements that are received and processed for each batch in the stream.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/04/stateful-stream.png" rel="attachment wp-att-2634"><img src="{{ site.baseurl }}/assets/stateful-stream.png?w=700" alt="stateful stream" width="700" height="370" class="aligncenter size-large wp-image-2634" /></a></p>
+<p>The way that the state is updated for a concrete instant <strong>Tn</strong> is by applying a user defined function that takes as parameters both the state that was at <strong>Tn-1</strong> instant and the value set that provides the batch received at <strong>Tn</strong> instant:</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/04/updatestate-function-2.jpg" rel="attachment wp-att-2309"><img src="{{ site.baseurl }}/assets/updatestate-function-2.jpg" alt="updateState function (2)" width="700" height="200" class="aligncenter size-full wp-image-2309" /></a></p>
+<p>A more casual notation for a common 'scalero' would be</p>
+<p>[code language="scala"]<br />
+type StateUpdate[S] =<br />
+  (Option[S],Seq[V]) =&gt; Option[S]<br />
+[/code]</p>
+<p>Why <code>Option[S]</code>? For a good main reason: initially, when we first start listening on the stram, we don't have any <code>S</code> state, so a <code>(S,Seq[V]) =&gt; S</code> function wouldn't make sense.</p>
+<h2>And in practice?</h2>
+<p>Spark's API for pair DStreams (<code>PairDStreamFunctions</code>) provides the following method for doing so:</p>
+<p>[code language="scala"]<br />
+def updateStateByKey[S]<br />
+  (updateFunc: (Seq[V], Option[S]) ⇒ Option[S])<br />
+  (implicit arg0: ClassTag[S]): DStream[(K, S)]<br />
+[/code]</p>
+<p>So for a <code>DStream</code> which is able to classify the elements by using a function that provides a key (we'll see an example later on), we'll be able to apply this method and get an <code>S</code> state (most of the cases, this state will refer to some aggregation over the values) for each key.</p>
+<p>The method is overloaded, so you can specify a different partition apart from <code>HashPartitioner</code>, indicate a custom partition number or set an initial state (<code>RDD[(K,S)]</code>. Remember that, otherwise, initially our state for all <code>K</code> keys will be <code>None</code>).</p>
+<h2> The example </h2>
+<p>Let's suppose we want to measure how strong is the rivalry between Android and IOS and we want to know which is the top trending topic at Twitter (in this example we won't distinguish between against and in favour mentions).</p>
+<p>Using the same project we proposed for the <a href="https://scalerablog.wordpress.com/2016/04/11/spark-streaming-twitter-analytics-to-ones-taste/" target="_blank">previous Spark + Twitter example</a>, we'll change the <code>Boot.scala</code> file so it looks like more to <a href="https://gist.github.com/JSantosP/38883bf8efbb15b6f4b1eec972c64b1d" target="_blank">the following gist</a> contents.</p>
+<p>At first place, we have to enable the checkpointing dir and tweet filters that we are interested in:</p>
+<p>[code language="scala"]<br />
+  //  Set checkpoint dir</p>
+<p>  ssc.checkpoint(&quot;/tmp&quot;)</p>
+<p>  //  Add filters ...</p>
+<p>  val Android = &quot;android&quot;<br />
+  val IOS = &quot;ios&quot;</p>
+<p>  filter(<br />
+    Android,<br />
+    IOS<br />
+  )<br />
+[/code]</p>
+<p>We'll next group our tweets based on whether these tweets contain the 'Android' or 'IOS' filter (if the tweet contains both, it will be counted in both sides). The result we get is another <code>DStream</code> but that contains key-value pairs (filter-tweet):</p>
+<p>[code language="scala"]<br />
+val groupedTweets = stream.flatMap{content =&gt;<br />
+  List(Android, IOS).flatMap(key =&gt;<br />
+    if (content.getText.contains(key))<br />
+      Option(key -&gt; content)<br />
+    else None)<br />
+  }<br />
+[/code]</p>
+<p>Once we have grouped the tweets, we create a new <code>DStream</code> from the previous one by using the function we defined at the beginning of this post <code>updateStateByKey</code>, so the <code>S</code> state that we were talking about would be the sum of tweets for each key word: </p>
+<p>[code language="scala"]<br />
+val aggregatedTweets: DStream[(String,Long)] =<br />
+  groupedTweets.updateStateByKey{<br />
+    (newTweets, previousState) =&gt;<br />
+      val newTweetsAmount = newTweets.size.toLong<br />
+      previousState.fold(<br />
+        Some(newTweetsAmount))(previousSize =&gt;<br />
+        Some(previousSize + newTweetsAmount))<br />
+  }<br />
+[/code]</p>
+<p>The only 'tricky' part to understand could be the <code>fold</code> code part, but it's simple. It actually indicates that, in case of having a previous amount (previous state) we just add the new amount to it. Otherwise, we use the new amount.</p>
+<p>Apart from this, we make our snippet work by printing these figures and we start listening at the stream:</p>
+<p>[code language="scala"]<br />
+//  And add actions to perform (like printing the aggregatedTweets) ...</p>
+<p>aggregatedTweets.foreachRDD{ results =&gt;<br />
+  results.foreach{<br />
+    case (team, amount) =&gt;<br />
+      logger.info(s&quot;&gt;&gt;&gt; $team : $amount&quot;)<br />
+  }<br />
+}</p>
+<p>// ... and begin listening</p>
+<p>listen()<br />
+[/code]</p>
+<p>Can you think about another way to make the stream more interesting? Playing with tweets geo-location on a heat map, for example? ;-)</p>
+<p>Easy peasy!</p>

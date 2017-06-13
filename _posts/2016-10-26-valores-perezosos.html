@@ -1,0 +1,128 @@
+---
+layout: post
+title: Valores perezosos
+date: 2016-10-26 12:00:50.000000000 +02:00
+type: post
+published: true
+status: publish
+categories:
+- Castellano
+tags:
+- by-name
+- by-value
+- laziness
+- lazy
+- state
+- stateful
+- val
+meta:
+  _edit_last: '59615419'
+  geo_public: '0'
+  draftfeedback_requests: a:1:{s:13:"58051c002956f";a:3:{s:3:"key";s:13:"58051c002956f";s:4:"time";s:10:"1476729856";s:7:"user_id";s:8:"59615419";}}
+  draft_feedback: |-
+    a:1:{s:13:"58051c002956f";a:1:{i:0;a:2:{s:4:"time";s:10:"1476774359";s:7:"content";s:316:"Remarcaría que la violación de la RT se debe al println y no al hecho de ser lazy.
+
+    Añadiría un warning en plan: "cuidadín el paso de valor por nombre porque la evaluación se da tantas veces como referencias al valor se hagan dentro de la función y esto puede salir caro .. o algo"
+
+
+    Again, cool as it gets.
+
+    ";}}}
+  _publicize_job_id: '28247559172'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/791218825475657728";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: jpaniego
+  email: javiersantospaniego@gmail.com
+  display_name: Javier S. Paniego
+  first_name: ''
+  last_name: ''
+---
+<p>Por si hubieras estado en un agujero durante los últimos 10 años y no lo supieras, Scala permite gestionar valores de evaluación perezosa. </p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/10/image.png"><img src="{{ site.baseurl }}/assets/image.png?w=300" alt="image" width="300" height="213" class="aligncenter size-medium wp-image-4293" /></a></p>
+<p>En Scala, podemos definir un valor que no será evaluado hasta que se le llame de manera explícita. Por ejemplo:</p>
+<p>[code language="scala"]<br />
+lazy val myLazyInt: Int = { println(&quot;hi&quot;); 2 }<br />
+[/code]</p>
+<p>Como podéis ver, usando la notación <code>lazy</code> hemos definido de manera perezosa un entero que vale 2 y que imprime un 'hola' cuando se evalúa.<br />
+Aparte de haber violado la gran ley de la programación funcional (transparencia referencial) debido al infame <code>println</code>, side effects, muerte, destrucción, blah blah ...</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/10/anigif_enhanced-1822-1407333641-6.gif"><img src="{{ site.baseurl }}/assets/anigif_enhanced-1822-1407333641-6.gif" alt="anigif_enhanced-1822-1407333641-6" width="500" height="263" class="aligncenter size-full wp-image-4292" /></a></p>
+<p>fijaros que si ejecutamos el fragmento de código, dicho println no se ejecuta.<br />
+No es sino hasta que otra expresión hace uso de nuestro entero perezoso, que no se ejecuta el bloque:</p>
+<p>[code language="scala"]<br />
+val result = myLazyInt + 3<br />
+//woa! somebody printed 'hi' and I have a brand new 5 inside 'result'<br />
+[/code]</p>
+<p>Una vez calculado <code>myLazyInt</code>, su valor no volverá a calcularse independientemente de cuantas veces se invoque. Es decir, ya no volverá a aparecer una misteriosa impresión que nos saluda:</p>
+<p>[code language="scala"]<br />
+lazy val myLazyInt: Int = { println(&quot;hi&quot;); 2 }<br />
+myLazyInt<br />
+//&quot;hi&quot;<br />
+myLazyInt //nothing special happened now ...<br />
+myLazyInt //no matter how many times you invoke it...<br />
+myLazyInt //seriously, let it go...<br />
+[/code]</p>
+<p>Curioso. La cuestión es, si yo defino un valor perezoso y lo paso a un método como argumento, ¿qué ocurre? ¿Se evalúa en el momento en que se invoca la función?¿Quizás dentro del cuerpo de la función? Eso dependerá de cómo definas los argumentos de tu método.</p>
+<h2>Call by name vs. call by value</h2>
+<p>Al definir un método, por lo general, definimos sus argumentos <strong>'by-value'</strong>, es decir, esperamos que el argumento ya se encuentre evaluado al pasarse al método:</p>
+<p>[code language="scala"]<br />
+def myMethod(someInteger: Int): Int = {<br />
+  println(&quot;begin&quot;)<br />
+  val result = someInteger + 2<br />
+  println(&quot;end&quot;)<br />
+  result<br />
+}<br />
+[/code]</p>
+<p>Si invocamos nuestro método con un número entero cualquiera:</p>
+<p>[code language="scala"]<br />
+val n = 3<br />
+val result = myMethod(n)<br />
+//&quot;begin&quot;<br />
+//&quot;end&quot;<br />
+require(result == 5)<br />
+[/code]</p>
+<p>Imprimimos nuestras dos trazas y ya está. Hasta aquí nada nuevo.<br />
+¿Qué ocurre ahora si le pasamos nuestro valor perezoso?¿En qué momento imprimirá "hi"?¿Antes o después de las trazas del método?<br />
+Probemos:</p>
+<p>[code language="scala"]<br />
+myMethod(myLazyInt)<br />
+//&quot;hi&quot;<br />
+//&quot;begin&quot;<br />
+//&quot;end&quot;<br />
+[/code]</p>
+<p>Lo imprimió antes, es decir, nuestro valor perezoso se evaluó antes de invocarse el método. ¿Esto por qué ocurre? Porque Scala, para poder ejecutar <code>myMethod</code>, necesita saber el valor de <code>someInteger</code>.<br />
+Es un fastidio si queremos mantener la evaluación de <code>myLazyInt</code> perezosa hasta el final. ¿Cómo lo solucionamos? Pasando el argumento <strong>'by-name'</strong>, es decir, indicando cómo se resolverá en el futuro el valor, pero sin pasar el valor de manera explícita:</p>
+<p>[code language="scala"]<br />
+def myMethod(someInteger: =&gt; Int): Int = {<br />
+  println(&quot;begin&quot;)<br />
+  val result = someInteger + 2<br />
+  println(&quot;end&quot;)<br />
+  result<br />
+}<br />
+[/code]</p>
+<p>De esta forma (<code>someInteger: =&gt; Int</code>) indicamos que le vamos a nuestro método como argumento una expresión que devolverá un entero (que no un entero). Si ahora ejecutamos el método pasándole nuestro valor perezoso no-evaluado:</p>
+<p>[code language="scala"]<br />
+myMethod(myLazyInt)<br />
+//&quot;begin&quot;<br />
+//&quot;hi&quot;<br />
+//&quot;end&quot;<br />
+[/code]</p>
+<p><em>Voilà</em>! No es hasta el último momento en que se requiere el valor dentro del método, que no se evalúa nuestro entero perezoso. </p>
+<h2>Otras formas de expresar laziness</h2>
+<p>Otra forma que nos puede resultar muy útil para denotar que una expresión se evalúa de manera perezosa, es el tipo <code>Function0</code>:</p>
+<p>[code language="scala"]<br />
+trait Function0[+R]{<br />
+  def apply(): R<br />
+}<br />
+[/code]</p>
+<p>Se trata de una función que recibe 0 argumentos y devuelve un tipo de salida. Normalmente se suele notar como sigue:</p>
+<p>[code language="scala"]<br />
+val f: () =&gt; Int =<br />
+  () =&gt; 2<br />
+f.apply() //2<br />
+[/code]</p>
+<p>No hay mucho más misterio...Una vez comprendido a grandes rasgos el funcionamiento de la evaluación perezosa en Scala, pasemos a cuestiones más interesantes...¿Un <code>Lazy</code> es algo con estado?<br />
+La respuesta (o más preguntas) en el próximo post.</p>
+<p>¡Agur de limón!</p>

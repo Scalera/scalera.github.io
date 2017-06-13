@@ -1,0 +1,37 @@
+<p style="text-align:justify;">Hoy hablaremos de la recursividad. ¿No sabés lo que es la recursividad? No te preocupes, hoy hablaremos de la recursividad. ¿No sábes lo que es la recursividad? No te preocupes, hoy hablaremos de la recursividad. ¿No sabes lo que es la recursividad? No te preocupes, hoy hablaremos de la recursividad. ¿No sa....bueno, como broma ya está bien :)</p>
+<p style="text-align:justify;">Debido a que Scala es un lenguaje que, a pesar de ser orientado a objetos, su verdadero potencial reside en gran parte en su parte funcional, es normal que la recursividad sea un factor importante. Sin embargo, aún más importante es generar las llamadas recursivas de forma correcta para no provocar un <strong>stack overflow</strong>.</p>
+<blockquote>
+<p style="text-align:justify;">Stack Overflow: además de una página bastante famosa, es lo que ocurre cuando realizamos tantas llamadas recursivas que la pila de memoria se llena.</p>
+</blockquote>
+<p><img class="  wp-image-2830 aligncenter" src="/assets/szpjhwz.jpg" alt="szpjhwz" width="203" height="267" /></p>
+<p style="text-align:justify;">Para generar las llamadas recursivas de forma correcta es necesario que la función sea <strong>tail-recursive</strong>. Esto quiere decir, que la función no necesita guardarse nada en memoria a la espera del resultado de la llamada recursiva. De esta forma no se provocará un overflow de la pila. También puede verse como una función que en el caso recursivo solamente se llama a si misma con distintos argumentos. Ejemplos de funciones que no cumplen la condición tail-recursive son aquellas en las que se realizan operaciones con los resultados de las llamadas recursivas. Por ejemplo, la función factorial codificada de la siguiente manera:</p>
+<p>[code language="scala"]<br />
+def factorial(n: Int): Int =<br />
+  if (n &lt;= 1) 1<br />
+  else n * factorial(n - 1)<br />
+[/code]</p>
+<p style="text-align:justify;">al estar multiplicada la llamada por n, no cumplirá una recursividad tail-recursive</p>
+<p style="text-align:justify;"><strong>¿Y cómo saber si una función es tail-recursive?</strong> Scala nos lo pone fácil. Podemos añadir la anotación tailRecursive en dicha función para que en caso de que no se haya codificado de forma tail-recursive, Scala nos devuelva un error de compilación. El compilador nos hace el trabajo :)</p>
+<p style="text-align:justify;">Vamos a ver como lo haríamos con la función que nos devuelve el elemento n de la sucesión de Fibonacci (un clásico). En primer lugar sin tail-recursive:</p>
+<p>[code language="scala"]<br />
+@annotation.tailrec<br />
+def fibonacci(n : Int) : Int = n match {<br />
+  case 0 | 1 =&gt; n<br />
+  case _ =&gt; fibonacci( n-1 ) + fibonacci( n-2 )<br />
+}<br />
+[/code]</p>
+<p>Esto nos devuelve un error de compilación tal que así:</p>
+<blockquote><p><em>"could not optimize @tailrec annotated method fibonacci: it contains a recursive call not in tail position"</em></p></blockquote>
+<p style="text-align:justify;">Sin embargo, si pensamos un poco más podremos conseguir la misma función mucho más eficiente :)</p>
+<p>[code language="scala"]<br />
+def fibonacci(n: Int): Int = {</p>
+<p>  @annotation.tailrec<br />
+  def loop(i: Int, previous: Int, current: Int): Int =<br />
+    if (i == 0) previous<br />
+    else loop(i - 1, current, previous + current)</p>
+<p>  loop(n, 0, 1)<br />
+}<br />
+[/code]</p>
+<p style="text-align:justify;">En este caso no habrá ningún error de compilación.</p>
+<p><img class="  wp-image-2831 aligncenter" src="/assets/28b5865ebe59280d5c3ed18fc1147964309d9d0c81663c0c3f81d42fc5979c8f.jpg" alt="28b5865ebe59280d5c3ed18fc1147964309d9d0c81663c0c3f81d42fc5979c8f" width="382" height="247" /></p>
+<p style="text-align:justify;">Y hasta aquí este post. Y hasta aquí este post. Y hasta aquí este ...</p>

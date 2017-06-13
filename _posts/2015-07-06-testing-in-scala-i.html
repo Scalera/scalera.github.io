@@ -1,0 +1,128 @@
+---
+layout: post
+title: Testing in Scala (I)
+date: 2015-07-06 12:00:18.000000000 +02:00
+type: post
+published: true
+status: publish
+categories:
+- English
+tags:
+- beginner
+- flatspec
+- matchers
+- must
+- props
+- scala
+- scalatest
+- should
+- spec
+- test
+meta:
+  _edit_last: '59615419'
+  geo_public: '0'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/617998047482490880";}}
+  _publicize_job_id: '12424867893'
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: jpaniego
+  email: javiersantospaniego@gmail.com
+  display_name: Javier S. Paniego
+  first_name: ''
+  last_name: ''
+---
+<p>One of the elements that we haven't spoken about before, and however, it turns to be one of the essentials, is testing in Scala and its frameworks.</p>
+<p>Although JVM integration allows the use of testing frameworks based on Java, like <a href="http://junit.org/" target="_blank">JUnit</a>, we will highlight two based on Scala: Scalatest y Scalacheck.</p>
+<p>As you will see, there's no need to be an expert to use them:</p>
+<p><img class="aligncenter" src="{{ site.baseurl }}/assets/4f3508f3e3.gif" alt="" width="219" height="210" /></p>
+<p>In this post, we will focus on the first of them.</p>
+<h2>ScalaTest</h2>
+<p>It's a versatile testing framework that allows testing both Java and Scala code. It's also remarkable its integration with powerful tools such as JUnit, TestNG, Ant, Maven, sbt, ScalaCheck, JMock, EasyMock, Mockito, ScalaMock, Selenium (browser testing automation), ...</p>
+<p>We suggest you to follow the next step to start using ScalaTest:</p>
+<h3>0. Create your flashing domain class.</h3>
+<p>[code language="scala"]<br />
+case class Foo(n: Int){<br />
+  def +(m: Int): Foo = Foo(n+m)<br />
+  def -(m: Int): Foo = Foo(n-m)<br />
+}<br />
+[/code]</p>
+<h3>1. Add Scalatest dependency to your SBT project.</h3>
+<p>[code language="scala"]<br />
+libraryDependencies += &quot;org.scalatest&quot; %% &quot;scalatest&quot; % &quot;2.2.4&quot; % &quot;test&quot;<br />
+[/code]</p>
+<p>...or the equivalent in Maven:</p>
+<p>[code language="scala"]<br />
+&lt;dependency&gt;<br />
+  &lt;groupId&gt;org.scalatest&lt;/groupId&gt;<br />
+  &lt;artifactId&gt;scalatest_2.11&lt;/artifactId&gt;<br />
+  &lt;version&gt;2.2.4&lt;/version&gt;<br />
+  &lt;scope&gt;test&lt;/scope&gt;<br />
+&lt;/dependency&gt;<br />
+[/code]</p>
+<h3>2. Choose your favourite testing stile...and create a base class for testing.</h3>
+<p>Scalatest offers several <a href="http://www.scalatest.org/user_guide/selecting_a_style" target="_blank">testing styles</a>: property-based tests (PropSpec), descripted-language-based testing (WordSpec), simple styles (FunSpec), ...<br />
+For this example, we will choose a pretty legible testing style like FlatSpec.<br />
+It's quite recommendable to define a <b>base class</b> that gather all traits that we will use for our test classes, just in order to reuse that base class without too much boilerplate.</p>
+<p>[code language="scala"]<br />
+abstract class MyTestClass(<br />
+  entityToTest: String) extends FlatSpec<br />
+  with Matchers {</p>
+<p>  behavior of entityToTest</p>
+<p>}<br />
+[/code]</p>
+<p>The line</p>
+<p>[code language="scala"]behavior of entityToTest[/code]</p>
+<p>sets the name of the behavior that we are defining in our test class. Most of all, it's due to pretty-printing.</p>
+<p>Besides all this stuff, if we extend trait <b>Matchers</b>, we are able to express assertions to check like:</p>
+<p>[code language="scala"]<br />
+val n = 2<br />
+n should equal(1+1)<br />
+n should be(3-1)<br />
+n must be(0+2)<br />
+//...<br />
+[/code]</p>
+<h3>3. Define the suitable test for your domain class.</h3>
+<p>We will check the test cases like this:</p>
+<p>[code language="scala"]<br />
+class FooTest extends MyTestClass(&quot;A Foo&quot;) {</p>
+<p>  it should &quot;add some value to its attribute N&quot; in {<br />
+    val myFoo = Foo(0)<br />
+    (myFoo + 2) should equal(Foo(2))<br />
+    val anotherFoo = Foo(5)<br />
+    (anotherFoo + 3) should equal(Foo(8))<br />
+  }</p>
+<p>  it should &quot;substract some value to N&quot; in {<br />
+    val myFoo = Foo(3)<br />
+    (myFoo - 2) should equal(Foo(1))<br />
+    (Foo(0) - 5) should equal(Foo(-5))<br />
+  }</p>
+<p>}<br />
+[/code]</p>
+<p>Notice that test cases' definitions are descriptive enough and provide such an ease to understand the behavior of <b>Foo</b> only by reading them.</p>
+<h3>4. Launch your test</h3>
+<p>From SBT:</p>
+<p>[code language="scala"]<br />
+test<br />
+[/code]</p>
+<p>Output should look like this:</p>
+<p>[code]<br />
+Discovery starting.<br />
+Discovery completed in 34 milliseconds.<br />
+Run starting. Expected test count is: 2<br />
+FooTest:<br />
+A Foo<br />
+- should add some value to its attribute N<br />
+- should substract some value to N<br />
+Run completed in 61 milliseconds.<br />
+Total number of tests run: 2<br />
+Suites: completed 1, aborted 0<br />
+Tests: succeeded 2, failed 0, canceled 0, ignored 0, pending 0<br />
+All tests passed.<br />
+[/code]</p>
+<h3>5. Rock and roll</h3>
+<p><a href="https://scalerablog.files.wordpress.com/2015/07/b784c8abf46a00e87ee8365535645ba0.gif"><img class="aligncenter size-medium wp-image-514" src="{{ site.baseurl }}/assets/b784c8abf46a00e87ee8365535645ba0.gif?w=300" alt="b784c8abf46a00e87ee8365535645ba0" width="300" height="225" /></a></p>
+<p>[code language="scala"]<br />
+thisPost.isAwesome should be(true)<br />
+[/code]</p>

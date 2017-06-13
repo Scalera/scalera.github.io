@@ -1,0 +1,116 @@
+---
+layout: post
+title: Scala Jet Streams
+date: 2015-09-30 12:00:27.000000000 +02:00
+type: post
+published: true
+status: publish
+categories:
+- Castellano
+tags:
+- collection
+- iterator
+- jet
+- lazy
+- scala
+- stream
+- traversable
+- weather
+meta:
+  _edit_last: '59615419'
+  geo_public: '0'
+  _publicize_job_id: '15318418690'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/649163101590294530";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: jpaniego
+  email: javiersantospaniego@gmail.com
+  display_name: Javier S. Paniego
+  first_name: ''
+  last_name: ''
+---
+<p>A veces ocurre que, al obtener el resultado de un método que devuelve una colección, esta puede tener un tamaño considerable y además el proceso de computar dicha colección es lento o muy costoso. Por otra parte, si luego no vamos a procesar todos los elementos o si la colección no es finita (series numéricas), no podemos emplear colecciones convencionales.</p>
+<p>Supongamos que queremos implementar un sistema de información atmosférica en tiempo real. Podemos ver el proceso de consulta como el típico bucle infinito:</p>
+<p>[code language="scala"]</p>
+<p>case class Weather(<br />
+  tempCelsius: Float,<br />
+  humidity: Double)</p>
+<p>def checkWeather(): Weather = {<br />
+  /* Some request to a web service<br />
+   * or access some weather station device.<br />
+   * We'll mock it.<br />
+   */<br />
+   import scala.util.Random<br />
+   Weather(<br />
+     Random.nextFloat() * 100 % 40,<br />
+     Random.nextDouble() % 1)<br />
+}</p>
+<p>type WeatherHandler[T] = Weather =&gt; T</p>
+<p>val handler: WeatherHandler[Unit] = println</p>
+<p>while(true){<br />
+  handler.apply(checkWeather())<br />
+}</p>
+<p>[/code]</p>
+<p>O podemos asumir que el tiempo atmosférico es una colección infinita de mediciones en momentos concretos.</p>
+<p>[code language="scala"]</p>
+<p>val weather: TraversableOnce[Weather] = ???</p>
+<p>for (value &lt;- weather) handler.apply(value)</p>
+<p>[/code]</p>
+<p>De esta manera, también podríamos modificar dicha colección mediante un <code>map</code> para obtener solo las temperaturas, por ejemplo:</p>
+<p>[code language="scala"]<br />
+val extractTemperature: WeatherHandler[Float] =<br />
+  _.tempCelsius</p>
+<p>val onlyTemperatures: TraversableOnce[Float] =<br />
+  weather.map(extractTemperature)</p>
+<p>[/code]</p>
+<p>Veamos de que maneras podemos obtener dicho comportamiento.</p>
+<h2>Iterators</h2>
+<p>Una primera aproximación podría ser implementar el trait <code>Iterator[+A]</code>:</p>
+<p>[code language="scala"]<br />
+object weather extends Iterator[Weather]{</p>
+<p>  def hasNext() = true</p>
+<p>  def next(): Weather = checkWeather()</p>
+<p>}<br />
+[/code]</p>
+<p>Dado que nuestro iterador no termina nunca, el valor de <code>hasNext()</code> es siempre <code>true</code>. Cada vez que invoquemos al método <code>next()</code> obtendremos un nuevo valor de tipo <code>Weather</code> (esto puede implicar realizar una llamada a cierto web service o invocar un método de una central metereológica).</p>
+<p>Fácil. No obstante, también podemos usar otro tipo de colecciones de Scala denominado Stream...</p>
+<h2>Streams</h2>
+<p>Podemos denominar a los Streams como colecciones ordenadas cuyos valores se evaluan de manera 'lazy'.<br />
+Si por ejemplo definimos la serie númerica que compone los números enteros tenemos que:</p>
+<p>[code language="scala"]<br />
+val integers: Stream[Int] = {</p>
+<p>  def loop(v: Int): Stream[Int] =<br />
+    v #:: loop(v + 1)</p>
+<p>  loop(0)</p>
+<p>}<br />
+[/code]</p>
+<p>Como podéis ver, el símbolo <code>#::</code> sirve para añadir un elemento al principio de un <code>Stream</code>. Si ejecutamos:</p>
+<p>[code language="scala"]<br />
+integers.head<br />
+integers.take(2).toArray<br />
+[/code]</p>
+<p>obtendremos el primer elemento del Stream y los dos primeros. </p>
+<p>Podemos aplicar sobre este stream todas las operaciones que aplican a las colecciones de Scala (Traversable):</p>
+<p>[code language="scala"]<br />
+integers<br />
+  .filter(_ % 2 == 0)<br />
+  .take(5)<br />
+  .toArray //Array(0, 2, 4, 6, 8)</p>
+<p>integers<br />
+  .takeWhile(_ &lt; 5)<br />
+  .toArray //Array(0, 1, 2, 3, 4)<br />
+[/code]</p>
+<p>Fijaos que hasta que no invocamos el método <code>toArray</code>, no se evaluan los streams resultantes de las transformaciones aplicadas (filter, take, ...)</p>
+<p>Si ahora lo aplicamos a nuestro servicio meteorológico:</p>
+<p>[code language="scala"]<br />
+val weather: Stream[Weather] = {</p>
+<p>  def loop(): Stream[Weather] =<br />
+    checkWeather() #:: loop</p>
+<p>  loop</p>
+<p>}<br />
+[/code]</p>
+<p>obtenemos un Stream en cuyo interior definimos el método <code>loop()</code> que define como se va a evaluar el Stream (invocando al método <code>checkWeather()</code>). </p>
+<p>Y nada más. Así de sencillo.</p>
+<p>¡Que tiemble Maldonado!</p>

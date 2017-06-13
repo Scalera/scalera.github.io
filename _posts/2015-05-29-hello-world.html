@@ -1,0 +1,76 @@
+---
+layout: post
+title: Hello World! *
+date: 2015-05-29 10:03:00.000000000 +02:00
+type: post
+published: true
+status: publish
+categories:
+- English
+tags:
+- app
+- beginner
+- hello
+- object
+- sbt
+- scala
+- world
+meta:
+  _edit_last: '59615419'
+  geo_public: '0'
+  _rest_api_published: '1'
+  _rest_api_client_id: "-1"
+  _publicize_job_id: '11123754639'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/604197555207983105";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: dvallejonava
+  email: d.vallejo.nava@gmail.com
+  display_name: dvallejonava
+  first_name: ''
+  last_name: ''
+---
+<p>What’s the first thing that we usually do when we start learning a programming language? That’s it, a ‘Hello World’. In order to implement it in Scala, we first need to know two basics:</p>
+<ul>
+<li>How can we make executable applications?</li>
+</ul>
+<p>Easy! We just need an object that inherits from <strong><em>App</em></strong>. The reserved word <strong><em>object</em></strong> is used to define an object. The reserved word <strong>extends</strong> is used to implement inheritance.</p>
+<ul>
+<li>How can we print a message on the screen?</li>
+</ul>
+<p>We might want to use a brief and easy-to-type name such as <em>System.out.println</em>, but unfortunately we have to be content with <strong><em>println</em></strong> function.</p>
+<p>So, now that we have our two main ingredients, let’s go with it:</p>
+<p>[code language="scala"]</p>
+<p>object HelloWorld extends App {</p>
+<p>  println(&quot;Hello World!&quot;)</p>
+<p>}</p>
+<p>[/code]</p>
+<p>Ok… and now, how do I run it?</p>
+<p>The first thing to be done is to add an extension to our wonderful first source file. Unexpectedly, in a display of unparalleled originality, the extension of Scala source files is <em>.scala</em>.</p>
+<p>Once we have the source file, we need some tools to work with it. The first option to build and run Scala code is <strong>SBT</strong> (Simple Build Tool). It is similar to Maven or Ant. It allows us to add dependencies and set the Scala version we want to work with. Some IDEs such as Intellij use it as a built in.</p>
+<p>How to install SBT?</p>
+<ul>
+<li><a title="MAC" href="http://www.scala-sbt.org/release/tutorial/Installing-sbt-on-Mac.html" target="_blank">MAC</a></li>
+<li><a title="LINUX" href="http://www.scala-sbt.org/release/tutorial/Installing-sbt-on-Linux.html" target="_blank">LINUX</a></li>
+<li><a title="Windows" href="http://www.scala-sbt.org/release/tutorial/Installing-sbt-on-Windows.html" target="_blank">WINDOWS</a></li>
+</ul>
+<p>Which are the basic SBT commands?</p>
+<ul>
+<li><strong><em>compile</em></strong>: compiles the source files in a project.</li>
+<li><strong><em>test:compile</em></strong>: compiles the tests in a project. If necessary, it will compile the source files too.</li>
+<li><strong><em>run</em></strong>: runs an application. If necessary, it will compile the source files.</li>
+<li><strong><em>test</em></strong>: runs the tests in a project. If necessary, it will compile the source files and the tests.</li>
+</ul>
+<p>To execute our ‘Hello world’, we just launch sbt in the directory where the source file .scala is and we write the command ’run’.</p>
+<p>Now we wait</p>
+<p>...</p>
+<p>...</p>
+<p>...</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/03/e4tvwy.jpg"><img class="alignnone size-medium wp-image-100" src="{{ site.baseurl }}/assets/e4tvwy.jpg?w=300" alt="e4tvwy" width="300" height="221" /></a></p>
+<p>...</p>
+<p>...</p>
+<p>Hello, someone there?</p>
+<p>If it’s the first time you use Scala, SBT will try to get all the required dependencies to build and run Scala code. It may take a while, depending on your Internet connection. This won’t happen next time, just the first one.</p>
+<p>Et voila! First program in Scala. Easy-peasy, isn’t it?</p>

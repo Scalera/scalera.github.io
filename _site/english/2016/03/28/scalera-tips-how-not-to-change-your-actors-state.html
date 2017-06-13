@@ -1,0 +1,50 @@
+<p>A common key when working with Akka, is modifying properly our actor's state. If we jog our memory, this framework paradigm allows us to program modeling the concurrency based on actors and message passing. From that base, we could define an actor as a <strong>computing unit that may have state and perform tasks based on messages that it will receive through its mailbox and that will be processed sequentially </strong>.</p>
+<p>That means that, in order to avoid side effects, the actor's state modification has to take place when processing a message. So senseful so far. However, it's a pretty common mistake to do something similar to this:</p>
+<p>[code language="scala"]<br />
+class MyActor extends Actor {</p>
+<p>  var state: Int = 0</p>
+<p>  def receive = {</p>
+<p>    case &quot;command&quot; =&gt;<br />
+      Future(state = 1)</p>
+<p>    case &quot;someOtherCommand&quot; =&gt;<br />
+      state = 2</p>
+<p>  }</p>
+<p>}<br />
+[/code]</p>
+<p>In this case, we have no more warranty that the state change (whose only responsible of keeping it consistent and thread safe is the actor) might cause side efects given that, in the precise moment where the <code>Future</code> modifies the <code>var</code>, it's possible that the state is being modified by the actor itself (probably as a reaction to some other received message).</p>
+<p>This <code>Future[Unit]</code> might not be a block like that. It could be the result of having asked to some other actor:</p>
+<p>[code language="scala"]<br />
+class MyActor extends Actor {</p>
+<p>  type State = Int</p>
+<p>  var state: State = 0</p>
+<p>  def receive = {</p>
+<p>    case &quot;command&quot; =&gt;<br />
+      (service ? &quot;giveMeMyNewState&quot;).map{<br />
+        case newState: State =&gt; state = newState<br />
+      }</p>
+<p>    case &quot;someOtherCommand&quot; =&gt;<br />
+      state = 2<br />
+  }</p>
+<p>}<br />
+[/code]</p>
+<p>Something that probably none of us has ever tried.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/03/giphy3.gif" rel="attachment wp-att-1846"><img src="/assets/giphy3.gif?w=300" alt="giphy" width="300" height="150" class="aligncenter size-medium wp-image-1846" /></a></p>
+<h2>The proper way</h2>
+<p>If we want to modify the actor's state as result of having previously asked to some other actor and without breaking the concurrency control of the actor, it could be achieved like this:</p>
+<p>[code language="scala"]<br />
+class MyActor extends Actor {</p>
+<p>  type State = Int</p>
+<p>  var state: State = 0</p>
+<p>  def receive = {</p>
+<p>    case &quot;command&quot; =&gt;<br />
+      (service ? &quot;giveMeMyNewState&quot;) pipeTo self</p>
+<p>    case &quot;someOtherCommand&quot; =&gt;<br />
+      state = 2</p>
+<p>    case newState: State =&gt;<br />
+      state = newState<br />
+  }</p>
+<p>}<br />
+[/code]</p>
+<p>With <code>pipeTo</code> we specify to send to certain actor the result of having evaluated some future when its resolved. This way we're indicating that, when we get the response of the other actor, it will be sent to our mailbox, so it will be processed like a normal message, sequentially.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/03/bill_murray_gif_1.gif" rel="attachment wp-att-1847"><img src="/assets/bill_murray_gif_1.gif?w=300" alt="bill_murray_gif_1" width="300" height="161" class="aligncenter size-medium wp-image-1847" /></a></p>
+<p>Easy peasy :-)</p>

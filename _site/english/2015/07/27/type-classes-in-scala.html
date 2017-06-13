@@ -1,0 +1,70 @@
+<p>After a few months with the blog, we now know where we can use <a href="https://scalerablog.wordpress.com/2015/05/29/multiple-inheritance-playing-god/">traits</a>, what is the purpose of <a href="https://scalerablog.wordpress.com/2015/05/29/implied-lisa-or-implode/">implicits</a>, or what the hell are <a href="https://scalerablog.wordpress.com/2015/06/08/existential-types-what-do-clouds-smell-like/">generic types</a>. Today, we are going to use a little bit of everything in order to explain <em><strong>type classes</strong></em>.</p>
+<p>In spite of their name,<em><strong> type classes </strong></em>are not related with the object-oriented programming paradigm, but with functional programming. By using this technique, we will be able to add ad hoc functionality to the types we want. This applies for both the primitive types of the language and the custom types that we may have created.</p>
+<p><strong>How are type classes implemented in Scala?</strong></p>
+<p>In order to illustrate the explanation, we are going to use a small example.<br />
+First, what we will do is to create a trait with the functionality that we want to add to the types. As we want it to be reusable by different types, the trait will be parameterized with the generic type <em>T</em>.</p>
+<p>[code language="scala"]<br />
+trait Addable[T] {<br />
+  def +(a: T, b: T): T<br />
+}<br />
+[/code]</p>
+<p>Now the trait is well-defined, let's define implicit objects that inherit from it. We will have to create an object for each type that we want to have such functionality. Plus, we must implement in each object how the elements of that given type should be added.</p>
+<p>[code language="scala"]<br />
+object Addables {<br />
+  implicit object AddableLikeInt extends Addable[Int] {<br />
+    def +(a: Int, b: Int): Int = a + b<br />
+  }</p>
+<p>  implicit object AddableLikeString extends Addable[String] {<br />
+    def +(a: String, b: String): String = a + b<br />
+  }</p>
+<p>  implicit object AddableLikeBoolean extends Addable[Boolean] {<br />
+    def +(a: Boolean, b: Boolean): Boolean = a &amp;&amp; b<br />
+  }<br />
+}<br />
+[/code]</p>
+<p>As can be seen, in this example we're defining the method <em>+</em> for the <em>Int</em>, <em>String</em> and <em>Boolean</em> types. Now these types can make use of the addition functionality.</p>
+<p><strong>Mmmm... and how exactly can they be used?</strong></p>
+<p>We have already defined type classes for three primitive types. To give use to them, we will define a method called <em>plus,</em> which implements the addition of two elements of the same type.</p>
+<p>[code language="scala"]<br />
+def plus[T](a1: T, a2: T)(implicit ev: Addable[T]): T = ev.+(a1, a2)<br />
+[/code]</p>
+<p>In order to force the type of the elements that we want to add to be <em>Addable</em>, we will use in the method signature an implicit value of type <em>Addable[T]</em>. This way, the method will look for an object that extends the <em>Addable[T]</em> type in its scope,  where <em>T</em> is the type of the values we want to add. This implicit value is often referred to as <strong><em>evidence</em></strong>.<br />
+Well, let's test it:</p>
+<p>[code language="scala"]<br />
+import Addables._  </p>
+<p>plus(true, false) //false<br />
+[/code]</p>
+<blockquote><p>As a reminder, let me mention that syntactic sugar can be applied and Context Bounds be used to mark these evidences:</p>
+<pre>def plus[T:Addable](a1: T, a2: T)</pre>
+</blockquote>
+<p>Awesome! But what happens if we want to add a type not previously defined? Then, we would get an error telling us that there isn't any implicit object with that type in the scope:</p>
+<p>[code language="scala"]<br />
+plus(1.0, 2.0) // error: could not find implicit value for parameter ev: Addable[Double]<br />
+[/code]</p>
+<p>Fixing this is quite simple. We just have to create another implicit object with the desired type. In this case, with the <em>Double</em> type:</p>
+<p>[code language="scala"]<br />
+implicit object AddableLikeDouble extends Addable[Double] {<br />
+  def +(a: Double, b: Double): Double = a + b<br />
+}</p>
+<p>plus(1.0, 2.0) //3.0<br />
+[/code]</p>
+<p>Now we can add two values of type <em>Double</em>. The same thing applies to types defined by ourselves:</p>
+<p>[code language="scala"]<br />
+case class Group(name: String, people: Set[String])</p>
+<p>implicit object AddableLikeGroup extends Addable[Group] {<br />
+  def +(a: Group, b: Group): Group =<br />
+    Group(<br />
+      name = a.name + &quot; &amp; &quot; + b.name,<br />
+      people = a.people | b.people<br />
+    )<br />
+}<br />
+[/code]</p>
+<p>Now <em>Groups </em>can be added too:</p>
+<p>[code language="scala"]<br />
+plus(Group(&quot;A&quot;, Set(&quot;Peter&quot;)), Group(&quot;B&quot;, Set(&quot;John, Chris&quot;)))<br />
+//Group(&quot;A &amp; B&quot;, Set(&quot;Peter&quot;, &quot;John&quot;, &quot;Chris&quot;))<br />
+[/code]</p>
+<p><strong>Bonus</strong></p>
+<p>As we have seen, type classes allow us to extend functionality in a simple and elegant way. It can be applied to both primitives types, as well as our own user-defined types. In addition, by handling the scope of implicit objects, we have control over when we want a specific type to extend a given functionality.</p>
+<p>This technique is perfect for us to explore more complex matters in depth in future posts. What we have seen today is the first step in understanding <strong><em>monoids</em></strong>, algebraic structures that can be found in functional libraries such as <em><a href="https://github.com/scalaz/scalaz">Scalaz</a></em> or <em><a href="https://github.com/non/cats">Cats</a></em>. But this is all for now, I leave you yearning for more :)</p>
+<p>Happy summer!</p>

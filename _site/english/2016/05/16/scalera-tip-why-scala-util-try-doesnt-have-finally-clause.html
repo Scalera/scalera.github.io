@@ -1,0 +1,58 @@
+<p>Some days ago, a work colleage raised the million-dollar question.</p>
+<p>If we use the traditional java <code>try</code>, we could be handling some code similar to this:</p>
+<p>[code language="scala"]<br />
+val connection = database.getConnection()<br />
+var data: Seq[Data] = Seq()<br />
+try {<br />
+  val results = connection.query(&quot;select whatever&quot;)<br />
+  data = results.map(convertToWhatIneed)<br />
+} catch {<br />
+  case t: Throwable =&gt; logger.error(&quot;Oh noes!&quot;)<br />
+} finally {<br />
+  connection.close()<br />
+}<br />
+[/code]</p>
+<p>In Scala, we have a more functional version of this mechanism: <code>scala.util.Try</code>.<br />
+The same example could be implemented by using this data type:</p>
+<p>[code language="scala"]<br />
+val connection = database.getConnection()<br />
+val data: Seq[Data] = Try{<br />
+  val results = connection.query(&quot;select whatever&quot;)<br />
+  val data: Seq[Data] =<br />
+    results.map(convertToWhatIneed)<br />
+  connection.close()<br />
+  data<br />
+} recover {<br />
+  case t: Throwable =&gt;<br />
+    logger.error(&quot;Oh noes!&quot;)<br />
+    connection.close()<br />
+    Seq.empty[Data]<br />
+} get<br />
+[/code]</p>
+<p>The question is, why doesn't <code>scala.util.Try</code> even consider a <code>finally</code> clause like Java's <code>try</code>?</p>
+<h2>Side effects....side effects everywhere...</h2>
+<p>If you remember the post where David talked about <a href="https://scalerablog.wordpress.com/2015/06/29/catching-exceptions-in-scala-try-type/" target="_blank">Try[T] data type</a>, it's a type that may have two different possible values <code>Success(t: T)</code> or <code>Failure(t: Throwable)</code>. </p>
+<p>On the other hand, if you remembet another post where we talked about <a href="https://scalerablog.wordpress.com/2016/03/14/scalera-tips-var-immutable-vs-val-mutable/" target="_blank">vals and vars</a>, we mentioned the <strong>referential transparency</strong> as principle that must be followed for considering a function to be pure.</p>
+<p>So, if we test this principle with the previously described snippet, we could replace the <code>Try[Seq[Data]]</code> expression with the same type value that we would have got by evaluating the expression; and we should retrieve the same result. I.e.:</p>
+<p>[code language="scala"]<br />
+val connection = database.getConnection()<br />
+val data: Seq[Data] =<br />
+  Success(Seq(data1,data2,data3)).get<br />
+[/code]</p>
+<p>We can see it hasn't closed the connection that we opened before though...</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/04/o6dau.jpg" rel="attachment wp-att-2655"><img src="/assets/o6dau.jpg?w=300" alt="o6dau" width="300" height="235" class="aligncenter size-medium wp-image-2655" /></a></p>
+<p>For this reason, it makes more sense to code something like this:</p>
+<p>[code language="scala"]<br />
+val connection = database.getConnection()<br />
+val data: Seq[Data] = Try{<br />
+  val results = connection.query(&quot;select whatever&quot;)<br />
+  results.map(convertToWhatIneed)<br />
+} recover {<br />
+  case t: Throwable =&gt;<br />
+    Seq.empty[Data]<br />
+} get<br />
+connection.close()<br />
+[/code]</p>
+<p>This way, the <code>data</code> value can be replaced easily, without any extra side effect implication.</p>
+<p>...And for this reason, fellows, it doesn't make sense to think about a <code>finally</code> clause for <code>Try[T]</code>! :-)</p>
+<p>Peace out!</p>

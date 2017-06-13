@@ -1,0 +1,69 @@
+<p>Después de perder el miedo a las <a href="https://scalerablog.wordpress.com/2015/10/07/teoria-de-cate-movidas-monadas/">mónadas</a> se abre un mundo de posibilidades. Hoy vamos a ver una mónada en concreto: la mónada Reader. Esta mónada nos permitirá realizar inyección de dependencias en nuestra aplicación. Hace unas semanas vimos como utilizar el <a href="https://scalerablog.wordpress.com/2015/07/08/tarta-de-scala-al-estilo-tradicional/">Cake Pattern</a>. Si no te gustó demasiado, presta atención :)</p>
+<p>La mónada Reader está presente en Scalaz, por lo que si queremos utilizarla, debemos importar esta librería en nuestro proyecto.</p>
+<p>[code language="scala"]<br />
+import scalaz.Reader<br />
+[/code]</p>
+<p>El constructor de la mónada Reader recibe una función unitaria, es decir, una función con un solo argumento. Con la mónada podemos trabajar con la función unitaria directamente y de forma transparente, como si fuera una instancia de tipo Function1.</p>
+<p>[code language="scala"]<br />
+import scalaz.Reader</p>
+<p>val plus100 = Reader((n: Int) =&gt; n + 100)<br />
+plus100(1) //101<br />
+[/code]</p>
+<p>¿Y ya está? Pues no. La gracia de usar la mónada reader es que una vez instanciada podemos utilizar el método map para transformar el resultado de la función:</p>
+<p>[code language="scala"]<br />
+import scalaz.Reader</p>
+<p>val plus100 = Reader((n: Int) =&gt; n + 100)<br />
+plus100(1) //101</p>
+<p>val doublePlus100 = plus100.map(_ * 2)<br />
+doublePlus100(1) //202<br />
+[/code]</p>
+<p><strong>¿Y cómo nos ayuda esto con la inyección de dependencias?</strong></p>
+<p>Utilizando esta mónada, podemos inyectar dependencias en un componente, al igual que hacíamos con el Cake Pattern. Vamos a utilizar un ejemplo sencillo. Aprovechando que se trata de la mónada Reader, vamos a utilizar un ejemplo basado en una biblioteca.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/10/6400b4d28d122bfa1876eda6a27d169e.jpg"><img class="size-medium wp-image-776 aligncenter" src="/assets/6400b4d28d122bfa1876eda6a27d169e.jpg?w=300" alt="6400b4d28d122bfa1876eda6a27d169e" width="300" height="186" /></a></p>
+<p>En la biblioteca será necesario inyectar un repositorio. La implementación genérica será la siguiente:</p>
+<p>[code language="scala"]<br />
+case class Book(isbn: String, name: String)</p>
+<p>trait Repository {<br />
+  def get(isbn: String): Book<br />
+  def getAll: List[Book]<br />
+}<br />
+[/code]</p>
+<p>Para inyectar la dependencia, se utilizará como parámetro de entrada de la función unitaria el repositorio de forma genérica.</p>
+<p>[code language="scala"]<br />
+trait Library {<br />
+  import scalaz.Reader</p>
+<p>  def getBook(isbn: String) =<br />
+    Reader(<br />
+      (repository: Repository) =&gt; repository.get(isbn)<br />
+    )</p>
+<p>  def getAllBooks =<br />
+    Reader(<br />
+      (repository: Repository) =&gt; repository.getAll<br />
+    )<br />
+}<br />
+[/code]</p>
+<p>Más adelante, vamos a querer conocer determinada información de los libros, por ejemplo, el nombre. Para ello se utilizará la función map, que nos permitirá cambiar el resultado de la consulta.</p>
+<p>[code language="scala"]<br />
+object LibraryInfo extends Library {</p>
+<p>  def bookName(isbn: String) =<br />
+    getBook(isbn) map (_.name)</p>
+<p>}<br />
+[/code]</p>
+<p>Finalmente, vamos a utilizar esta información por ejemplo en una API REST:</p>
+<p>[code language="scala"]<br />
+import scalaz.Reader</p>
+<p>class UniversityApp(repository: Repository) extends Library {</p>
+<p>  //GET ~/books/{id}/name<br />
+  def getBookName(isbn: String) =<br />
+    run(LibraryInfo.bookName(isbn))</p>
+<p>  //GET ~/books/<br />
+  def getAll = run(getAllBooks)</p>
+<p>  private def run[A](reader: Reader[Repository, A]): String = {<br />
+    reader(repository).toString<br />
+  }<br />
+}</p>
+<p>object UniversityApp extends UniversityApp(new RepositoryImpl{})<br />
+[/code]</p>
+<p>Lo más importante es el método privado <em>run</em>. Este método es el encargado de aplicar el repositorio implementado en cada una de las mónadas readers que hemos definido en nuestro programa.</p>
+<p>Además, utilizamos un argumento en nuestra aplicación para definir la implementación del repositorio que queremos inyectar. De esta manera, podemos inyectar un repositorio de prueba cuando tengamos que hacer tests, facilitando en gran medida la construcción de los mismos.</p>
+<p>¡Esto es todo amigos!</p>

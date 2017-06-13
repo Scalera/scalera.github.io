@@ -1,0 +1,65 @@
+---
+layout: post
+title: Recursion recursive recursively.
+date: 2016-05-23 12:00:05.000000000 +02:00
+type: post
+published: true
+status: publish
+categories:
+- English
+tags:
+- beginner
+- recursive
+- stackoverflow
+meta:
+  _rest_api_published: '1'
+  _rest_api_client_id: "-1"
+  _publicize_job_id: '23091136095'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/734685477442228224";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: dvallejonava
+  email: d.vallejo.nava@gmail.com
+  display_name: dvallejonava
+  first_name: ''
+  last_name: ''
+---
+<p style="text-align:justify;">Today we will discuss about recursion. Don't you know what is the recursion? Don't worry, now we are going to talk about recursion. Don't you know what is the recursion? Don't worry, now we are going to talk about recursion. Don't you know what is the recursion?  Don't worry, now we are going to talk about recursion. Do .... Well, as a joke it's ok :)</p>
+<p style="text-align:justify;">Because Scala is a language that, despite being object-oriented, its true potential lies largely in its functional part, it is normal that recursion has a special importance. However, even more important, it is to generate the recursive calls properly to not have a stack overflow.</p>
+<blockquote>
+<p style="text-align:justify;">Stack Overflow: plus a pretty famous page, is what happens when we perform many recursive calls and, in consequence, the stack memory is overflowed.</p>
+</blockquote>
+<p><img class="  wp-image-2830 aligncenter" src="{{ site.baseurl }}/assets/szpjhwz.jpg" alt="szpjhwz" width="203" height="267" /></p>
+<p style="text-align:justify;">In order to generate recursive calls properly it is necessary that the function will be <strong>tail-recursive</strong>. This means that the function needn't to stored in memory the result of the recursive call. Thus, a stack overflow is not triggered. It can also be seen as a recursive function when the function only calls itself with different arguments. Examples of functions that do not meet the tail-recursive condition are those in which operations are performed with the results of the recursive calls. For example, the factorial function encoded on this way:</p>
+<p>[code language="scala"]<br />
+def factorial(n: Int): Int =<br />
+  if (n &lt;= 1) 1<br />
+  else n * factorial(n - 1)<br />
+[/code]</p>
+<p style="text-align:justify;">because the call is multiplied by n, it will not perform a tail-recursive recursion.</p>
+<p style="text-align:justify;"><strong>And how do you know if a function is tail-recursive?</strong> Scala makes the whole thing easy. We can add the tailRecursive annotation in this function so that if it has not been written on a tail-recursive way, Scala return us a compilation error. The compiler makes the work for us :)</p>
+<p style="text-align:justify;">Let's see how we can build a function which returns the element n of the Fibonacci sequence (a tipical example). First without tail-recursive:</p>
+<p>[code language="scala"]<br />
+@annotation.tailrec<br />
+def fibonacci(n : Int) : Int = n match {<br />
+  case 0 | 1 =&gt; n<br />
+  case _ =&gt; fibonacci( n-1 ) + fibonacci( n-2 )<br />
+}<br />
+[/code]</p>
+<p>This returns a compilation error like this:</p>
+<blockquote><p><em>"could not optimize @tailrec annotated method fibonacci: it contains a recursive call not in tail position"</em></p></blockquote>
+<p style="text-align:justify;">However, if we think a little more we can get it a function much efficient :)</p>
+<p>[code language="scala"]<br />
+def fibonacci(n: Int): Int = {</p>
+<p>  @annotation.tailrec<br />
+  def loop(i: Int, previous: Int, current: Int): Int =<br />
+    if (i == 0) previous<br />
+    else loop(i - 1, current, previous + current)</p>
+<p>  loop(n, 0, 1)<br />
+}<br />
+[/code]</p>
+<p style="text-align:justify;">In this case there will be no compilation error.</p>
+<p><img class="  wp-image-2831 aligncenter" src="{{ site.baseurl }}/assets/28b5865ebe59280d5c3ed18fc1147964309d9d0c81663c0c3f81d42fc5979c8f.jpg" alt="28b5865ebe59280d5c3ed18fc1147964309d9d0c81663c0c3f81d42fc5979c8f" width="382" height="247" /></p>
+<p style="text-align:justify;">And that's all. And that's all. And that's ...</p>

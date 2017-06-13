@@ -1,0 +1,114 @@
+---
+layout: post
+title: Parser combinators (brevemente explicados)
+date: 2016-02-10 12:00:16.000000000 +01:00
+type: post
+published: true
+status: publish
+categories:
+- Castellano
+tags:
+- combinators
+- language
+- operator
+- parser
+- parsing
+- semantic
+- syntactic
+meta:
+  _edit_last: '59615419'
+  geo_public: '0'
+  _publicize_job_id: '19658715644'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/697360503014871044";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: carlopolo
+  email: carlopolo@gmail.com
+  display_name: carlopolo
+  first_name: ''
+  last_name: ''
+---
+<p>Los parser combinators te permiten crear parser más complejos a partir de otros más sencillos, combinándolos como si fuesen operadores aritméticos.</p>
+<p>Perfectamente definido queda en Wikipedia:</p>
+<blockquote><p>En <a href="https://en.wikipedia.org/wiki/Functional_programming" target="_blank">programación funcional</a>, un parser combinator es una <a href="https://en.wikipedia.org/wiki/Higher-order_function" target="_blank">función de orden superior</a> que acepta múltiples parsers como entrada y devuelve un nuevo parser como salida. En este contexto, un <a href="https://en.wikipedia.org/wiki/Parser" target="_blank">parser</a> es una función que acepta strings como entrada y devuelve una cierta estructura como salida, típicamente un <a href="https://en.wikipedia.org/wiki/Parse_tree" target="_blank">árbol de parseo</a> o un conjunto de índices que representan las localizaciones en el string donde el parser paró satisfactoriamente. Los parser combinators habilitan una <a href="https://en.wikipedia.org/wiki/Recursive_descent_parsing" target="_blank">estrategia recursiva descendente de parseo</a>, estrategia que facilita la construcción y testeo modular. Esta técnica de parseo se denomina parseo combinatorio.</p></blockquote>
+<p>Los operadores aritméticos que puedes usar son:</p>
+<ul>
+<li><b>a ~ b Parseo de una sequencia compuesta de 'a' y después 'b'<br />
+</b></li>
+<li><b>a | b Parser alternativo de 'a' o 'b'</b></li>
+<li><b>a? Parser opcional de 'a'</b></li>
+<li><b>a* Parser opcional y repetible</b></li>
+<li><b>a+ Parser repetible</b></li>
+<li><b>a ~&gt; b Como el operador ~ pero ignorando el miembro izquierdo (a)</b></li>
+<li><b>a &lt;~ b Como el operador ~ pero ignorando el miembro derecho (b)</b></li>
+</ul>
+<p>Y en esencia, eso es lo que necesitas saber sobre parser combinators :-)<br />
+Un parser muy sencillo podría ser:</p>
+<p>[code language="scala"]<br />
+import scala.util.parsing.combinator._<br />
+import scala.util.matching.Regex<br />
+val parser = new RegexParsers {<br />
+  def mySuperSimpleParser= &quot;&quot;&quot;\s*_end_$&quot;&quot;&quot;.r ^^ { _.toString }<br />
+}<br />
+[/code]</p>
+<p>Debería reconocer cualquier string que termine con cero o más espacios y la cadena "_end_", y devolver el string.</p>
+<p>Lo que se encuentra entre llaves es la semántica, la acción se va a ejecutar cuando nos encontremos con un elemento parseado.</p>
+<p>Así que básicamente,</p>
+<p>[code]a ^^ f[/code]</p>
+<p>parseará <code>a</code> (sintáxis), y aplicará la función <code>f</code> al resultado(semántica).</p>
+<p>Para parsear un string simplemente haríamos como sigue:</p>
+<p>[code language="scala"]<br />
+parse(myParser, &quot;my input string           _end_&quot;) match {<br />
+  case Success(matched,_) =&gt;<br />
+    matched match{<br />
+      case &quot;hello&quot;=&gt;<br />
+        println &quot;hello world&quot;<br />
+      case listOfArgs@h::t=&gt;<br />
+        MyParserHelper.executeAction(listOfArgs)<br />
+      case _=&gt;<br />
+        println( s&quot;string $matched has been recognized, but I don't know what to do with it&quot; )<br />
+    }<br />
+  case Failure(msg,_) =&gt;<br />
+    println(&quot;FAILURE PARSING STRING &quot; + msg)<br />
+}<br />
+[/code]</p>
+<p>Hasta ahora, no hemos cominado <code>mySuperSimpleParser</code> con nada, así que compliquémoslo un poco más.<br />
+Un ejemplo (todavía simple) podría ser:</p>
+<p>[code language="scala"]<br />
+def myParser =<br />
+  (pHelp | pThreeArgs) &lt;~ mySuperSimpleParser<br />
+[/code]</p>
+<p>donde <code>mySuperSimpleParser</code> encajaría (como vimos antes) con cualquier string que termina en cero o más espacio y la cadena "_end_", pero no haría nada con ello y continuaría con la parte izquierda en el input, parseando <code>pHelp</code> o <code>pThreeArgs</code>.</p>
+<p><code>pHelp</code> podría ser algo como:</p>
+<p>[code language="scala"]<br />
+def pHelp=<br />
+  &quot;(help|helpMe)&quot;.r ^^ { _=&gt; HelpCommand }<br />
+[/code]</p>
+<p>HelpCommand es una case class que, for cuestión de simplicidad, no definiremos aquí, pero que se podría sustituir por:</p>
+<p>[code language="scala"]<br />
+def pHelp =<br />
+  &quot;(help|helpMe)&quot;.r ^^ { _=&gt;&quot;the recogniced command is help&quot; }<br />
+[/code]</p>
+<p>Incluso no necesitaríamos añadir ninguna semántica si no es necesario:</p>
+<p>[code language="scala"]<br />
+def pHelp =<br />
+  &quot;(help|helpMe)&quot;.r<br />
+[/code]</p>
+<p>Nos falta ahora definir el parser pThreeArgs. Este parser reconocerá una secuencia de tres palabras y las pondrá secuencialmente en una lista (la cual devolveremos):</p>
+<p>[code language="scala"]<br />
+def pThreeArgs: Parser[List[Any]] = {<br />
+  var paramsCtx=mutable.ListBuffer[String]()<br />
+  pListParam(paramsCtx) ~&gt; pListParam(paramsCtx) ~&gt; pListParam(paramsCtx) ^^ {_.toList}<br />
+}<br />
+[/code]</p>
+<p>Nótese que he creado un <code>ListBuffer</code> mutable, que actuará como un contexto "global" para cada uno de los tres parsers que estamos combinando, de manera que solo se tengan que ocupar de parsear un parámetro y almacenarlo en el contexto global que han recibido como parámetro de la función (estos parsers son funciones).<br />
+Al final, la lista completa se devuelve conteniendo los tres parámetros :-)</p>
+<p>¿Se os ocurre de una mejor (o al menos más funcional) forma de resolverlo? ;-)<br />
+<code>pListParam</code> sería algo del estilo:</p>
+<p>[code language="scala"]<br />
+def pListParam(l:mutable.ListBuffer[String])=<br />
+  &quot;&quot;&quot;\S+&quot;&quot;&quot;.r ^^ {l+=_.toString}<br />
+[/code]</p>
+<p>Para un ejemplo más complejo, visitad el siguiente <b><a href="https://github.com/roclas/liffey/blob/master/src/main/scala/com/liferay/osgi/shell/LiffeyParser.scala" target="_blank">enlace</a></b>.</p>

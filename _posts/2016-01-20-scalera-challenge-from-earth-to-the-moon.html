@@ -1,0 +1,66 @@
+---
+layout: post
+title: 'Scalera challenge: From Earth to the Moon'
+date: 2016-01-20 12:00:17.000000000 +01:00
+type: post
+published: true
+status: publish
+categories:
+- English
+tags:
+- challenge
+- command
+- dsl
+- esa
+- goto
+- moon
+- move
+- nop
+- prize
+- robot
+- rover
+- scalera
+- space
+meta:
+  _edit_last: '59615419'
+  geo_public: '0'
+  _publicize_job_id: '18935012607'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/689749465008201728";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+  _wpas_skip_10515941: '1'
+author:
+  login: jpaniego
+  email: javiersantospaniego@gmail.com
+  display_name: Javier S. Paniego
+  first_name: ''
+  last_name: ''
+---
+<p>We have started a new year, and we want to make some solid headway. As we promised, one of our New Year's resolutions is trying to innovate and make this blog more social. For this reason, let us introduce you the first Scalera challenge, just for driving you crazy :-)</p>
+<h2> From Earth to the Moon </h2>
+<p>The ESA (European Space Agency) wants to send two robots (rovers) to the Moon. They are fitted with a sophisticated landing support: a parachute. The problem here is that it seems both robots won't land at the same place...<br />
+Once they've landed at the same place as their own parachutes at the Moon, which has a discrete surface of infinite size, both rovers must find each other to start the mission together.</p>
+<p>The challenge consists on programming the rovers using a limited command set, so they finally manage to find each other. Keep in mind that the same program will be loaded on both robots and they don't have any programatic way to know which their identifiers are.</p>
+<h2> DSL for manouver</h2>
+<p>The command set that will be used for programming the rovers is composed of:</p>
+<ul>
+<li><strong>MOVE &lt;direction&gt;</strong> : It moves the rover a discrete space unit to the left or to the right.
+</li>
+<li><strong>IF FOUND PARACHUTE &lt;command&gt;</strong> : If the rover finds a parachute on the floor, at its <del>feet</del> wheels, then execute the given command.
+</li>
+<li><strong>NOP</strong>: Rover does nothing...
+</li>
+<li><strong>GOTO &lt;lineId&gt;</strong> : It jumps to the command placed at the given line.
+</li>
+</ul>
+<h2> Participate! </h2>
+<p><a href="https://scalerablog.files.wordpress.com/2016/01/moonrover_example.png" rel="attachment wp-att-1263"><img src="{{ site.baseurl }}/assets/moonrover_example.png?w=300" alt="moonrover_example" width="300" height="224" class="aligncenter size-large wp-image-1263" /></a></p>
+<p>You can find the project for start coding your robots <a href="https://github.com/Scalera/moonrover" target="_blank">at github</a>.<br />
+You'll find all the technical info you might need at the <strong>README.md</strong> file.</p>
+<p>If you want to participate, just drop us an email to <strong><u>scalerablog at gmail dot com</u></strong> with the <strong>Launch.scala</strong> file that contains the program you have designed  to solve the problem. Don't forget to include your twitter user name for mentioning you at our virtual hall of fame :-P</p>
+<p>The deadline will be two natural weeks from this post publication.</p>
+<p>Among all best solutions (less clock ticks, less program lines,...) we'll raffle the blog t-shirt :-)</p>
+<p>Come on and good luck!</p>
+<blockquote><p><em>How many things have been denied one day, only to become realities the next!</em><br />
+<br />Jules Verne</p></blockquote>

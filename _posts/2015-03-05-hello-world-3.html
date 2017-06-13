@@ -1,0 +1,82 @@
+---
+layout: post
+title: Hello World!
+date: 2015-03-05 21:21:09.000000000 +01:00
+type: post
+published: true
+status: publish
+categories:
+- Castellano
+tags:
+- app
+- beginner
+- hello
+- object
+- sbt
+- scala
+- world
+meta:
+  _wpas_skip_facebook: '1'
+  _wpas_skip_google_plus: '1'
+  _wpas_skip_linkedin: '1'
+  _wpas_skip_tumblr: '1'
+  _wpas_skip_path: '1'
+  _rest_api_published: '1'
+  _rest_api_client_id: "-1"
+  publicize_twitter_user: ScaleraBlog
+  publicize_twitter_url: http://t.co/gZRcxNQXAP
+  _wpas_done_10515941: '1'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:3064583607;b:1;}}
+  _edit_last: '59615419'
+  geo_public: '0'
+  _wpas_skip_10515941: '1'
+author:
+  login: dvallejonava
+  email: d.vallejo.nava@gmail.com
+  display_name: dvallejonava
+  first_name: ''
+  last_name: ''
+excerpt: 'Primer programa en Scala: un Hello World.'
+---
+<p>¿Qué es lo primero que se suele hacer cuando se empieza a utilizar un lenguaje de programación? Efectivamente, un Hello World. Para poder hacer un Hello World en Scala es necesario conocer dos conceptos fundamentales:</p>
+<ul>
+<li>¿Cómo realizar aplicaciones ejecutables?</li>
+</ul>
+<p>¡Fácil! Solo tenemos que tener un objeto que herede de <strong><em>App</em></strong>. Para definir un objeto es necesario utilizar la palabra reservada <strong><em>object</em></strong>. Para aplicar herencia se usa la palabra reservada <strong>extends</strong>.</p>
+<ul>
+<li>¿Cómo puedo imprimir un mensaje por pantalla?</li>
+</ul>
+<p>Podríamos usar un nombre conciso y rápido de escribir como <em>System.out.println</em>, pero desgraciadamente debemos usar la función <strong><em>println</em></strong>.</p>
+<p>Ahora que tenemos los dos ingredientes necesarios, vamos allá:</p>
+<p>[code language="scala"]</p>
+<p>object HelloWorld extends App {</p>
+<p>  println(&quot;Hello World!&quot;)</p>
+<p>}</p>
+<p>[/code]</p>
+<p>Vale...y ahora, ¿cómo lo ejecuto?</p>
+<p>Lo primero es poner extensión a nuestro maravilloso primer fichero de código. Casualmente, en un ataque de originalidad sin igual, los ficheros de código scala tienen extensión <em>.scala</em>.</p>
+<p>Una vez tenemos el fichero, necesitamos alguna herramienta para trabajar con él. Una de las opciones para compilar y ejecutar código Scala es <strong>SBT</strong> (Simple Build Tool). Es similar a Maven o Ant. Permite agregar dependencias y definir con qué versión de Scala queremos trabajar. Algunos IDE's como Intellij lo llevan integrado.</p>
+<p>¿Cómo instalar SBT?</p>
+<ul>
+<li><a title="MAC" href="http://www.scala-sbt.org/release/tutorial/Installing-sbt-on-Mac.html" target="_blank">MAC</a></li>
+<li><a title="LINUX" href="http://www.scala-sbt.org/release/tutorial/Installing-sbt-on-Linux.html" target="_blank">LINUX</a></li>
+<li><a title="Windows" href="http://www.scala-sbt.org/release/tutorial/Installing-sbt-on-Windows.html" target="_blank">WINDOWS</a></li>
+</ul>
+<p>¿Cuáles son los comandos básicos de SBT?</p>
+<ul>
+<li><strong><em>compile</em></strong>: compila los fuentes un proyecto</li>
+<li><strong><em>test:compile</em></strong>: compila los tests de un proyecto. En caso de ser necesario, compilará los fuentes también.</li>
+<li><strong><em>run</em></strong>: ejecuta una aplicación. En caso de ser necesario, compilará los fuentes.</li>
+<li><strong><em>test</em></strong>: ejecuta los tests de un proyecto.En caso de ser necesario, compilará los fuentes y los tests.</li>
+</ul>
+<p>Para ejecutar nuestro Hello World basta con lanzar sbt en el directorio donde tengamos el fichero .scala y escribir el comando "run".</p>
+<p>Ahora esperamos</p>
+<p>...</p>
+<p>...</p>
+<p>...</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/03/e4tvwy.jpg"><img class="alignnone size-medium wp-image-100" src="{{ site.baseurl }}/assets/e4tvwy.jpg?w=300" alt="e4tvwy" width="300" height="221" /></a></p>
+<p>...</p>
+<p>...</p>
+<p>¿Hola?</p>
+<p>Si es la primera vez que utilizas Scala, SBT se bajará todas las dependencias necesarias para ejecutar y compilar código Scala. En función de la conexión a Internet, puede tardar un rato. Pero solo será la primera vez.</p>
+<p>Y ya está! Primer programa en Scala. Fácil ¿no?</p>

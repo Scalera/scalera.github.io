@@ -1,0 +1,68 @@
+---
+layout: post
+title: Transforming the Future
+date: 2016-05-09 12:00:49.000000000 +02:00
+type: post
+published: true
+status: publish
+categories:
+- English
+tags:
+- beginner
+- flatmap
+- future
+- map
+meta:
+  _rest_api_published: '1'
+  _rest_api_client_id: "-1"
+  _publicize_job_id: '22627037406'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/729614457656074240";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: dvallejonava
+  email: d.vallejo.nava@gmail.com
+  display_name: dvallejonava
+  first_name: ''
+  last_name: ''
+---
+<p>A few weeks ago we <a href="https://scalerablog.wordpress.com/2015/12/14/reading-the-future/" target="_blank">talked</a> about the type <em><strong>Future</strong></em> and its use to create asynchronous calls.</p>
+<p style="text-align:justify;">We saw how to work with blocking calls to obtain the value of the future. We also used callbacks in order to obtain the result of the future asynchronously. However, there are some issues that were left unsaid. And by that I'm referring to transforming the <b><i>Future</i></b> without blocking the execution.</p>
+<h3>Future transformations</h3>
+<p style="text-align:justify;">In order to transform futures, as with other Scala basic types, mainly two methods are used: <b><i>map </i></b>and <b><i>flatmap</i></b>.</p>
+<h4>Map method</h4>
+<p style="text-align:justify;"><i>Map </i>method allows us to change the content of a future by applying a function. For instance, if we have a method to get the first million prime numbers but we want to transform it to return just the first hundred ones, we can apply the map method in the following way:</p>
+<p>[code language="scala"]<br />
+def getFirstMillionOfPrimes(): Future[List[Int]] = ???</p>
+<p>getFirstMillionOfPrimes().map(<br />
+  (list: List[Int]) =&gt; list.take(100)<br />
+)<br />
+[/code]</p>
+<p>This way we will be transforming the inside of the future without breaking the asynchrony.</p>
+<p><img class="CToWUd a6T aligncenter" src="{{ site.baseurl }}/assets/pi2band2bi.jpg" alt="pi2band2bi" width="283" height="230" /></p>
+<h4>FlatMap method</h4>
+<p style="text-align:justify;">On the other hand, the <i>flatMap </i>method allows us to apply a function to the content of the future and returning a future in turn. After that, a <b><i>flatten </i></b>operation is applied to convert the Future[Future[A]] into a simple Future[A]. What the f...? Better explained with an example.</p>
+<p style="text-align:justify;">Imagine we want to concatenate the first million prime numbers in a string. To do so, we'll use a new method:</p>
+<p>[code language="scala"]<br />
+def concatenate(l: List[Int]): Future[String] = ???<br />
+[/code]</p>
+<p>and now we perform a  <em>flatMap</em></p>
+<p>[code language="scala"]<br />
+getFirstMillionOfPrimes().flatMap(<br />
+  (list: List[Int]) =&gt; concatenate(list)<br />
+) //Future[String]<br />
+[/code]</p>
+<h3>And how can we do all this in a more simple way?</h3>
+<p style="text-align:justify;">Easy question. <b>For comprehension</b> to the rescue! With a spoonful of syntactic sugar we can write a much more readable code.</p>
+<p>[code language="scala"]<br />
+for {<br />
+  primes &lt;- getFirstMillionOfPrimes()<br />
+  primesString &lt;- concatenate(primes)<br />
+} yield primesString<br />
+[/code]</p>
+<p style="text-align:justify;">This way, the concatenation operation won't be applied until the prime numbers are obtained with the method <em>getFirstMillionPrimes</em>.</p>
+<p style="text-align:justify;">This allows us to keep an order when composing asynchronous calls. Besides, if the first asynchronous call fails, the second won't be conducted.</p>
+<p style="text-align:justify;">And that's all for today. Now you know how to change the future. What a shame not to be able to change the past :(</p>
+<p><img class="CToWUd a6T aligncenter" src="{{ site.baseurl }}/assets/doesnt-go-into-girls-shower.jpg" alt="doesnt-go-into-girls-shower" width="308" height="299" /></p>
+<p>See you soon!</p>

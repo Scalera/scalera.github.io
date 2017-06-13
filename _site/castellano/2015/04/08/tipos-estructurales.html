@@ -1,0 +1,68 @@
+<p>Se denomina en programación <strong>Ducktyping</strong> a la definición de tipos que viene dada por los atributos y métodos que lo componen, y no por la herencia. Por ejemplo, en Scala podemos definir el siguiente <strong>tipo estructural</strong>:</p>
+<p>[code language="scala"]<br />
+type Animal = {<br />
+  val legs: Int<br />
+  def noise(): String<br />
+}</p>
+<p>def animalDescription(a: Animal): String =<br />
+  s&quot;My animal has ${a.legs} legs and says ${a.noise()}&quot;<br />
+[/code]</p>
+<p>En este caso, podemos afirmar que toda clase que posea un atributo llamado <code>legs</code> de tipo entero y un método <code>noise</code> que devuelve un <code>String</code>, se puede denominar <code>Animal</code>.</p>
+<p>Ahora bien, ¿qué diferencia hay entre esto y la herencia clásica?</p>
+<p>[code language="scala"]<br />
+trait Animal {<br />
+  val legs: Int<br />
+  def noise(): String<br />
+}<br />
+class Dog extends Animal{<br />
+  val legs = 4<br />
+  def noise() = &quot;woof&quot;<br />
+}<br />
+[/code]</p>
+<p>A priori puede parecer que ninguna. De hecho hay que tener en cuenta que en Scala, cuando utilizamos tipos estructurales sufrimos cierto overhead en compile-time dado que es preciso inferir si el tipo que le pasamos cumple con las restricciones que impone el tipo estructural.</p>
+<p><strong>¿Entonces qué <del datetime="2015-04-06T21:37:42+00:00">demonios</del> aporta el tipo estructural?</strong></p>
+<p>Muy sencillo: hasta ahora veníamos suponiendo que la implementación que estamos haciendo es 100% <em>home-made</em>. Pero, ¿qué ocurre si estamos usando un framework o librería de terceros y resulta que los autores son tan majos de declarar las clases finales o de definir sealed traits (o incluso privados a cierto ámbito)?</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/04/tgwoyyo.gif"><img class=" size-medium wp-image-196 aligncenter" src="/assets/tgwoyyo.gif?w=300" alt="tGWoYYo" width="300" height="170" /></a></p>
+<p>Pues ocurre que, aparte de estar en todo su derecho, nosotros no podríamos hacer nada del estilo:</p>
+<p>[code language="scala"]<br />
+package some.private.library {</p>
+<p>  sealed trait TraitIWantToExtend {<br />
+    val member1: Int<br />
+    def method2(): Boolean<br />
+  }</p>
+<p>  private[some.private] class ClassIMaybeWantToMock extends TraitIWantToExtend {<br />
+    val member1 = 2<br />
+    def method2() = true<br />
+  }</p>
+<p>}</p>
+<p>package my.package {</p>
+<p>  class MyClass extends TraitIWantToExtend {// nuke-explosion in scalac!<br />
+    val member1 = 3<br />
+    def method2() = false<br />
+  }</p>
+<p>  def methodToRun[T&lt;:TraitIWantToExtend](obj: T) {<br />
+    println(obj.member1)<br />
+    println(obj.method2())<br />
+  }</p>
+<p>}<br />
+[/code]</p>
+<p>Sin embargo, con lo aprendido anteriormente, podríamos extraer del siguiente modo la esencia de los rasgos comunes <strong>que nos interesan</strong> entre nuestra clase y la clase que proviene de la librería de terceros:</p>
+<p>[code language="scala"]<br />
+package my.package {</p>
+<p>  type CommonFeatures = {<br />
+    val member1: Int<br />
+    def method2(): Boolean<br />
+  }</p>
+<p>  class MyClass {// no nuke explosion now ^^<br />
+    val member1 = 3<br />
+    def method2() = false<br />
+  }</p>
+<p>  def methodToRun[T&lt;:CommonFeatures](obj: T) {<br />
+    println(obj.member1)<br />
+    println(obj.method2())<br />
+  }</p>
+<p>}<br />
+[/code]</p>
+<p>Así que, como casi todo, no recomendamos un abuso de esta característica.<br />
+No obstante, en circunstancias similares a las expuestas, puede resultar muy útil.</p>
+<p>¡Yogur,amigos!:)</p>

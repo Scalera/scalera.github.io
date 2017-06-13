@@ -1,0 +1,35 @@
+<p>This is the first of a series of blog entries related to the most common operations in Scala’s functional programming world: operations belonging to the Traversable API.<br />
+strong&gt;Traversable is considered to be the basis of all Scala collections and is characterized mainly by two features:</p>
+<ul>
+<li><em>Strictness</em>: All elements have to be computed previously for them to be treated as values.</li>
+<li><em>Orderness</em>: Elements keep an order between them.</li>
+</ul>
+<p>There are other types of collections, such as Streams, which have a lazy evaluation strategy, but let’s not lose focus. Today, we will talk about fold operation… without getting worked up, without breaking down.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/03/nly1wxv.gif"><img class="alignnone size-full wp-image-91" src="/assets/nly1wxv.gif" alt="nlY1Wxv" width="227" height="158" /></a></p>
+<p>Suppose we want to concatenate numbers from 1 to 5 in a text string, getting the result “My numbers are: 12345”. What would our first approach be? It could be something like this:</p>
+<p>[sourcecode language="scala"]<br />
+var initial: String = &quot;My numbers are: &quot;<br />
+for(i &lt;- 1 to 10){<br />
+  initial = initial + i.toString<br />
+}<br />
+[/sourcecode]</p>
+<p>his would work. But you can imagine how nasty the variables would look like.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/03/40hylzx.gif"><img class="alignnone size-medium wp-image-72" src="/assets/40hylzx.gif?w=300" alt="40HYLZX" width="300" height="214" /></a></p>
+<p>Don’t you worry. The operation that can be used to replace the above loop is fold, which has two varieties: <strong>foldLeft</strong> and <strong>foldRight</strong>. While the first operation acts on the Traversable in an element by element iterative way, the second one does it recursively, thus being unadvisable to use this last one if the target collection is considerably large. We will focus, then, on the first operation.</p>
+<p>he notation of <strong>foldLeft</strong> for a given Traversable[T] is:</p>
+<p>[sourcecode language="scala"]<br />
+def foldLeft[U](zero: U)(f: (U,T) =&gt; U): U<br />
+[/sourcecode]</p>
+<p>If we put it this way, it may seem a little bit difficult to understand. So, let’s apply the operation to the previous example:</p>
+<p>‘Zero’ element would be in this case the initial text string “My numbers are:” (String type). And the function to be applied to each pair of (String, Int) would be concatenation.</p>
+<p>Thus, we would be able to express the first code snippet, without using any variable at all, in the following way:</p>
+<p>[sourcecode language="scala"]<br />
+(1 to 5).foldLeft(&quot;My numbers are: &quot;)(<br />
+  (accumulator,iterator) =&gt; accumulator + iterator.toString)<br />
+[/sourcecode]</p>
+<p>For those who think that this syntax is too mainstream, there is an alternative notation to perform the same operation:</p>
+<p>[sourcecode language="scala"]<br />
+(&quot;My numbers are: &quot; /: (1 to 5))((accumulator,iterator) =&gt;<br />
+  accumulator + iterator.toString)<br />
+[/sourcecode]</p>
+<p>Easy, simple and for the entire family :-)</p>

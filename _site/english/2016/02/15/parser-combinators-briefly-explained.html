@@ -1,0 +1,84 @@
+<p>Parser combinators allow you to create complex parsers from simpler ones, by combining them as if they were arithmetic operands.</p>
+<p>As very well defined at Wikipedia:</p>
+<blockquote><p>In <a title="Functional programming" href="https://en.wikipedia.org/wiki/Functional_programming" target="_blank">functional programming</a>, a parser combinator is a <a title="Higher-order function" href="https://en.wikipedia.org/wiki/Higher-order_function" target="_blank">higher-order function</a> that accepts several parsers as input and returns a new parser as its output. In this context, a <a title="Parser" href="https://en.wikipedia.org/wiki/Parser" target="_blank">parser</a> is a function accepting strings as input and returning some structure as output, typically a <a title="Parse tree" href="https://en.wikipedia.org/wiki/Parse_tree" target="_blank">parse tree</a> or a set of indices representing locations in the string where parsing stopped successfully. Parser combinators enable a <a title="Recursive descent parsing" href="https://en.wikipedia.org/wiki/Recursive_descent_parsing" target="_blank">recursive descent parsing</a> strategy that facilitates modular piecewise construction and testing. This parsing technique is called combinatory parsing.</p></blockquote>
+<p>The arithmetic operators you can use are:</p>
+<ul>
+<li><b>a ~ b parse a sequence made of a then b<br />
+</b></li>
+<li><b>a | b introduce an alternative parser that parses a or b</b></li>
+<li><b>a? introduce an optional parser</b></li>
+<li><b>a* introduce on optional and repeatable parser</b></li>
+<li><b>a+ introduce a repeatable parser</b></li>
+<li><b>a ~&gt; b like ~ but ignore the left member (a)</b></li>
+<li><b>a &lt;~ b like ~ but ignore the right member (b)</b></li>
+</ul>
+<p>And that's pretty much everything you need to know about parser combinators!<br />
+A very simple parser could be:</p>
+<p>[code language="scala"]<br />
+import scala.util.parsing.combinator._<br />
+import scala.util.matching.Regex<br />
+val parser = new RegexParsers {<br />
+  def mySuperSimpleParser= &quot;&quot;&quot;\s*_end_$&quot;&quot;&quot;.r ^^ { _.toString }<br />
+}<br />
+[/code]</p>
+<p>(which would recognice any string that ends with zero or more blank spaces and _end_, and return that string)</p>
+<p>Here, what is enclosed between the curly brackets is a semantic action that is going to be executed.</p>
+<p>So basically</p>
+<p>[code]a ^^ f[/code]</p>
+<p>will parse <code>a</code>, and apply function <code>f</code> to the result (semantic action)</p>
+<p>To parse a string we would simply do this:</p>
+<p>[code language="scala"]<br />
+parse(myParser, &quot;my input string           _end_&quot;) match {<br />
+  case Success(matched,_) =&gt;<br />
+    matched match{<br />
+      case &quot;hello&quot;=&gt;<br />
+        println &quot;hello world&quot;<br />
+      case listOfArgs@h::t=&gt;<br />
+        MyParserHelper.executeAction(listOfArgs)<br />
+      case _=&gt;<br />
+        println( s&quot;string $matched has been recognized, but I don't know what to do with it&quot; )<br />
+    }<br />
+  case Failure(msg,_) =&gt;<br />
+    println(&quot;FAILURE PARSING STRING &quot; + msg)<br />
+}<br />
+[/code]</p>
+<p>And will define myParser right now.</p>
+<p>So far, we haven't combined mySuperSimpleParser with anything, so let's make it a little bit more complicated:<br />
+A still simple example coud be somethig like this:</p>
+<p>[code language="scala"]<br />
+def myParser =<br />
+  (pHelp | pThreeArgs) &lt;~ mySuperSimpleParser<br />
+[/code]</p>
+<p>where mySuperSimpleParser would (as we saw before) match any string ending in zero or more blanks plus the "_end_" string at the end of the input, but wouldn't do anything with it, and would continue on the left side on the input either parsing pHelp or pThreeArgs:<br />
+pHelp could be something like this:</p>
+<p>[code language="scala"]<br />
+def pHelp=<br />
+  &quot;(help|helpMe)&quot;.r ^^ { _=&gt; HelpCommand }<br />
+[/code]</p>
+<p>HelpCommand is a case class that, for the sake of simplicity we will not define here, but we could also do something like:</p>
+<p>[code language="scala"]<br />
+def pHelp =<br />
+  &quot;(help|helpMe)&quot;.r ^^ { _=&gt;&quot;the recogniced command is help&quot; }<br />
+[/code]</p>
+<p>Or even:</p>
+<p>[code language="scala"]<br />
+def pHelp =<br />
+  &quot;(help|helpMe)&quot;.r<br />
+[/code]</p>
+<p>We don't even need to take any semantic action on it if we do not want to.</p>
+<p>The only thing left now is the pThreeArgs parser. This parser will recognice a secuence of three words (first one word, then another, and then another) and put the three of them, sequencially into a list, and that list is what will be returned:</p>
+<p>[code language="scala"]<br />
+def pThreeArgs: Parser[List[Any]] = {<br />
+  var paramsCtx=mutable.ListBuffer[String]()<br />
+  pListParam(paramsCtx) ~&gt; pListParam(paramsCtx) ~&gt; pListParam(paramsCtx) ^^ {_.toList}<br />
+}<br />
+[/code]</p>
+<p>Note, that I created a mutable ListBuffer, which will act as a "global" context to each of the three parsers that we are combining, so that they only worry about parsing one parameter and storing it on the global context that they have received as a function parameter (these parsers are functions).<br />
+At the end, the whole List, containing the three parameters, will be returned :-)</p>
+<p>Can you think of a better (or more functional way of doing it? ;-) )<br />
+pListParam would be something like that:</p>
+<p>[code language="scala"]<br />
+def pListParam(l:mutable.ListBuffer[String])=<br />
+  &quot;&quot;&quot;\S+&quot;&quot;&quot;.r ^^ {l+=_.toString}<br />
+[/code]</p>
+<p>For a more complete example, please look <b><a href="https://github.com/roclas/liffey/blob/master/src/main/scala/com/liferay/osgi/shell/LiffeyParser.scala" target="_blank">here</a></b></p>

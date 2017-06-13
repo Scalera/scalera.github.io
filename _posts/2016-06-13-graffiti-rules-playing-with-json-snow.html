@@ -1,0 +1,70 @@
+---
+layout: post
+title: 'Graffiti Rules: playing with JSON [Snow]'
+date: 2016-06-13 12:00:33.000000000 +02:00
+type: post
+published: true
+status: publish
+categories:
+- English
+tags:
+- beginner
+- json
+- spray
+meta:
+  _rest_api_published: '1'
+  _rest_api_client_id: "-1"
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/742296266336440320";}}
+  _publicize_job_id: '23785512748'
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: dvallejonava
+  email: d.vallejo.nava@gmail.com
+  display_name: dvallejonava
+  first_name: ''
+  last_name: ''
+---
+<p style="text-align:justify;">A few months ago we talked about <a href="https://scalerablog.wordpress.com/2016/02/01/1420/" target="_blank">Spray</a>, a toolkit that allowed us to build REST APIs in an easy way with a pretty complete DSL.</p>
+<div>
+<p style="text-align:justify;">One of the components belonging to this toolkit is spray-json. This module allows us to serialize and deserialize our objects to/from a JSON format. Today we'll see how to work with it quickly and easily.</p>
+<p style="text-align:justify;">How to create serializers to different classes? Well, there are two options depending on how the class we want to serialize is defined.</p>
+<p style="text-align:justify;"><strong>Easy option: </strong>when we have a case class</p>
+<p style="text-align:justify;">Well, that's a piece of cake. The only thing we need to use is the <em>jsonFormatN</em>() method where N represents the number of arguments of the case class apply method. Let's see it with an example:</p>
+<p>[code language="scala"]<br />
+case class Character(name: String, family: String, isDead: Boolean)</p>
+<p>object MyJsonProtocol extends DefaultJsonProtocol {</p>
+<p> implicit val characterFormat = jsonFormat3(Character.apply)</p>
+<p>}<br />
+[/code]</p>
+<p style="text-align:justify;">As you can see, in order to create a serializer for the <i>Character </i>case class, we create an implicit value with the help of jsonFormat3 (as it has 3 attributes). Such an implicit object will be defined inside a trait which will extend from DefaultJsonProtocol. In this trait, the serializers for Scala basic types (Int, String, Boolean...) are defined... Easy peasy.</p>
+<p><img class="CToWUd a6T aligncenter" src="{{ site.baseurl }}/assets/tumblr_mfuulmem1p1qem4feo1_250.gif" alt="tumblr_mfuulmem1p1qem4feo1_250" width="185" height="185" /></p>
+<p style="text-align:justify;"><strong>Less easy option</strong>: when we don't have a case class or we want to serialize a case class in a different way.</p>
+<p style="text-align:justify;">In such a case, we'll need to implement how the serialization and deserialization of the given type should be. To do so, we may need to create an implicit object extending from <i>RootJsonFormat</i>[T] where <i>T</i> is the type we want to serialize. Such a trait contains two methods that need to be implemented. On the one hand, there is the <i>write </i>method, which converts a type<i>T</i> in a Json, and on the other a method <i>read</i>, performing the reverse process. We'll now see an example with the same type as before:</p>
+<p>[code language="scala"]<br />
+class Character(val name: String, val family: String, val isDead: Boolean)</p>
+<p>object MyJsonProtocol extends DefaultJsonProtocol {</p>
+<p>  implicit object CharacterJsonFormat extends RootJsonFormat[Character] {</p>
+<p>    def write(c: Character) =<br />
+      JsArray(JsString(c.name), JsString(c.family), JsBoolean(c.isDead))</p>
+<p>    def read(value: JsValue) = value match {<br />
+      case JsArray(Vector(JsString(name), JsString(family), JsBoolean(isDead))) =&gt;<br />
+        new Character(name, family, isDead.toBoolean)<br />
+      case _ =&gt; throw new DeserializationException(&quot;Character expected&quot;)<br />
+    }<br />
+  }<br />
+}<br />
+[/code]</p>
+<p style="text-align:justify;">As can be observed, it is a bit more tedious but not too complicated.</p>
+<p style="text-align:justify;"><strong>And how do we use it?</strong> We just have to import the object where we have defined the implicits and call the methods <em>toJson</em> or <em>convertTo[T]</em>.</p>
+<p>[code language="scala"]<br />
+import MyJsonProtocol._</p>
+<p>val json = Character(&quot;Jon Snow&quot;, &quot;Stark&quot;, ???).toJson //....You know nothing!!!!<br />
+// Returns {&quot;name&quot;: &quot;Jon Snow&quot;, &quot;family&quot;: &quot;Stark&quot;, &quot;isDead&quot;: ???}<br />
+val jonSnow = json.convertTo[Character]<br />
+[/code]</p>
+<p><img class="CToWUd a6T aligncenter" src="{{ site.baseurl }}/assets/giphy.gif" alt="giphy" width="392" height="193" /></p>
+<p style="text-align:justify;">Besides, if we use Spray's REST API, the transformation will be done in a transparent way and it won't be necessary to call  <em>toJson</em> or <em>convertTo</em> explicitely. But we'll leave that to other post. Next week we'll be talking about this library so we'd better see something of it before :)</p>
+<p>See you all!</p>
+</div>

@@ -1,0 +1,115 @@
+<p>Time ago, our friend <a href="https://twitter.com/javifdev" target="_blank">Javier Fuentes</a> illustrated us with an <a href="https://scalerablog.wordpress.com/2015/11/23/shapeless-introduction-and-hlists-part-1/" target="_blank">introduction to Shapeless</a>.<br />
+Some months after that, at <a href="http://www.meetup.com/Scala-Programming-Madrid/" target="_blank">Scala Madrid meetup</a>, he offered a pretty interesting speech about structural induction with Shapeless and HLists. We couldn't avoid it and we got the enthusiasm flu :-P</p>
+<h2>What we want to achieve</h2>
+<p>Let's set as our study case what I think more than one has thought before: how can I compose in the same for-comprehension different types. Something like:</p>
+<p>[code language="scala"]<br />
+import scala.util.Try</p>
+<p>for {<br />
+  v1 &lt;- List(1,2,3)<br />
+  v2 &lt;- Try(&quot;hi, person &quot;)<br />
+} yield s&quot;$v2 $v1&quot;<br />
+[/code]</p>
+<p>which usually comes from the hand of the following frustrating error:</p>
+<p>[code]<br />
+&lt;console&gt;:15: error: type mismatch;<br />
+ found   : scala.util.Try[String]<br />
+ required: scala.collection.GenTraversableOnce[?]<br />
+         v2 &lt;- Try(&quot;hi, person &quot;)<br />
+            ^<br />
+[/code]</p>
+<p>Therefore we need a way to transform these data types (<code>Future</code>, <code>Try</code>) into iterable 'stuff' (<code>GenTraversable[T]</code> might work). In our example we won't have in mind the information that we loose about the error that might happen, for example, if certain <code>Try</code> or <code>Future</code> expression has failed. For have a better understanding about the problem we present, let's talk about some theory.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/05/53132063.jpg" rel="attachment wp-att-2750"><img src="/assets/53132063.jpg?w=224" alt="53132063" width="224" height="300" class="aligncenter size-medium wp-image-2750" /></a></p>
+<h2>Monomorphism vs polymorphism</h2>
+<p>We say a method is monomorphic when you can only invoke it with parameters whose concrete type is explicitly declared in the method signature, whilst the polymorphic methods can take parameters of any type while it fits in the signature (in case of Scala language: parameter types). Speaking proper English:</p>
+<p>[code language="scala"]<br />
+def monomorphic(parameter: Int): String</p>
+<p>def polymorphic[T](parameter: T): String<br />
+[/code]</p>
+<h3>Polimorphism</h3>
+<p>It's also good to know that a method can be polymorphic due to parameter types or just to parameter subtyping. E.g.:</p>
+<p>[code language="scala"]<br />
+def parametricallyPolymorphic[T](parameter: T): String</p>
+<p>def subtypedPolymorphic(parameter: Animal): String</p>
+<p>subtypedPolymorphic(new Cat)<br />
+[/code]</p>
+<p>If we use parameter types and we have <strong>NO</strong> information at all about those types, we are in front of a parametric polymorphism case.</p>
+<p>If we use parameter types but we need any extra view / context bound for that type (<code>T &lt;: Whatever</code> o <code>T:TypeClass</code>), then we are talking about ad-hoc polymorphism.</p>
+<h3>Problem: Function values</h3>
+<p>There's not such a problem when using parametric polymorphism and methods but, what about function values? In Scala, it cannot be achieved and therefore it produces some lack of expressiveness:</p>
+<p>[code language="scala"]<br />
+val monomorphic: Int =&gt; String = _.toString</p>
+<p>val anotherMonomorphic: List[Int] =&gt; Set[Int] =<br />
+  _.toSet</p>
+<p>[/code]</p>
+<p>Please, notice the definition of the function that trasforms a List into a Set. It could be totally independant of the list element type, but Scala syntax doesn't allow to define something similar. We could try asigning the method to a <code>val</code> (Eta expansion):</p>
+<p>[code language="scala"]<br />
+def polymorphic[T](l: List[T]): Set[T] = l.toSet</p>
+<p>val sadlyMonomorphic = polymorphic _<br />
+[/code]</p>
+<p>But the compiler (as clever as usual) wil infer that the list contained type is <code>Nothing</code>: a special one, but concrete as the most.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/05/64331666.jpg" rel="attachment wp-att-2751"><img src="/assets/64331666.jpg?w=300" alt="64331666" width="300" height="300" class="aligncenter size-medium wp-image-2751" /></a></p>
+<h2>Shapeless parametric polymorphism</p>
+<p>How does Shapeless solve this problem? If we had to define a transformation function from <code>Option</code> to <code>List</code> in Scala, we'd have the previously mentioned limitation for using function values and we could only achieve it by defining a method:</p>
+<p>[code language="scala"]<br />
+def toList[T](o: Option[T]): List[T] =<br />
+  o.toList<br />
+[/code]</p>
+<p>However, Shapeless, using its alchemy, provides us some ways to do so. In category theory, when talking about type constructors transformations, it's so called <a href="https://en.wikipedia.org/wiki/Natural_transformation#Definition" target="_blank">natural transformations</a>. First of them has the following notation:</p>
+<p>[code language="scala"]<br />
+import shapeless.poly._</p>
+<p>val polyFunction = new (Option ~&gt; List){<br />
+  def apply[T](f: Option[T]): List[T] = f.toList<br />
+}<br />
+[/code]</p>
+<p>If you have a closer look at it, the parametric polymorphism is moved to the method inside the object. Using this function is as simple as:</p>
+<p>[code language="scala"]<br />
+val result: List[Int] = polyFunction(Option(2))<br />
+[/code]</p>
+<p>The other possible notation consists on defining the function behavior based on cases, in other words, if we want the function to be defined only for Int, String and Boolean, we'll add a case for each of them.</p>
+<p>[code language="scala"]<br />
+import shapeless.Poly1</p>
+<p>object polymorphic extends Poly1 {</p>
+<p>  implicit optionIntCase =<br />
+    at[Option[Int]](_.toList.map(_ + 1))</p>
+<p>  implicit optionStringCase =<br />
+    at[Option[String]](_.toList.map(_ + &quot; mutated&quot;))</p>
+<p>  implicit optionBooleanCase =<br />
+    at[Option[Boolean]](_.toList.map(!_))</p>
+<p>}<br />
+[/code]</p>
+<p>As you can see, if we want our function to be defined at the case where the input parameter is an  <code>Option[Int]</code>, we define that all contained elements in the list are added to 1.</p>
+<p>This expression returns a <code>this.Case[Option[Int]]</code>, where <strong>this</strong> refers to <code>polymorphic</code> object that we are defining:</p>
+<p>[code language="scala"]<br />
+implicit optionIntCase =<br />
+  at[Option[Int]](_.toList.map(_ + 1))<br />
+[/code]</p>
+<p>The good part of this? In case we wanted to use the funcion on a input type that doesn't have a defined case at the function, we'll get a <strong>compile-time</strong> error (Awesome, right?):</p>
+<h2>The result</h2>
+<p>Applying this last way (based on cases), we get the expected result that we mentioned in the introductory section: to be able to use a for-comprehension for composing different typed values: iterables, Try, Future... </p>
+<p>The proposed solution can be found <a href="https://github.com/Scalera/shapeless-handson/blob/master/src/main/scala/scalera/Polymorphic.scala" target="_blank">in the following file</a>. </p>
+<p>In our function we have a case for <code>GenTraversable</code>, another for <code>Try</code> and <code>Future</code> (this last one needs to have its expression evaluated for being able to iterate over it, so we need a timeout for waiting):</p>
+<p>[code language="scala"]<br />
+object values extends Poly1 {</p>
+<p>  implicit def genTraversableCase[T,C[_]](implicit ev: C[T] =&gt; GenTraversable[T]) =<br />
+    at[C[T]](_.toStream)</p>
+<p>  implicit def tryCase[T,C[_]](implicit ev: C[T] =&gt; Try[T]) =<br />
+    at[C[T]](_.toOption.toStream)</p>
+<p>  implicit def futureCase[T,C[_]](implicit ev: C[T] =&gt; Future[T], atMost: Duration = Duration.Inf) =<br />
+    at[C[T]](f =&gt; Try(Await.result(f,atMost)).toOption.toStream)</p>
+<p>}<br />
+[/code]</p>
+<p>Now we can use it in our controversial code snippet:</p>
+<p>[code language="scala"]<br />
+import scala.concurrent.ExecutionContext.Implicits.global</p>
+<p>case class User(name: String, age: Int)</p>
+<p>val result: Stream[_] = for {<br />
+  v1 &lt;- values(List(1,2,3))<br />
+  v2 &lt;- values(Set(&quot;hi&quot;,&quot;bye&quot;))<br />
+  v3 &lt;- values(Option(true))<br />
+  v4 &lt;- values(Try(2.0))<br />
+  v5 &lt;- values(Future(User(&quot;john&quot;,15)))<br />
+} yield (v1,v2,v3,v4,v5)<br />
+[/code]</p>
+<h2>The sole solution?</h2>
+<p>At all! you can always implement it using traditional Scala type classes, though it implies defining a trait that represent the ADT iterable. You can take a look at the example at the following <a href="https://gist.github.com/JSantosP/4888479a06b6c7064199f41f85b0b867" target="_blank">gist content</a>.</p>
+<p>Peace out!</h2>

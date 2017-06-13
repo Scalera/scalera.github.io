@@ -1,0 +1,73 @@
+<p>This blog post is dedicated to all people who hate nulls.<br />
+Why do NullPointerExceptions exist? Why do we have to work with nulls at all? Why? Or like Mourinho would say: Why? Why? WHY?</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/03/mourinho.gif"><img class="  wp-image-91 aligncenter" src="/assets/mourinho.gif" alt="nlY1Wxv" width="268" height="201" /></a></p>
+<p>Ladies, gentlemen, we, Scala programmers are null-haters. We work with <em>Option</em> type :)</p>
+<p><strong>What is an Option?</strong></p>
+<p>An <em>Option</em> is a parameterized type that can have two possible values:</p>
+<ul>
+<li>Some(T)</li>
+<li>None</li>
+</ul>
+<p>For instance, an <em>Option[Int]</em> can be <em>Some(1),</em> <em>Some(123456),</em> <em>None...</em></p>
+<p><strong>And what does this have to do with nulls?</strong></p>
+<p>We can encapsulate <em>nulls</em> in <em>Option</em>, and by doing so, instead of working directly with <em>nulls</em>, we can work with a type that is prepared to handle null values.</p>
+<p>[code language="scala"]<br />
+Option(null) === None<br />
+[/code]</p>
+<p>No more null pointers exploding, or checks of the kind <em>if myValue == null.</em></p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/03/mourinhooh.jpg"><img class="  wp-image-91 aligncenter" src="/assets/mourinhooh.jpg" alt="nlY1Wxv" width="248" height="248" /></a></p>
+<p>Imagine the typical method that returns a value from a map:</p>
+<p>[code language="scala"]<br />
+val m =<br />
+  Map(<br />
+    1 -&gt; &quot;head&quot;,<br />
+    2 -&gt; &quot;shoulders&quot;,<br />
+    3 -&gt; &quot;knees&quot;,<br />
+    4 -&gt; &quot;toes&quot;<br />
+  )<br />
+[/code]</p>
+<p>If we didn’t work with Option, we would have to check if a given key exists before asking for its value.</p>
+<p>[code language="scala"]<br />
+if(m.contains(1))<br />
+  println(&quot;I'm pointing at my: &quot; + m(1))<br />
+else<br />
+  println(&quot;I'm actually pointing to nowhere&quot;)<br />
+[/code]</p>
+<p>However, we can query the map for a value encapsulated in an <em>Option</em>, and in case it doesn’t exist, that <em>Option</em> will be <em>None</em>.</p>
+<p>[code language="scala"]<br />
+m.get(1) //Returns Some(&quot;head&quot;)<br />
+m.get(5) //Returns None<br />
+[/code]</p>
+<p><strong>How can we work with <em>Option</em> type?</strong></p>
+<p>There are several ways to work with this gentle structure.</p>
+<p>First of all, we have <em>getOrElse</em> method. This method returns either the value of the <em>Option</em> (in case it is <em>Some</em>) or what is passed as an argument to this method.<br />
+A simple example:</p>
+<p>[code language="scala"]<br />
+m.get(1).getOrElse(&quot;belly button&quot;)<br />
+[/code]</p>
+<p>Another possibility is to use <em>Pattern Matching</em>:</p>
+<p>[code language="scala"]<br />
+m.get(1) match {<br />
+  case Some(bodyPart) =&gt;<br />
+    println(&quot;Girl, look at my &quot; + bodyPart)<br />
+  case None =&gt;<br />
+    println(&quot;I’m sexy and I know it&quot;)<br />
+}<br />
+[/code]</p>
+<p>We can also work with <em>fold</em> method. <em>Fold</em> method, unlike <em>getOrElse</em> method (and just as pattern matching), allows us to apply some function to the returned method. The first argument of the function (called <em>ifEmpty</em>) gets the result that is to be returned in case the <em>Option</em> is <em>None</em>. The second argument gets a function that must be defined to know which result is to be returned in case the <em>Option</em> has a value.</p>
+<p>[code language="scala"]<br />
+m.get(1).fold(<br />
+  ifEmpty = println(&quot;I don’t feel like dancing&quot;)){<br />
+  step =&gt; println(s&quot;I broke my $bodyPart while dancing La Macarena&quot;)<br />
+}<br />
+[/code]</p>
+<p>And for those of you who are functional lovers (warm greetings to you all), we shall not forget that an <em>Option</em> is a monad and thus, transformations can be made, for instance, with <em>map</em>, <em>flatmap</em> or with just a spoonful of syntactic sugar, <em>for-comprehension</em>:</p>
+<p>[code language="scala"]<br />
+for {<br />
+  first &lt;- m.get(1)<br />
+  second &lt;- m.get(2)<br />
+} yield s&quot;I’ll start pointing my $first and then my $second&quot;<br />
+[/code]</p>
+<p>There are other similar structures that will be detailed in future posts: <em>Either</em>, <em>Try</em>, ... but let things take their course.</p>
+<p>So, remember: if you use Option children smile, little birds sing and nulls disappear :)</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/03/mourinhook.jpg"><img class="  wp-image-91 aligncenter" src="/assets/mourinhook.jpg" alt="nlY1Wxv" width="350" height="208" /></a></p>

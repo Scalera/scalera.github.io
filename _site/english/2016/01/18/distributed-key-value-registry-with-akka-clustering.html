@@ -1,0 +1,35 @@
+<p>Almost a year ago, I wanted to see how good Akka was, and how easy it would be to create a distributed hash with Akka Clustering...</p>
+<p>So I created a sample project to play with it a little bit (<strong><a href="http://roclas.github.io/akka-distributed-hash/" target="_blank">https://github.com/roclas/akka-distributed-hash</a> - </strong>I actually changed a couple of things just before writing this post).</p>
+<p>It consist of a distributed key-value registry supported by different akka instances with the same code launched on different nodes.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/12/39a0aab0c5b10c7204bc38788dfac55d02140c91f8b07ea4f036d673eec97379.jpg" rel="attachment wp-att-1228"><img class="aligncenter size-medium wp-image-1228" src="/assets/39a0aab0c5b10c7204bc38788dfac55d02140c91f8b07ea4f036d673eec97379.jpg?w=239" alt="39a0aab0c5b10c7204bc38788dfac55d02140c91f8b07ea4f036d673eec97379" width="239" height="300" /></a></p>
+<p>The idea behind it is very straight forward: you run the application a few times simultaneously (passing a different port number as a parameter) and once the first node (if it is in the seeds list) has started, you can connect as many nodes to the cluster as you want. Nodes (in this case, actors) have a hash that is modified through HTTP requests, and that hash's changes are propagated across the cluster, so that every node ends up having the same information.</p>
+<p>The seed nodes are on <a href="https://github.com/roclas/akka-distributed-hash/blob/master/src/main/resources/application.conf">src/main/resources/application.conf</a></p>
+<p>When the application starts, one of the first thing it does is trying to join the cluster. In order to do that, it goes through the list of seeds and tries to connect to the first available node.</p>
+<p><img class="" src="/assets/explanation.gif" alt="" width="434" height="271" /></p>
+<p>A very interesting fact is that if the node is the first element of the seeds list, and it is not the first node we start, we will most likely end up having an island in the cluster (when it finds itself as the first element of the seeds list, it will connect to itself and will create an island). The previously started nodes will be in their own sub-cluster, and the subsequently created nodes will get connected to this node, creating an isolated second sub-cluster.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/01/akka-clustering-graph.png" rel="attachment wp-att-1233"><img class="aligncenter wp-image-1233" src="/assets/akka-clustering-graph.png?w=700" alt="akka clustering graph" width="567" height="371" /></a></p>
+<p>I have avoided this problem by doing a trick (<strong>maybe you could find a more elegant way?</strong>):</p>
+<p>[code language="scala"]<br />
+val selfAddress = Cluster(system).selfAddress<br />
+val seeds= system.settings<br />
+  .config.getList(&quot;akka.cluster.seed-nodes&quot;)<br />
+System.setProperty(&quot;akka.cluster.seed-nodes&quot;,<br />
+seeds filter(!_.toString.contains(selfAddress.toString)) toString)<br />
+[/code]</p>
+<p>As a general rule, we could say it is not a bad idea to remove your own address from the seeds list before joining the cluster (by doing that, you would not have any problem; but I did not want to keep a different config file for each node I create and that's why each of them programmatically removes itself from the seeds list).</p>
+<p>Once the actor is connected to the cluster, I can receive cluster messages such as:</p>
+<p>[code language="scala"]<br />
+MemberUp (when a new node joins the cluster)<br />
+MemberRemoved (when a node leaves the cluster)<br />
+[/code]</p>
+<p>Each actor will have a hash object and a tiny HTTP server (that will respond to get, put and delete requests). Put requests will add elements to the actor's internal hash, and remove requests will delete them.</p>
+<p>And from this point on, you can let your imagination run wild:</p>
+<ul>
+<li>Every time we modify an actor's hash, it will send a message  notifying its peers of the change, so that they can change their hash too</li>
+<li>After actualizing the hash, by another actors request, it sends a message back with its hash's md5 so that the original actor can check if the changes were successfully made</li>
+<li>When a new member joins the cluster, it synchronizes its state (its hash) with the other nodes</li>
+</ul>
+<p>Please <a href="https://github.com/roclas/akka-distributed-hash/archive/master.zip">download the zip</a> or clone (git@github.com:roclas/akka-distributed-hash.git) the <a href="http://roclas.github.io/akka-distributed-hash/">project</a>, and try it yourselves; it is so easy to try and very fun to play with. It's a very simple example that you can use as a base for more complex projects. Everything is explained on the <a href="https://github.com/roclas/akka-distributed-hash/blob/master/README.md">README.md</a> file.</p>
+<p>Also, don't forget to tell us of useful things you think you could do with Akka Clustering. Fork, use and improve <a href="https://github.com/roclas/akka-distributed-hash/tree/master" target="_blank">the project</a>, and suggest us things we could do with this awesome technology.</p>
+<p>&nbsp;</p>
+<p>&nbsp;</p>

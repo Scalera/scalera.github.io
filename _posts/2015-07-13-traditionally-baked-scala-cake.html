@@ -1,0 +1,67 @@
+---
+layout: post
+title: Traditionally baked Scala cake
+date: 2015-07-13 12:00:00.000000000 +02:00
+type: post
+published: true
+status: publish
+categories:
+- English
+tags:
+- beginner
+- design-pattern
+- scala
+- trait
+meta:
+  _rest_api_published: '1'
+  _rest_api_client_id: "-1"
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/620534790626738176";}}
+  _publicize_job_id: '12680882527'
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: dvallejonava
+  email: d.vallejo.nava@gmail.com
+  display_name: dvallejonava
+  first_name: ''
+  last_name: ''
+---
+<p>Today, we’ll talk about cooking. We’ll bake a pretty cake. Have Igone too far with Masterchef? Nope. Today, we’ll talk about <strong>cake-pattern</strong>.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/07/t4ilmu.jpg"><img class=" size-medium wp-image-527 aligncenter" src="{{ site.baseurl }}/assets/t4ilmu.jpg?w=300" alt="t4ilmu" width="300" height="198" /></a></p>
+<p>Cake-pattern is a depencency injection design pattern. It allows us to establish dependencies among components. It is common that services or repositories that must be implemented require others. In these cases, <em>cake pattern</em> will help to establish this connection.</p>
+<p>The basis of this design pattern is to compose our system from smaller components. That is, we are composing our cake from small slices. Besides, we are establishing connections among those slices.</p>
+<p>For that, we’ll first create some abstract components with <em>traits</em>, from which real components will inherit. This way, we can be sure that all the components we implement have the same functionality.</p>
+<p>[code language="scala"]<br />
+trait MyComponent {</p>
+<p>  def service: MyService</p>
+<p>  trait MyService {<br />
+    def saySomething: String<br />
+  }<br />
+}<br />
+[/code]</p>
+<p>In this example, we have a component with a service that contains the method <em>saySomething</em>.</p>
+<p>Now, we’ll implement the service. To do so, we have to call a repository. Therefore, we must inject the dependency to that repository. But, as we do not know yet which type of repository it will be (a database implemented in <em>mysql</em>, an in-memory data structure…), we’ll have a dependency to an abstract repository. Further on, when we create our system (aka, our cake), we’ll decide on the type of repository we will work in.</p>
+<p>[code language="scala"]<br />
+trait MyRepository {</p>
+<p>  def repo: MyRepoService {</p>
+<p>    def getRandomExpression: String<br />
+  }<br />
+}<br />
+[/code]</p>
+<p>In order to create dependencies, we will use <em><strong>self types</strong></em>. Self types will be used in this case to inject a dependency to another component. However, they can also be used to make reference to <em>inner</em> or <em>outer classes</em>. Don’t worry. We’ll take a look at those concepts later. For the time being, we’ll use these <em>self types</em> to put restrictions to the mixin with a component given that, for a component to inherit from this trait, it will also have to inherit from the traits in its <em>self type</em>. Let’s see how it looks:</p>
+<p>[code language="scala"]<br />
+trait MyComponentImpl extends MyComponent{<br />
+  self: MyRepository =&gt;</p>
+<p>  def service = new MyServiceImpl</p>
+<p>  trait MyServiceImpl extends MyService {</p>
+<p>    def saySomething: String = repo.getRandomExpression()</p>
+<p>  }<br />
+}<br />
+[/code]</p>
+<p>Finally, we can create our system by using the implemented version of our component, and the implemented version of a repository. Once the system (the cake) has been created, we can make use of its functionality:</p>
+<p>[code language="scala"]<br />
+val system = new MyComponentImpl with MyRepositoryImpl</p>
+<p>println(system.service.saySomething)<br />
+[/code]</p>
+<p>Et voila! Bon appetit!</p>

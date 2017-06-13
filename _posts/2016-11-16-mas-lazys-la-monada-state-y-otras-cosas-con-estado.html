@@ -1,0 +1,183 @@
+---
+layout: post
+title: Más lazy's, la mónada State y otras cosas con estado
+date: 2016-11-16 12:00:53.000000000 +01:00
+type: post
+published: true
+status: publish
+categories:
+- Castellano
+tags:
+- eval
+- function0
+- lazy
+- monad
+- pattern
+- scalaz
+- side effect
+- stack
+- state
+- stateful
+- statet
+meta:
+  _edit_last: '59615419'
+  geo_public: '0'
+  draftfeedback_requests: a:1:{s:13:"58051c3dbf3f3";a:3:{s:3:"key";s:13:"58051c3dbf3f3";s:4:"time";s:10:"1476729917";s:7:"user_id";s:8:"59615419";}}
+  draft_feedback: |-
+    a:1:{s:13:"58051c3dbf3f3";a:1:{i:0;a:2:{s:4:"time";s:10:"1476773928";s:7:"content";s:337:"Técnica de Runar: Para explicar algo, te lo haces tu mismo +10 Cool
+
+    No quedaría algo más limpio si quitas los override de `value` y `eval`?
+
+    La implementación del estado me recuerda a http://learnyouahaskell.com/for-a-few-monads-more#state
+
+    Claro coño, Scalaz imita a Haskell en todo lo que puede XD
+
+    Veredicto: As cool as it gets.";}}}
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/798828681372127233";}}
+  _publicize_job_id: '28969913399'
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+  _wpas_skip_10515941: '1'
+author:
+  login: jpaniego
+  email: javiersantospaniego@gmail.com
+  display_name: Javier S. Paniego
+  first_name: ''
+  last_name: ''
+---
+<p>En el <a href="https://scalerablog.wordpress.com/2016/10/26/valores-perezosos/" target="_blank">anterior post</a> hablábamos sobre la evaluación perezosa en Scala. Al final de dicho post, planteábamos una pregunta: ¿Un <code>Lazy</code> tiene estado?</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/10/24195622.jpg"><img src="{{ site.baseurl }}/assets/24195622.jpg?w=300" alt="24195622" width="300" height="300" class="aligncenter size-medium wp-image-4313" /></a></p>
+<p>Para responder a dicha pregunta, vamos a intentar definir un tipo que represente un valor Lazy como sigue:</p>
+<p>[code language="scala"]<br />
+trait Lazy[T] {</p>
+<p>  val evalF : () =&gt; T</p>
+<p>  val value: Option[T] = None</p>
+<p>}<br />
+object Lazy{<br />
+  def apply[T](f: =&gt; T): Lazy[T] =<br />
+    new Lazy[T]{ val evalF = () =&gt; f }<br />
+}<br />
+[/code]</p>
+<p>Como se puede observar, nuestro tipo <code>Lazy</code> está parametrizado por un tipo <code>T</code> que representa el tipo del valor en cuestión(<code>Lazy[Int]</code> sería la representación de un entero perezoso).<br />
+Además, podemos ver que se compone de dos elementos principales que caracterizan a un Lazy:</p>
+<ul>
+<li><strong>evalF</strong> : Función de cero argumentos que, al invocar su método apply, evalúa la expresión de T contenida.</li>
+<li><strong>value</strong> : El valor resultante de la interpretación de la función <code>evalF</code>. Esta parte es la que denota el estado en el tipo <code>Lazy</code>, y solo admite dos posibles valores: <code>None</code> (no evaluado) o <code>Some(t)</code> (si ya ha sido evaluado y el resultado obtenido).</li>
+</ul>
+<p>También hemos añadido un objeto companion que define el constructor de instancias Lazy que recibe un argumento <strong>by-name</strong> que se devuelve como resultado de la función <code>evalF</code>.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2016/10/e9a2295b3db9b45c8f5484a09033c1c71cf88e3375bb7ff60456bc81c29a4e04.jpg"><img src="{{ site.baseurl }}/assets/e9a2295b3db9b45c8f5484a09033c1c71cf88e3375bb7ff60456bc81c29a4e04.jpg?w=103" alt="e9a2295b3db9b45c8f5484a09033c1c71cf88e3375bb7ff60456bc81c29a4e04" width="103" height="150" class="aligncenter size-thumbnail wp-image-4303" /></a></p>
+<p>La cuestión ahora es: ¿Cómo unimos la función de evaluación con el valor que devuelve para hacer que <code>Lazy</code> mantenga un estado? Definiendo la función eval:</p>
+<p>[code language="scala"]<br />
+trait Lazy[T] { lzy =&gt;</p>
+<p>  val evalF : () =&gt; T</p>
+<p>  val value: Option[T] = None</p>
+<p>  def eval: (T, Lazy[T]) = {<br />
+    val evaluated = evalF.apply()<br />
+    evaluated -&gt; new Lazy[T]{ mutated =&gt;<br />
+      val evalF = lzy.evalF<br />
+      override val value = Some(evaluated)<br />
+      override def eval: (T, Lazy[T]) =<br />
+        evaluated -&gt; mutated<br />
+    }<br />
+  } </p>
+<p>}<br />
+[/code]</p>
+<p>La función eval devuelve una tupla de dos elementos:</p>
+<ul>
+<li>el valor resultante de la evaluación de la expresión que representa el valor perezoso.</li>
+<li>una nueva versión del valor <code>Lazy</code> que contiene el nuevo estado: el resultado de la evaluación.</li>
+</ul>
+<p>Si os fijáis, lo que hace el método en primer lugar, es invocar a la función <strong>evalF</strong> para obtener el valor de tipo T que aún estaba sin evaluar.<br />
+Una vez hecho esto, lo devolvemos así como la nueva versión del elemento Lazy. Esta nueva versión (llamémosla <code>mutated</code>) tendrá en su atributo value el resultado de haber invocado a <code>evalF</code>. Del mismo modo, modificamos su método <code>eval</code>, para que en sucesivas invocaciones se devuelva a sí mismo y no genere nueva instancias que en realidad no varían su estado.</p>
+<p>La cuestión interesante viene ahora: ¿es este un caso único? ¿Existen más 'cosas' que mantienen un estado? Hagamos un ejercicio de abstracción.</p>
+<h2>Buscando la genericidad: cosas-con-estado</h2>
+<p>Pensemos en el caso de una pila:</p>
+<p>[code language="scala"]<br />
+sealed trait Stack[+T]<br />
+case object Empty extends Stack[Nothing]<br />
+case class NonEmpty[T](head: T, tail: Stack[T]) extends Stack<br />
+[/code]</p>
+<p>La implementación sale casi sola. Pero centrémonos en el trait <code>Stack</code> y en un hipotético método <code>pop</code> que desapila un elemento que se devuelve junto al resto de la pila:</p>
+<p>[code language="scala"]<br />
+sealed trait Stack[+T]{<br />
+  def pop(): (Option[T], Stack[T])<br />
+}<br />
+[/code]</p>
+<p>¿Os suena de algo? ¿No se parece misteriosamente a </p>
+<p>[code language="scala"]<br />
+trait Lazy[T]{<br />
+  def eval: (T, Lazy[T])<br />
+}<br />
+[/code]</p>
+<p>...?</p>
+<p>Si intentamos sacar factor común entre <code>Lazy</code> y <code>Stack</code> podríamos definir un tipo mucho más abstracto llamado <code>State</code>:</p>
+<p>[code language="scala"]<br />
+trait State[S,T] {<br />
+  def apply(s: S): (T, S)<br />
+}<br />
+[/code]</p>
+<p>Simple pero bello: el trait <code>State</code> está parametrizado por dos tipos: S (tipo de estado) y T (información o elemento adicional que devuelve cada vez que mutamos el estado). Aquí donde lo veis, se trata de un patrón muy recurrente al diseñar sistemas en Scala. Siempre hay algo que mantiene un estado. Y todo lo que tiene estado muta. Y si ese algo muta de manera segura y elegante...oh man.</p>
+<h2>Esto ya existe ...</h2>
+<p><a href="https://scalerablog.files.wordpress.com/2016/10/21495586.jpg"><img src="{{ site.baseurl }}/assets/21495586.jpg?w=150" alt="21495586" width="150" height="150" class="aligncenter size-thumbnail wp-image-4296" /></a></p>
+<p>Toda esta historia que parece sacada de un ensayo post-moderno, resulta que ya ha sido objeto de estudio de personas que estudian cosas. Sin entrar en mucho detalle, en la librería <a href="https://github.com/scalaz/scalaz#scalaz" target="_blank">ScalaZ</a> podéis encontrar la mónada <code>State</code> que, además de lo descrito anteriormente, trae de serie un full-equipped de componibilidad y todo lo que conlleva ser Mónada (semigrupo, monoide, etc).</p>
+<p>Si definimos nuestro tipo Lazy con la mónada State tenemos algo como:</p>
+<p>[code language="scala"]<br />
+import scalaz.State</p>
+<p>type Lazy[T] = (() =&gt; T, Option[T])</p>
+<p>def Lazy[T](f: =&gt; T) = (() =&gt; f, None)</p>
+<p>def eval[T] = State[Lazy[T], T]{<br />
+  case ((f, None)) =&gt; {<br />
+    val evaluated = f.apply()<br />
+    ((f, Some(evaluated)), evaluated)<br />
+  }<br />
+  case s@((_, Some(evaluated))) =&gt; (s, evaluated)<br />
+}<br />
+[/code]</p>
+<p>Al descomponer el jeroglífico egipcio arriba expuesto, dada la mónada <code>State[S,T]</code>, nuestro estado S va a ser una tupla de lo que representa en el fondo a una evaluación perezosa:</p>
+<p>[code language="scala"]<br />
+type Lazy[T] = (() =&gt; T, Option[T])<br />
+[/code]</p>
+<p>y que más arriba hemos descrito: </p>
+<ul>
+<li>Una Function0 que representa la evaluación demorada de T</li>
+<li>El valor T que puede haberse evaluado o no</li>
+</ul>
+<p>Para construir un valor Lazy, generamos una tupla con una función que recoge la expresión indicada por un argumento by-name del método <code>Lazy</code> y el valor None (porque aún no ha sido evaluado el Lazy):</p>
+<p>[code language="scala"]<br />
+def Lazy[T](f: =&gt; T) = (() =&gt; f, None)<br />
+[/code]</p>
+<p>Por último (y esta es la parte importante) definimos la única transición posible de estado que podemos concebir cuando hablamos de valores perezosos: la evaluación. Esta es la clave cuando diseñamos cualquier constructor de tipos que extiende de State: lo importante es modelar qué es nuestro tipo S y las transiciones de estado posibles.</p>
+<p>Para el tipo Lazy, tenemos dos posibles casos: que la expresión aún no haya sido evaluada (en cuyo caso la evaluamos y devolvemos la misma función y el resultado) ó que la expresión ya haya sido evaluada (en cuyo caso dejamos el estado como está y devolvemos además el resultado de la evaluación):</p>
+<p>[code language="scala"]<br />
+def eval[T] = State[Lazy[T], T]{<br />
+  case ((f, None)) =&gt; {<br />
+    val evaluated = f.apply()<br />
+    ((f, Some(evaluated)), evaluated)<br />
+  }<br />
+  case s@((_, Some(evaluated))) =&gt; (s, evaluated)<br />
+}<br />
+[/code]</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/12/izcunxh.gif"><img src="{{ site.baseurl }}/assets/izcunxh.gif?w=300" alt="iZcUNxH" width="300" height="168" class="aligncenter size-medium wp-image-944" /></a></p>
+<p>Para comprobar que seguimos contando con las mismas características iniciales para las que definimos el tipo Lazy (solo se evalúa una vez, solo se evalúa cuando es necesario, ...) lanzamos las siguiente aserciones:</p>
+<p>[code language="scala"]<br />
+var sideEffectDetector: Int = 0</p>
+<p>val two = Lazy {<br />
+  sideEffectDetector += 1<br />
+  2<br />
+}</p>
+<p>require(sideEffectDetector==0)</p>
+<p>val (_, (evaluated, evaluated2)) = (for {<br />
+  evaluated &lt;- eval[Int]<br />
+  evaluated2 &lt;- eval[Int]<br />
+} yield (evaluated, evaluated2)).apply(two)</p>
+<p>require(sideEffectDetector == 1)<br />
+require(evaluated == 2)<br />
+require(evaluated2 == 2)<br />
+[/code]</p>
+<p>Si os fijáis, como antes comentábamos, lo que se define en la for-comprehension son las transiciones o pasos que va a enfrentar el estado que nosotros queramos. Es decir, definimos las mutaciones que sufrirá un estado S cualquiera. Una vez definida la 'receta', la aplicamos al estado inicial que nosotros queramos.<br />
+En este caso, definimos como estado inicial un perezoso número entero dos. Para comprobar el número de veces que se evalúa nuestro Lazy, añadimos un var muy dummy que funcionará a modo de contador. Luego definimos en nuestra 'receta' que el estado debe mutar dos veces mediante la operación <code>eval</code>. Posteriormente comprobamos que solo se ha ejecutado una vez la expresión del bloque Lazy y que el valor resultante de la expresión es el esperado.</p>
+<p>Os deseo la mejor de las sales de frutas para digerir todo esto :-)<br />
+Sentíos libres de añadir comentarios/amenazas en el post o en <a href="https://gitter.im/Scalera/general" target="_blank">nuestro canal de gitter</a>.</p>
+<p>Hasta el próximo post.<br />
+¡Agur de limón!</p>

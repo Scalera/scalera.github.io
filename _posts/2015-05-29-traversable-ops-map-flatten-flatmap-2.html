@@ -1,0 +1,105 @@
+---
+layout: post
+title: Traversable ops - Map + Flatten = Flatmap *
+date: 2015-05-29 10:10:29.000000000 +02:00
+type: post
+published: true
+status: publish
+categories:
+- English
+tags:
+- beginner
+- difference
+- faq
+- flatmap
+- flatten
+- map
+- ops
+- scala
+- traversable
+meta:
+  _edit_last: '59615419'
+  geo_public: '0'
+  _publicize_job_id: '11123833173'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/604198379002806272";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: jpaniego
+  email: javiersantospaniego@gmail.com
+  display_name: Javier S. Paniego
+  first_name: ''
+  last_name: ''
+---
+<p>One of the most frequently asked questions and that usually leads to confusion among those that are new to Scala is:</p>
+<p><strong>What’s the difference between map and flatMap?</strong></p>
+<h2>Map</h2>
+<p><code>Map</code> function is the prime converter function. It transforms the elements that compose the Traversable into other elements of the same or different type. Its notation is, for a given <code>T[A]</code>:</p>
+<p>[code language="scala"]<br />
+def map[B](f: A =&gt; B):T[B]<br />
+[/code]</p>
+<p>If we put an example,</p>
+<p>[code language="scala"]<br />
+val myList: List[Int] = List(1,2,3)<br />
+val anotherList: List[String] =<br />
+  myList.map((n:Int) =&gt; n.toString) //List(&quot;1&quot;,&quot;2&quot;,&quot;3&quot;)<br />
+[/code]</p>
+<p>we have that, given a list of integers, the transformation function <code>(n:Int) =&gt; n.toString</code> is applied to every member in the list, generating a new list whose type is the one that results from the transformation function, that is, <code>String</code> type.</p>
+<p>Though this is not unique for <code>map</code> function, we should remember that there are shorter ways to define the transformation function:</p>
+<p>[code language="scala"]<br />
+val f: Int =&gt; String = (n: Int) =&gt; n.toString<br />
+val f: Int =&gt; String = n =&gt; n.toString<br />
+val f: Int =&gt; String = _.toString<br />
+[/code]</p>
+<h2>flatMap</h2>
+<p>Well, <code>map</code> is now ok, understood, but then... what the hell is <code>flatMap</code>? In order to understand it, we need to make a short detour and get to know our helping function <code>flatten</code>.</p>
+<h2>flatten</h2>
+<p>This operation, with the following signature:</p>
+<p>[code language="scala"]<br />
+def flatten[B](implicit asTraversable: (A) =&gt; GenTraversableOnce[B]): Traversable[B]<br />
+[/code]</p>
+<p>allows us to flatten a traversable of traversables. That is to say, we flatten the collections that compose a collection. For instance:</p>
+<p>[code language="scala"]<br />
+val l: List[List[Int]] = List(List(1,2,3),List(),List(4),List(5))<br />
+require(l.flatten==List(1,2,3,4,5)<br />
+[/code]</p>
+<p>The contained type doesn’t have to be the same as the container’s <code>List[List[Int]]</code>). It also applies to some other really interesting traversables, such as <code>Option[T]</code>:</p>
+<p>[code language="scala"]<br />
+val l: List[Option[Int]] = List(Option(1),None,None,Option(2),Option(3))<br />
+require(l.flatten==List(1,2,3)<br />
+[/code]</p>
+<h2>flatMap (now seriously...)</h2>
+<p>Then, what is a <code>flatMap</code>? By now you might have gotten an idea ;-)<br />
+It’s just that, the application of a <code>map</code> operation followed by a <code>flatten</code>.</p>
+<p>Let’s put a practical example:</p>
+<blockquote><p>We have a function that gets a JSON object and a function that deserializes it, converting it into a map. It is possible that some fields in the JSON object have null value. How can we return a list with the non-null values?</p></blockquote>
+<p>A first approach could be...</p>
+<p>[code language="scala"]<br />
+type KeyValueMap = Map[String,String]<br />
+type ValueList = List[String]<br />
+def fieldValues(obj: String, fieldDeser: String =&gt; KeyValueMap): ValueList = {<br />
+  fieldDeser(obj).filter{<br />
+    case (key,value) =&gt; value != null<br />
+  }.values.toList<br />
+}<br />
+[/code]</p>
+<p>But, as David said, <a title="Using nulls is not an Option" href="https://scalerablog.wordpress.com/2015/03/16/using-nulls-is-not-an-option/">using nulls is not an option</a>, and instead of that, we could write</p>
+<p>[code language="scala"]<br />
+type KeyValueMap = Map[String,String]<br />
+type ValueList = List[String]<br />
+def fieldValues(obj: String, fieldDeser: String =&gt; KeyValueMap): ValueList = {<br />
+  fieldDeser(obj).values.flatMap(Option(_)).toList<br />
+}<br />
+[/code]</p>
+<p>What has happened here? In detail, if we do the same operation but in two steps and simulate the input, we have tha</p>
+<p>[code language="scala"]<br />
+val it: List[String] =<br />
+  List(&quot;value1&quot;,null,&quot;value3&quot;)//Simulating 'fieldDeser(ob).values'<br />
+val mapped: Iterable[Option[String]] =<br />
+  it.map(Option(_)) //Remember Option(null)==None<br />
+require(mapped==List(Option(&quot;value1&quot;),None,Option(&quot;value3&quot;)))<br />
+require(mapped.flatten==List(&quot;value1&quot;,&quot;value3&quot;))<br />
+[/code]</p>
+<p>Now, I think we’ve finally answered to the million-dollar question.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/04/1zltyts.gif"><img class=" size-full wp-image-210 aligncenter" src="{{ site.baseurl }}/assets/1zltyts.gif" alt="1zltyts" width="264" height="216" /></a></p>

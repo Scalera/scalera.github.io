@@ -1,0 +1,67 @@
+<p>In computer programming, <strong>Ducktyping</strong> is the definition of types given by the attributes and methods that compose them, and not by inheritance. For instance, in Scala we can define the following <strong>structural type</strong>:</p>
+<p>[code language="scala"]<br />
+type Animal = {<br />
+  val legs: Int<br />
+  def noise(): String<br />
+}</p>
+<p>def animalDescription(a: Animal): String =<br />
+  s&quot;My animal has ${a.legs} legs and says ${a.noise()}&quot;<br />
+[/code]</p>
+<p>In this case, we can say that every class that has an integer attribute called <code>legs</code> and a method <code>noise</code> that returns a <code>String</code> can be referred to as <code>Animal</code>.</p>
+<p>Then now, what’s the difference between this and classic inheritance?</p>
+<p>[code language="scala"]<br />
+trait Animal {<br />
+  val legs: Int<br />
+  def noise(): String<br />
+}<br />
+class Dog extends Animal{<br />
+  val legs = 4<br />
+  def noise() = &quot;woof&quot;<br />
+}<br />
+[/code]</p>
+<p>It may seem that there’s none a priori. In fact, we have to take into account that in Scala, when we use structural types we experience some compile-time overhead because it has to be inferred if the type at issue meets the restrictions that the structural type imposes.</p>
+<p><strong>Then what <del>the hell</del> do structural types offer?</strong></p>
+<p>Quite simple: up until now, we have been assuming that our implementation is 100% <em>home-made</em>. But, what if we are using a framework or a third-party library and the authors are so nice that they declare classes as final or define sealed traits (even private at certain scope)?</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/04/tgwoyyo.gif"><img class=" size-medium wp-image-196 aligncenter" src="/assets/tgwoyyo.gif?w=300" alt="tGWoYYo" width="300" height="170" /></a></p>
+<p>Well, apart from them having every right to do so, we wouldn’t be able to do anything like this:</p>
+<p>[code language="scala"]<br />
+package some.private.library {</p>
+<p>  sealed trait TraitIWantToExtend {<br />
+    val member1: Int<br />
+    def method2(): Boolean<br />
+  }</p>
+<p>  private[some.private] class ClassIMaybeWantToMock extends TraitIWantToExtend {<br />
+    val member1 = 2<br />
+    def method2() = true<br />
+  }</p>
+<p>}</p>
+<p>package my.package {</p>
+<p>  class MyClass extends TraitIWantToExtend {// nuke-explosion in scalac!<br />
+    val member1 = 3<br />
+    def method2() = false<br />
+  }</p>
+<p>  def methodToRun[T&lt;:TraitIWantToExtend](obj: T) {<br />
+    println(obj.member1)<br />
+    println(obj.method2())<br />
+  }</p>
+<p>}<br />
+[/code]</p>
+<p>However, if we apply everything we have learnt until now, we can extract the core of the features <strong>we are interested in</strong> and that are common between our class and the class defined in the third party library:</p>
+<p>[code language="scala"]<br />
+package my.package {</p>
+<p>  type CommonFeatures = {<br />
+    val member1: Int<br />
+    def method2(): Boolean<br />
+  }</p>
+<p>  class MyClass {// no nuke explosion now ^^<br />
+    val member1 = 3<br />
+    def method2() = false<br />
+  }</p>
+<p>  def methodToRun[T&lt;:CommonFeatures](obj: T) {<br />
+    println(obj.member1)<br />
+    println(obj.method2())<br />
+  }</p>
+<p>}<br />
+[/code]</p>
+<p>So, just as with about everything in life, we do not recommend the abuse of this feature. Nevertheless, when facing situations similar to the ones exposed above, it can be really useful.</p>
+<p>Peace out friends!</p>

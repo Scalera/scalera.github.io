@@ -1,0 +1,71 @@
+<p>From the makers of ‘Anonymous classes’ comes… <strong>anonymous functions</strong>. Or as friends call them: <strong>lambda expressions</strong>. Anonymous functions, as we already saw in a previous <a title="Seeking anonymity. Anonymous classes" href="https://scalerablog.wordpress.com/2015/05/29/seeking-anonymity-anonymous-classes/">post</a>, are functions that don’t need to be declared previously. Let’s see an example: A function which returns the length of a <em>String</em> removing any blank space in it could be defined as:</p>
+<p>[code language="scala"]<br />
+  def length(s: String): Int = s.replaceAll(&quot; &quot;, &quot;&quot;).length<br />
+[/code]</p>
+<p>Its equivalent anonymous function would be:</p>
+<p>[code language="scala"]<br />
+  (s: String) =&gt; s.replaceAll(&quot; &quot;, &quot;&quot;).length<br />
+[/code]</p>
+<p>The type of this expression is: <em>String =&gt; Int</em></p>
+<p><strong>Where can we use anonymous functions?</strong></p>
+<p>The most common way to use them is in function that accept other functions as parameter. This type of functions are called <strong>Higher Order Functions</strong>. Functions that return a function as result are also known as higher order functions. Fantastic, extraordinary… an example, please? Thanks to our unlimited imagination, we’ll create a simple integer calculator. Let’s define our calculator in the following way:</p>
+<p>[code language="scala"]<br />
+  object Calculator {</p>
+<p>    def sum(n1: Int, n2: Int): Int = n1 + n2</p>
+<p>    def subtract(n1: Int, n2: Int): Int = n1 - n2</p>
+<p>    def multiplicate(n1: Int, n2: Int): Int = n1 * n2</p>
+<p>    def divide(n1: Int, n2: Int): Int = n1 / n2<br />
+  }<br />
+[/code]</p>
+<p>Hmmmm, cool. A class with some methods in it. It works but… what if we try and take a more generic turn?<br />
+<a href="https://scalerablog.files.wordpress.com/2015/05/meme-functions.jpg"><img class="  wp-image-400 aligncenter" src="/assets/meme-functions.jpg?w=300" alt="meme-functions" width="245" height="214" /></a></p>
+<p>What we really want is to apply a binary operation. That operation, given two integers, will return a new integer. We could say that we need a method like this:</p>
+<p>[code language="scala"]<br />
+  def calculate(n1: Int, n2: Int)(operation:(Int, Int) =&gt; Int) =<br />
+    operation(n1, n2)<br />
+[/code]</p>
+<p>As can be appreciated, we are actually passing a function as parameter. We are using an anonymous function. In order to make it more readable, we can create a new type that represents the integer binary operation: <em>(Int, Int) =&gt; Int</em>.</p>
+<p>[code language="scala"]<br />
+  type Operation = (Int, Int) =&gt; Int<br />
+[/code]</p>
+<p>And if we apply this to our calculate method:</p>
+<p>[code language="scala"]<br />
+  def calculate(n1: Int, n2: Int)(operation: Operation) =<br />
+    operation(n1, n2)<br />
+[/code]</p>
+<p>This method can be used in several ways:</p>
+<p>1) The easiest one: we insert a previously defined function.</p>
+<p>[code language="scala"]<br />
+  def addition(n1: Int, n2: Int) = n1 + n2</p>
+<p>calculate(1, 2)(addition) //returns 3<br />
+[/code]</p>
+<p>2) There is no function defined. Besides, the function is pretty simple and it won’t be used elsewhere in the code. All right then, we can use a lambda expression:</p>
+<p>[code language="scala"]<br />
+  calculate(1, 2)((n1: Int, n2: Int) =&gt; n1 + n2) //returns 3<br />
+[/code]</p>
+<p>As can be seen, in this case, an anonymous function is used to define the operation we want to apply to the two integers. It is a nimble and quick way to define functions. But that’s not all. Thanks to the type inference, we can avoid writing the type of the input parameters:</p>
+<p>[code language="scala"]<br />
+  calculate(1, 2)((n1, n2) =&gt; n1 + n2) //returns 3<br />
+[/code]</p>
+<p>And with a spoonful of syntactic sugar…</p>
+<p>[code language="scala"]<br />
+  calculate(1, 2)(_ + _) //returns 3<br />
+[/code]</p>
+<p><strong>What advantages do we have when compared to the object oriented implementation?</strong></p>
+<ul>
+<li>Our code is significantly reduced:</li>
+</ul>
+<p>[code language="scala"]<br />
+  object Calculator {</p>
+<p>    type Operation = (Int, Int) =&gt; Int</p>
+<p>    def calculate(n1: Int, n2: Int)(operation: Operation) =<br />
+      operation(n1, n2)<br />
+  }<br />
+[/code]</p>
+<ul>
+<li>We are not bound to use only the operations that we have hardcoded in our implementation. We can create more complex operations on the fly:</li>
+</ul>
+<p>[code language="scala"]<br />
+  calculate(1, 2)((n1, n2) =&gt; (n1 + n2) * (n1 - n2))<br />
+[/code]</p>
+<p>As it always happens in Scala, its misuse might lead to unpleasant consequences. In future posts, we’ll take a look at the dark side of lambda expressions. In the meantime, we shall remain naively happy.</p>

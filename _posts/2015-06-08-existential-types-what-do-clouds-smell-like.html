@@ -1,0 +1,163 @@
+---
+layout: post
+title: 'Existential types: what do clouds smell like?'
+date: 2015-06-08 11:00:49.000000000 +02:00
+type: post
+published: true
+status: publish
+categories:
+- English
+tags:
+- advanced
+- any
+- existential
+- invariance
+- scala
+- type
+- wildcard
+meta:
+  _edit_last: '59615419'
+  geo_public: '0'
+  _publicize_job_id: '11454199874'
+  _publicize_done_external: a:1:{s:7:"twitter";a:1:{i:10515941;s:57:"https://twitter.com/ScaleraBlog/status/607849618047524864";}}
+  _publicize_done_10471757: '1'
+  _wpas_done_10515941: '1'
+  publicize_twitter_user: ScaleraBlog
+author:
+  login: jpaniego
+  email: javiersantospaniego@gmail.com
+  display_name: Javier S. Paniego
+  first_name: ''
+  last_name: ''
+---
+<p>In Scala, it's pretty common to use wildcards to get rid of declaring parameter types and insist on it's not necessary knowing their type for executing our method/class associated logic.<br />
+Something like:</p>
+<p>[code language="scala"]<br />
+val myArray: Array[_] = Array(1,2,3)<br />
+[/code]</p>
+<p>Before talking about existential types, I think it's appropiate to give a little disclaimer about how heavy it can seem (better than a couple of pills with a shot).</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/05/tumblr_mgf4arkikk1rfq0ndo1_500.jpg"><img class=" size-medium wp-image-387 aligncenter" src="{{ site.baseurl }}/assets/tumblr_mgf4arkikk1rfq0ndo1_500.jpg?w=300" alt="tumblr_mgf4arKIkk1rfq0ndo1_500" width="300" height="221" /></a></p>
+<h3>Existential types</h3>
+<p>Let's suppose we have a method that returns cardinality of an element collection. If this collection is covariant in <em><strong>T</strong></em> ...</p>
+<p>[code language="scala"]<br />
+scala&gt; def count(elements: List[Any]): Int = elements.length<br />
+count: (elements: List[Any])Int<br />
+[/code]</p>
+<p>we would have no problems when invoking such method with</p>
+<p>[code language="scala"]<br />
+scala&gt; count(List[Int](1,2,3))<br />
+res0: Int = 3<br />
+[/code]</p>
+<p>However, if we try with a collection which is invariant in <em><strong>T</strong></em>...</p>
+<p>[code language="scala"]<br />
+scala&gt; def count(elements: Set[Any]): Int = elements.size<br />
+count: (elements: Set[Any])Int</p>
+<p>scala&gt; count(Set[Int](1,2,3))<br />
+&lt;console&gt;:9: error: type mismatch;<br />
+ found   : scala.collection.immutable.Set[Int]<br />
+ required: Set[Any]<br />
+Note: Int &lt;: Any, but trait Set is invariant in type A.<br />
+You may wish to investigate a wildcard type such as `_ &lt;: Any`. (SLS 3.2.10)<br />
+              count(Set[Int](1,2,3))<br />
+                            ^<br />
+[/code]</p>
+<p>Obvious. No surprise so far. A Set[Int] ain't a Set[Any]. If we want that our method accepts any kind of Set of elements, we can make it generic:</p>
+<p>[code language="scala"]<br />
+scala&gt; def count[T](elements: Set[T]): Int = elements.size<br />
+count: [T](elements: Set[T])Int</p>
+<p>scala&gt; count(Set[Int](1,2,3))<br />
+res0: Int = 3<br />
+[/code]</p>
+<p>Nevertheless, this forces us to add a pointless parameter type: it's just a way of making compiler happy, obviating the contained type.</p>
+<p>The proposed alternative is to define the parameter type inside the parameter signature, like this:</p>
+<p>[code language="scala"]<br />
+scala&gt; def count(elements: Set[T] forSome {type T}): Int = elements.size<br />
+count: (elements: Set[_])Int</p>
+<p>scala&gt; count(Set[Int](1,2,3))<br />
+res1: Int = 3<br />
+[/code]</p>
+<p>Existential types are in deed what underlies the syntactic sugar of wildcards. The equivalence with to 'yee-haa' notation is:</p>
+<p>[code language="scala"]<br />
+scala&gt; def count(elements: Set[_]): Int = elements.size<br />
+count: (elements: Set[_])Int</p>
+<p>scala&gt; count(Set[Int](1,2,3))<br />
+res2: Int = 3<br />
+[/code]</p>
+<h3>The twist</h3>
+<p>Significantly, about parameter definition, we can add some constraints (context bounds). For example, if we want to define a Set that contains every kind of primitive type...</p>
+<p>[code language="scala"]<br />
+scala&gt; def count(elements: Set[T] forSome {type T&lt;:AnyVal}): Int = elements.size<br />
+count: (elements: Set[_ &lt;: AnyVal])Int<br />
+[/code]</p>
+<p>Just realize that <em>REPL</em> is already returning the declared method with the 'yee-haa' notation. We can prove that context bounds work with:</p>
+<p>[code language="scala"]<br />
+scala&gt; count(Set(1,2,3))<br />
+res3: Int = 3</p>
+<p>scala&gt; count(Set(new{}))<br />
+&lt;console&gt;:9: error: type mismatch;<br />
+ found   : AnyRef<br />
+ required: AnyVal<br />
+Note that implicit conversions are not applicable because they are ambiguous:<br />
+ both method ArrowAssoc in object Predef of type [A](self: A)ArrowAssoc[A]<br />
+ and method Ensuring in object Predef of type [A](self: A)Ensuring[A]<br />
+ are possible conversion functions from AnyRef to AnyVal<br />
+              count(Set(new{}))<br />
+                        ^<br />
+[/code]</p>
+<p>Just when we try to invoke the method with a common AnyRef...<strong>BAZINGA!</strong>: the compiler jumps its prey like a cheetah.</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/05/91662.jpg"><img class=" size-medium wp-image-388 aligncenter" src="{{ site.baseurl }}/assets/91662.jpg?w=300" alt="91662" width="300" height="219" /></a></p>
+<p>A limitation is the impossibility of defining view bounds over the type <em><strong>T</strong></em>:</p>
+<p>[code language="scala"]<br />
+scala&gt; def count(elements: Set[T] forSome {type T&lt;%Int}): Int = elements.size<br />
+&lt;console&gt;:1: error: `=', `&gt;:', or `&lt;:' expected<br />
+       def count(elements: Set[T] forSome {type T&lt;%Int}): Int = elements.size<br />
+                                                 ^<br />
+[/code]</p>
+<p>In this case, we would have to get back to the original idea of parameterizing the method. If we wanted to define a method that added all the elements of a <em><strong>Set</strong></em>, and that all elements had a way to become a <em><strong>Double</strong></em>:</p>
+<p>[code language="scala"]<br />
+scala&gt; def sum[T&lt;%Double](elements: Set[T]): Double =<br />
+  (0.0 /: elements)((d1,d2) =&gt; d1 + d2)<br />
+sum: [T](elements: Set[T])(implicit evidence$1: T =&gt; Double)Double</p>
+<p>scala&gt; sum(Set[Int](1,2,3))<br />
+res9: Double = 6.0</p>
+<p>scala&gt; sum(Set[Float](1.0f,2.5f))<br />
+res10: Double = 3.5<br />
+[/code]</p>
+<h3>Twisting the twist (and seriously, you can't twist it anymore)</h3>
+<p>If we became philosophers, what would it happen if we used the following existential type?</p>
+<p>[code language="scala"]<br />
+T forSome {type T}<br />
+[/code]</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/05/982aad317c237d9fa918138b1c7bd020_1024.jpg"><img class=" size-medium wp-image-389 aligncenter" src="{{ site.baseurl }}/assets/982aad317c237d9fa918138b1c7bd020_1024.jpg?w=300" alt="982aad317c237d9fa918138b1c7bd020_1024" width="300" height="222" /></a></p>
+<p>Without opening a debate if the world is plain and it's hold by four elephants on the shell of a cosmic turtle...the type we refer to is <em><strong>Any</strong></em> (We will have a closer look at Any in future posts.).</p>
+<p>So, what's the main difference between the following definitions?</p>
+<p>[code language="scala"]<br />
+Set[T] forSome { type T }<br />
+Set[T forSome { type T }]<br />
+[/code]</p>
+<p><a href="https://scalerablog.files.wordpress.com/2015/05/my-eyes-messed-up_o_386883.gif"><img class=" wp-image-390 aligncenter" src="{{ site.baseurl }}/assets/my-eyes-messed-up_o_386883.gif?w=300" alt="my-eyes-messed-up_o_386883" width="258" height="205" /></a></p>
+<p>First type refers to all kind of Set (ignoring the contained type) while the second type, as we have said before, represents <em><strong>Set[Any]</strong></em>.</p>
+<p>Can't you still see the difference? Think in invariance terms, and with the help of a little piece of code. With first definition, already used in first examples of this post, we have that:</p>
+<p>[code language="scala"]<br />
+scala&gt; def count(elements: Set[T] forSome {type T}): Int = elements.size<br />
+count: (elements: Set[_])Int</p>
+<p>scala&gt; count(Set[Int](1,2,3))<br />
+res13: Int = 3</p>
+<p>scala&gt; count(Set[String](&quot;hi&quot;,&quot;bye&quot;))<br />
+res14: Int = 2<br />
+[/code]</p>
+<p>But if we change the method definition, using the second of the previously exposed forms, we will see that <em><strong>Set[Int]</strong></em> ain't a subtype of <em><strong>Set[Any]</strong></em>:</p>
+<p>[code language="scala"]<br />
+scala&gt; def count(elements: Set[T forSome {type T}]): Int = elements.size<br />
+count: (elements: Set[_])Int</p>
+<p>scala&gt; count(Set[Int](1,2,3))<br />
+&lt;console&gt;:9: error: type mismatch;<br />
+ found   : scala.collection.immutable.Set[Int]<br />
+ required: Set[T forSome { type T }]<br />
+Note: Int &lt;: T forSome { type T }, but trait Set is invariant in type A.<br />
+You may wish to investigate a wildcard type such as `_ &lt;: T forSome { type T }`. (SLS 3.2.10)<br />
+              count(Set[Int](1,2,3))<br />
+                            ^</p>
+<p>[/code]</p>
+<p>Mad enough? I hope you don't, just to keep reading further posts :)</p>
+<p>Peace out!</p>
